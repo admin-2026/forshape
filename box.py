@@ -2,28 +2,18 @@
 
 # from importlib import reload
 # reload(box)
-# box.Box.create_box('b2', 'XY_Plane', 10, 20, 5)
+# box.Box.create_box('b4', 'XY_Plane', 10, 20, 5)
 # box.Box.create_side_rounded_box('b3', 'XY_Plane', 10, 20, 5, 3)
 
 import FreeCAD as App
 import Part
 import Sketcher
 
+from shape import Shape
 
-class Box:
+class Box(Shape):
     @staticmethod
-    def _create_object(label):
-        App.activeDocument().addObject('PartDesign::Body', label)
-        return App.ActiveDocument.getObject(label)
-
-    @staticmethod
-    def _create_rect_sketch(sketch_label, obj, x, y):
-        obj.newObject('Sketcher::SketchObject', sketch_label)
-        sketch = App.ActiveDocument.getObject(sketch_label)
-        plane = App.activeDocument().getObject(plane_label)
-        sketch.AttachmentSupport = (plane,[''])
-        sketch.MapMode = 'FlatFace'
-
+    def _draw_rect_sketch(sketch, x, y):
         geoList = []
         geoList.append(Part.LineSegment(App.Vector(-10.0, -10.0, 0.0),App.Vector(10.0, -10.0, 0.0)))
         geoList.append(Part.LineSegment(App.Vector(10.0, -10.0, 0.0),App.Vector(10.0, 10.0, 0.0)))
@@ -53,23 +43,9 @@ class Box:
         sketch.addConstraint(Sketcher.Constraint('Coincident', 4, 1, -1, 1))
         sketch.addConstraint(Sketcher.Constraint('DistanceX',2,2,2,1,x))
         sketch.addConstraint(Sketcher.Constraint('DistanceY',1,1,1,2,y))
-        return sketch
-
-    @staticmethod
-    def _create_pad(pad_label, obj, sketch, z):
-        obj.newObject('PartDesign::Pad', pad_label)
-        pad = App.ActiveDocument.getObject(pad_label)
-        pad.Profile = (sketch, ['',])
-        pad.Length = z
-        # App.ActiveDocument.recompute()
-        pad.ReferenceAxis = (sketch,['N_Axis'])
-        return pad
     
     @staticmethod
-    def _create_rounded_rect_sketch(sketch_label, obj, x, y, r):
-        obj.newObject('Sketcher::SketchObject', sketch_label)
-        sketch = App.ActiveDocument.getObject(sketch_label)
-
+    def _draw_rounded_rect_sketch(sketch, x, y, r):
         geoList = []
         geoList.append(Part.LineSegment(App.Vector(9.0, -5.0, 0.0),App.Vector(9.0, 5.0, 0.0)))
         geoList.append(Part.LineSegment(App.Vector(1.0, 13.0, 0.0),App.Vector(-1.0, 13.0, 0.0)))
@@ -117,30 +93,30 @@ class Box:
         sketch.addConstraint(Sketcher.Constraint('DistanceY',2,2,2,1,y))
         sketch.addConstraint(Sketcher.Constraint('Radius',6,r))
 
-        return sketch
-
     @staticmethod
     def create_box(label, plane_label, x, y, z):
-        obj = Box._create_object(label)
+        obj = Shape._create_object(label)
 
         sketch_label = label+'_sketch'
-        sketch = Box._create_sketch(sketch_label, obj, x, y)
+        sketch = Shape._create_sketch(sketch_label, obj, plane_label)
+        Box._draw_rect_sketch(sketch, x, y)
 
         pad_label = label+'_pad'
-        pad = Box._create_pad(pad_label, obj, sketch, z)
+        pad = Shape._create_pad(pad_label, obj, sketch, z)
 
         sketch.Visibility = False
         App.ActiveDocument.recompute()
 
     @staticmethod
     def create_side_rounded_box(label, plane_label, x, y, z, r):
-        obj = Box._create_object(label)
+        obj = Shape._create_object(label)
 
         sketch_label = label+'_sketch'
-        sketch = Box._create_rounded_rect_sketch(sketch_label, obj, x, y, r)
+        sketch = Shape._create_sketch(sketch_label, obj, plane_label)
+        Box._draw_rounded_rect_sketch(sketch, x, y, r)
 
         pad_label = label+'_pad'
-        pad = Box._create_pad(pad_label, obj, sketch, z)
+        pad = Shape._create_pad(pad_label, obj, sketch, z)
 
         sketch.Visibility = False
         App.ActiveDocument.recompute()

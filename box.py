@@ -2,7 +2,7 @@
 
 # from importlib import reload
 # reload(box)
-# box.Box.create_box('b4', 'XY_Plane', 10, 20, 5)
+# box.Box.create_box('b5', 'XY_Plane', 1, 2, 5)
 # box.Box.create_side_rounded_box('b3', 'XY_Plane', 10, 20, 5, 3)
 
 import FreeCAD as App

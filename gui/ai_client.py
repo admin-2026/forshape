@@ -6,11 +6,6 @@ This module handles interaction with the OpenAI API for generating responses.
 
 from typing import List, Optional
 
-try:
-    from openai import OpenAI
-except ImportError:
-    OpenAI = None
-
 from .context_provider import ContextProvider
 
 
@@ -44,7 +39,10 @@ class AIClient:
         if not api_key:
             return None
 
-        if OpenAI is None:
+        # Import OpenAI here (lazy import) after libs directory has been added to sys.path
+        try:
+            from openai import OpenAI
+        except ImportError:
             print("Error: OpenAI library not available")
             return None
 

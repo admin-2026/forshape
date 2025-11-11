@@ -46,9 +46,13 @@ class ForShapeAI:
         success, error_msg = self.dependency_manager.check_and_install_openai()
 
         if not success:
-            print(f"\nError: Cannot initialize ForShapeAI - {error_msg}")
-            print("Please install the OpenAI library to use ForShape AI.\n")
-            raise RuntimeError(f"ForShapeAI requires OpenAI library: {error_msg}")
+            print(f"\n{'='*60}")
+            print(f"ERROR: Cannot initialize ForShapeAI")
+            print(f"{'='*60}")
+            print(f"\n{error_msg}")
+            print("\nPlease install the OpenAI library to use ForShape AI.")
+            print(f"{'='*60}\n")
+            return
 
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())

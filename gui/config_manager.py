@@ -24,7 +24,8 @@ class ConfigurationManager:
         self.history_dir = self.forshape_dir / "history"
         self.api_key_file = self.forshape_dir / "api-key"
         self.forshape_md_file = self.base_dir / "FORSHAPE.md"
-        self.libs_dir = Path(__file__).parent / "libs"
+        # libs is at project root, not in gui folder
+        self.libs_dir = Path(__file__).parent.parent / "libs"
 
     def setup_directories(self):
         """Setup .forshape and .forshape/history directories if they don't exist."""

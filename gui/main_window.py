@@ -6,7 +6,7 @@ This module provides the interactive GUI interface using PySide2.
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                                 QTextEdit, QLineEdit, QLabel)
-from PySide2.QtCore import QCoreApplication
+from PySide2.QtCore import QCoreApplication, QThread, Signal
 from PySide2.QtGui import QFont, QTextCursor
 
 from typing import TYPE_CHECKING
@@ -14,6 +14,34 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .ai_client import AIClient
     from .history_logger import HistoryLogger
+
+
+class AIWorker(QThread):
+    """Worker thread for handling AI API calls asynchronously."""
+
+    # Signal emitted when AI processing is complete (response or error)
+    finished = Signal(str, bool)  # (message, is_error)
+
+    def __init__(self, ai_client: 'AIClient', user_input: str):
+        """
+        Initialize the AI worker thread.
+
+        Args:
+            ai_client: The AIClient instance
+            user_input: The user's input to process
+        """
+        super().__init__()
+        self.ai_client = ai_client
+        self.user_input = user_input
+
+    def run(self):
+        """Run the AI request in a separate thread."""
+        try:
+            response = self.ai_client.process_request(self.user_input)
+            self.finished.emit(response, False)  # False = not an error
+        except Exception as e:
+            error_msg = f"Error processing request: {str(e)}"
+            self.finished.emit(error_msg, True)  # True = is an error
 
 
 class ForShapeMainWindow(QMainWindow):
@@ -35,6 +63,9 @@ class ForShapeMainWindow(QMainWindow):
         self.history_logger = history_logger
         self.handle_special_commands = special_commands_handler
         self.handle_exit = exit_handler
+        self.is_ai_busy = False  # Track if AI is currently processing
+        self.pending_input = ""  # Store pending user input when AI is busy
+        self.worker = None  # Current worker thread
         self.setup_ui()
 
     def setup_ui(self):
@@ -94,6 +125,12 @@ Start chatting to generate 3D shapes!
         if not user_input:
             return
 
+        # Check if AI is currently busy
+        if self.is_ai_busy:
+            # Show message that AI is busy without clearing the input
+            self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
+            return
+
         # Display user input
         self.append_message("You", user_input)
 
@@ -118,21 +155,40 @@ Start chatting to generate 3D shapes!
         # Force UI to update to show the processing indicator
         QCoreApplication.processEvents()
 
-        # Process AI request
-        try:
-            response = self.ai_client.process_request(user_input)
-            self.history_logger.log_conversation("assistant", response)
+        # Set busy state
+        self.is_ai_busy = True
 
-            # Remove the "Processing..." message and show actual response
-            self.remove_last_message()
-            self.append_message("AI", response)
-        except Exception as e:
-            error_msg = f"Error processing request: {str(e)}"
-            self.history_logger.log_conversation("error", error_msg)
+        # Create and start worker thread for AI processing
+        self.worker = AIWorker(self.ai_client, user_input)
+        self.worker.finished.connect(self.on_ai_response)
+        self.worker.start()
 
-            # Remove the "Processing..." message and show error
-            self.remove_last_message()
-            self.display_error(error_msg)
+    def on_ai_response(self, message: str, is_error: bool):
+        """
+        Handle AI response from worker thread.
+
+        Args:
+            message: The response message or error message
+            is_error: True if this is an error message, False otherwise
+        """
+        # Remove the "Processing..." message
+        self.remove_last_message()
+
+        # Display the response or error
+        if is_error:
+            self.history_logger.log_conversation("error", message)
+            self.display_error(message)
+        else:
+            self.history_logger.log_conversation("assistant", message)
+            self.append_message("AI", message)
+
+        # Reset busy state
+        self.is_ai_busy = False
+
+        # Clean up worker thread
+        if self.worker:
+            self.worker.deleteLater()
+            self.worker = None
 
     def append_message(self, role: str, message: str):
         """

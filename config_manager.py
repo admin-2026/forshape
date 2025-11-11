@@ -1,0 +1,90 @@
+"""
+Configuration management for ForShape AI.
+
+This module handles directory setup, API key management, and application configuration.
+"""
+
+import os
+from pathlib import Path
+from typing import Optional
+
+
+class ConfigurationManager:
+    """Manages configuration, directories, and API keys for ForShape AI."""
+
+    def __init__(self, base_dir: Optional[Path] = None):
+        """
+        Initialize the configuration manager.
+
+        Args:
+            base_dir: Base directory for the application (defaults to current working directory)
+        """
+        self.base_dir = base_dir or Path.cwd()
+        self.forshape_dir = self.base_dir / ".forshape"
+        self.history_dir = self.forshape_dir / "history"
+        self.api_key_file = self.forshape_dir / "api-key"
+        self.libs_dir = Path(__file__).parent / "libs"
+
+    def setup_directories(self):
+        """Setup .forshape and .forshape/history directories if they don't exist."""
+        if not self.forshape_dir.exists():
+            self.forshape_dir.mkdir(parents=True, exist_ok=True)
+            print(f"Created directory: {self.forshape_dir}")
+
+        if not self.history_dir.exists():
+            self.history_dir.mkdir(parents=True, exist_ok=True)
+            print(f"Created directory: {self.history_dir}")
+
+    def get_api_key(self) -> Optional[str]:
+        """
+        Get OpenAI API key from file or environment.
+
+        Returns:
+            API key string if found, None otherwise
+        """
+        api_key = None
+
+        # Try to read API key from file
+        if self.api_key_file.exists():
+            try:
+                with open(self.api_key_file, 'r', encoding='utf-8') as f:
+                    api_key = f.read().strip()
+            except Exception as e:
+                print(f"Error reading API key file: {e}")
+
+        # Fall back to environment variable
+        if not api_key:
+            api_key = os.environ.get('OPENAI_API_KEY')
+
+        if not api_key:
+            self._print_api_key_warning()
+
+        return api_key
+
+    def _print_api_key_warning(self):
+        """Print warning message when API key is not found."""
+        print("\nWarning: No OpenAI API key found!")
+        print(f"Please either:")
+        print(f"  1. Save your API key to: {self.api_key_file}")
+        print(f"  2. Set the OPENAI_API_KEY environment variable")
+        print("\nThe application will run but AI features will not work.\n")
+
+    def get_base_dir(self) -> Path:
+        """Get the base directory."""
+        return self.base_dir
+
+    def get_forshape_dir(self) -> Path:
+        """Get the .forshape directory."""
+        return self.forshape_dir
+
+    def get_history_dir(self) -> Path:
+        """Get the history directory."""
+        return self.history_dir
+
+    def get_api_key_file(self) -> Path:
+        """Get the API key file path."""
+        return self.api_key_file
+
+    def get_libs_dir(self) -> Path:
+        """Get the local libs directory."""
+        return self.libs_dir

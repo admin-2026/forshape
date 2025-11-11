@@ -23,6 +23,7 @@ class ConfigurationManager:
         self.forshape_dir = self.base_dir / ".forshape"
         self.history_dir = self.forshape_dir / "history"
         self.api_key_file = self.forshape_dir / "api-key"
+        self.forshape_md_file = self.base_dir / "FORSHAPE.md"
         self.libs_dir = Path(__file__).parent / "libs"
 
     def setup_directories(self):
@@ -34,6 +35,11 @@ class ConfigurationManager:
         if not self.history_dir.exists():
             self.history_dir.mkdir(parents=True, exist_ok=True)
             print(f"Created directory: {self.history_dir}")
+
+        # Create default FORSHAPE.md if it doesn't exist
+        if not self.forshape_md_file.exists():
+            self._create_default_forshape_md()
+            print(f"Created instruction file: {self.forshape_md_file}")
 
     def get_api_key(self) -> Optional[str]:
         """
@@ -88,3 +94,22 @@ class ConfigurationManager:
     def get_libs_dir(self) -> Path:
         """Get the local libs directory."""
         return self.libs_dir
+
+    def get_forshape_md_file(self) -> Path:
+        """Get the FORSHAPE.md file path."""
+        return self.forshape_md_file
+
+    def has_forshape_md(self) -> bool:
+        """Check if FORSHAPE.md exists."""
+        return self.forshape_md_file.exists()
+
+    def _create_default_forshape_md(self):
+        """Create a default FORSHAPE.md template file."""
+        default_content = """
+# Add any additional notes or context that would help the AI understand your project better.
+"""
+        try:
+            with open(self.forshape_md_file, 'w', encoding='utf-8') as f:
+                f.write(default_content)
+        except Exception as e:
+            print(f"Error creating default FORSHAPE.md: {e}")

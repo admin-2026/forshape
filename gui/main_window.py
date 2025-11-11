@@ -69,11 +69,13 @@ class ForShapeMainWindow(QMainWindow):
 
     def display_welcome(self):
         """Display welcome message in the conversation area."""
+        context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
         welcome_text = f"""
 {'='*60}
 Welcome to ForShape AI - Interactive 3D Shape Generator
 {'='*60}
 Using model: {self.ai_client.get_model()}
+Context: {context_status}
 
 Commands:
   /exit - Exit the program

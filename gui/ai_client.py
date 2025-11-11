@@ -11,21 +11,25 @@ try:
 except ImportError:
     OpenAI = None
 
+from .context_provider import ContextProvider
+
 
 class AIClient:
     """Handles interaction with OpenAI API."""
 
-    def __init__(self, api_key: Optional[str], model: str = "gpt-4"):
+    def __init__(self, api_key: Optional[str], model: str = "gpt-5", working_dir: Optional[str] = None):
         """
         Initialize the AI client.
 
         Args:
             api_key: OpenAI API key
-            model: Model identifier to use (default: gpt-4)
+            model: Model identifier to use (default: gpt-5)
+            working_dir: Working directory for context files (defaults to current directory)
         """
         self.model = model
         self.history: List[dict] = []
         self.client = self._initialize_client(api_key)
+        self.context_provider = ContextProvider(working_dir=working_dir)
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -64,17 +68,25 @@ class AIClient:
             return "Error: OpenAI client not initialized. Please check your API key."
 
         try:
+            # Get system message from context provider
+            system_message, forshape_context = self.context_provider.get_context()
+
+            # Augment user input with FORSHAPE.md context if available
+            augmented_input = user_input
+            if forshape_context:
+                augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{user_input}"
+
             # Add user message to history
             self.history.append({
                 "role": "user",
-                "content": user_input
+                "content": augmented_input
             })
 
             # Create system message for shape generation context
             messages = [
                 {
                     "role": "system",
-                    "content": "You are an AI assistant helping users create and manipulate 3D shapes using Python code. You can help generate shapes, apply transformations, and export models."
+                    "content": system_message
                 }
             ] + self.history
 

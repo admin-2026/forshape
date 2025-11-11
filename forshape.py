@@ -53,9 +53,10 @@ class ForShapeAI:
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
 
-        # Initialize AI client
+        # Initialize AI client with working directory for context
         api_key = self.config.get_api_key()
-        self.ai_client = AIClient(api_key, model or "gpt-4")
+        working_dir = str(self.config.get_base_dir())
+        self.ai_client = AIClient(api_key, model or "gpt-5", working_dir=working_dir)
 
         # GUI window (will be created in run())
         self.main_window = None

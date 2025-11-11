@@ -1,7 +1,7 @@
 """
-Command-line AI interactive interface for shape generation.
+GUI AI interactive interface for shape generation.
 
-This module provides an interactive command-line interface where users can
+This module provides an interactive GUI interface using PySide2 where users can
 interact with an AI to generate, manipulate, and export 3D shapes.
 
 Usage from Python REPL:
@@ -11,20 +11,151 @@ Usage from Python REPL:
     >>> ai.run()
 """
 
+# from importlib import reload
+# reload(forshape); from forshape import ForShapeAI; ai = ForShapeAI(); ai.run()
+
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
-from openai import OpenAI
+from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                                QTextEdit, QLineEdit, QLabel, QSplitter)
+from PySide2.QtCore import Qt, Signal, QObject
+from PySide2.QtGui import QFont, QTextCursor
+# from openai import OpenAI
+
+
+class ForShapeMainWindow(QMainWindow):
+    """Main window for the ForShape AI GUI application."""
+
+    def __init__(self, ai_instance):
+        """
+        Initialize the main window.
+
+        Args:
+            ai_instance: The ForShapeAI instance to connect with
+        """
+        super().__init__()
+        self.ai = ai_instance
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Setup the user interface components."""
+        self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
+        self.setMinimumSize(800, 600)
+
+        # Create central widget and layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
+
+        # Create conversation display area (read-only)
+        self.conversation_display = QTextEdit()
+        self.conversation_display.setReadOnly(True)
+        self.conversation_display.setFont(QFont("Consolas", 10))
+
+        # Create input field
+        input_label = QLabel("You:")
+        self.input_field = QLineEdit()
+        self.input_field.setFont(QFont("Consolas", 10))
+        self.input_field.setPlaceholderText("Type your message here... (/exit to quit, /help for commands)")
+        self.input_field.returnPressed.connect(self.on_user_input)
+
+        # Add widgets to layout
+        layout.addWidget(self.conversation_display, stretch=1)
+        layout.addWidget(input_label)
+        layout.addWidget(self.input_field)
+
+        # Display welcome message
+        self.display_welcome()
+
+    def display_welcome(self):
+        """Display welcome message in the conversation area."""
+        welcome_text = f"""
+{'='*60}
+Welcome to ForShape AI - Interactive 3D Shape Generator
+{'='*60}
+Using model: {self.ai.model}
+
+Commands:
+  /exit - Exit the program
+  /help - Show help (coming soon)
+
+Start chatting to generate 3D shapes!
+{'='*60}
+
+"""
+        self.conversation_display.append(welcome_text)
+
+    def on_user_input(self):
+        """Handle user input when Enter is pressed."""
+        user_input = self.input_field.text().strip()
+
+        if not user_input:
+            return
+
+        # Display user input
+        self.append_message("You", user_input)
+
+        # Clear input field
+        self.input_field.clear()
+
+        # Log user input
+        self.ai._log_conversation("user", user_input)
+
+        # Handle special commands
+        if self.ai.handle_special_commands(user_input):
+            if user_input.strip().lower() == "/exit":
+                self.close()
+            return
+
+        # Process AI request (currently disabled)
+        # response = self.ai.process_ai_request(user_input)
+        # self.ai._log_conversation("assistant", response)
+        # self.append_message("AI", response)
+
+        # Temporary placeholder response
+        response = "empty response"
+        self.append_message("AI", response)
+
+    def append_message(self, role: str, message: str):
+        """
+        Append a message to the conversation display.
+
+        Args:
+            role: The role (You, AI, Error, etc.)
+            message: The message content
+        """
+        formatted_message = f"\n{role}: {message}\n"
+        self.conversation_display.append(formatted_message)
+
+        # Scroll to bottom
+        cursor = self.conversation_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.conversation_display.setTextCursor(cursor)
+
+    def display_error(self, error_message: str):
+        """
+        Display an error message.
+
+        Args:
+            error_message: The error message to display
+        """
+        self.append_message("[ERROR]", error_message)
+
+    def closeEvent(self, event):
+        """Handle window close event."""
+        self.ai.handle_exit()
+        event.accept()
 
 
 class ForShapeAI:
-    """Main class for the AI-powered command-line interface."""
+    """Main class for the AI-powered GUI interface."""
 
     def __init__(self, model: Optional[str] = None):
         """
-        Initialize the command-line AI interface.
+        Initialize the GUI AI interface.
 
         Args:
             model: Optional AI model identifier to use
@@ -32,6 +163,7 @@ class ForShapeAI:
         self.model = model or "gpt-4"
         self.history: List[dict] = []
         self.running = True
+        self.main_window = None
 
         # Setup directories and history logging
         self.base_dir = Path.cwd()
@@ -42,7 +174,7 @@ class ForShapeAI:
 
         self._setup_directories()
         self._initialize_history_log()
-        self.client = self._initialize_openai_client()
+        # self.client = self._initialize_openai_client()
 
     def _setup_directories(self):
         """Setup .forshape and .forshape/history directories if they don't exist."""
@@ -70,31 +202,7 @@ class ForShapeAI:
             f.write(f"Session started: {timestamp}\n")
             f.write(f"{'='*60}\n\n")
 
-    def _initialize_openai_client(self) -> Optional[OpenAI]:
-        """
-        Initialize OpenAI client by loading API key from .forshape/api-key file.
 
-        Returns:
-            OpenAI client instance or None if API key not found
-        """
-        try:
-            if not self.api_key_file.exists():
-                print(f"Warning: API key file not found at {self.api_key_file}")
-                print("Please create the file and add your OpenAI API key.")
-                return None
-
-            with open(self.api_key_file, 'r', encoding='utf-8') as f:
-                api_key = f.read().strip()
-
-            if not api_key:
-                print("Warning: API key file is empty.")
-                return None
-
-            return OpenAI(api_key=api_key)
-
-        except Exception as e:
-            print(f"Error loading API key: {e}")
-            return None
 
     def _log_conversation(self, role: str, content: str):
         """
@@ -113,60 +221,18 @@ class ForShapeAI:
             f.write(f"{content}\n\n")
 
     def run(self):
-        """Start the interactive command-line interface."""
-        self.display_welcome()
+        """Start the interactive GUI interface."""
+        # Create QApplication if it doesn't exist
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
 
-        while self.running:
-            try:
-                user_input = self.get_user_input()
+        # Create and show main window
+        self.main_window = ForShapeMainWindow(self)
+        self.main_window.show()
 
-                if not user_input:
-                    continue
-
-                # Log user input
-                self._log_conversation("user", user_input)
-
-                if self.handle_special_commands(user_input):
-                    continue
-
-                response = self.process_ai_request(user_input)
-
-                # Log AI response
-                self._log_conversation("assistant", response)
-
-                self.display_response(response)
-
-            except KeyboardInterrupt:
-                self.handle_exit()
-            except Exception as e:
-                error_msg = f"Error: {str(e)}"
-                self._log_conversation("error", error_msg)
-                self.display_error(error_msg)
-
-    def display_welcome(self):
-        """Display welcome message and usage instructions."""
-        print("\n" + "="*60)
-        print("Welcome to ForShape AI - Interactive 3D Shape Generator")
-        print("="*60)
-        print(f"Using model: {self.model}")
-        print("\nCommands:")
-        print("  /exit - Exit the program")
-        print("  /help - Show help (coming soon)")
-        print("\nStart chatting to generate 3D shapes!")
-        print("="*60 + "\n")
-
-    def get_user_input(self) -> str:
-        """
-        Get input from the user.
-
-        Returns:
-            User input string
-        """
-        try:
-            user_input = input("You: ").strip()
-            return user_input
-        except EOFError:
-            return "/exit"
+        # Start Qt event loop
+        return app.exec_()
 
     def handle_special_commands(self, user_input: str) -> bool:
         """
@@ -182,10 +248,20 @@ class ForShapeAI:
 
         if command == "/exit":
             self.handle_exit()
-            print("Goodbye!")
             return True
 
-        # TODO: Implement other special commands (/help, /clear, etc.)
+        if command == "/help":
+            if self.main_window:
+                help_text = """Available commands:
+  /exit - Exit the program
+  /help - Show this help message
+  /clear - Clear conversation history (coming soon)
+
+Simply type your questions or requests to interact with the AI."""
+                self.main_window.append_message("System", help_text)
+            return True
+
+        # TODO: Implement other special commands (/clear, etc.)
 
         return False
 
@@ -199,8 +275,8 @@ class ForShapeAI:
         Returns:
             AI response string
         """
-        if self.client is None:
-            return "Error: OpenAI client not initialized. Please check your API key."
+        # if self.client is None:
+        #     return "Error: OpenAI client not initialized. Please check your API key."
 
         try:
             # Add user message to history
@@ -237,24 +313,6 @@ class ForShapeAI:
         except Exception as e:
             error_msg = f"Error processing AI request: {str(e)}"
             return error_msg
-
-    def display_response(self, response: str):
-        """
-        Display the AI's response to the user.
-
-        Args:
-            response: The AI's response string
-        """
-        print(f"\nAI: {response}\n")
-
-    def display_error(self, error_message: str):
-        """
-        Display an error message to the user.
-
-        Args:
-            error_message: The error message to display
-        """
-        print(f"\n[ERROR] {error_message}\n")
 
     def handle_exit(self):
         """Handle graceful exit of the application."""

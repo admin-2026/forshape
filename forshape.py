@@ -16,14 +16,120 @@ Usage from Python REPL:
 
 import os
 import sys
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                                QTextEdit, QLineEdit, QLabel, QSplitter)
+                                QTextEdit, QLineEdit, QLabel, QSplitter, QMessageBox)
 from PySide2.QtCore import Qt, Signal, QObject
 from PySide2.QtGui import QFont, QTextCursor
-# from openai import OpenAI
+
+# Module-level flag to track if OpenAI is available
+_OPENAI_AVAILABLE = False
+_OPENAI_ERROR_MESSAGE = ""
+
+# Setup local library directory - subdirectory where forshape.py lives
+_LOCAL_LIB_DIR = Path(__file__).parent / "libs"
+
+# Check if openai is installed
+def check_and_install_openai():
+    """
+    Check if openai library is installed. If not, prompt user to install it locally.
+
+    Returns:
+        tuple: (success: bool, error_message: str)
+    """
+    # Add local library directory to sys.path if it exists
+    if _LOCAL_LIB_DIR.exists() and str(_LOCAL_LIB_DIR) not in sys.path:
+        sys.path.insert(0, str(_LOCAL_LIB_DIR))
+
+    try:
+        import openai
+        return True, ""
+    except ImportError:
+        # Create a minimal QApplication if it doesn't exist (needed for dialog)
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication(sys.argv)
+
+        # Ask user if they want to install
+        reply = QMessageBox.question(
+            None,
+            'OpenAI Library Not Found',
+            'The OpenAI library is required but not installed.\n\n'
+            'Would you like to install it now using pip?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if reply == QMessageBox.No:
+            QMessageBox.information(
+                None,
+                'Installation Cancelled',
+                'OpenAI library is required to run ForShape AI.\n\n'
+                'Module will load but cannot be used.'
+            )
+            return False, "OpenAI library not installed. User declined installation."
+
+        # Try to install openai
+        try:
+            QMessageBox.information(
+                None,
+                'Installing',
+                f'Installing OpenAI library to:\n{_LOCAL_LIB_DIR}\n\n'
+                'This may take a moment. Click OK to continue.',
+                QMessageBox.Ok
+            )
+
+            # Create the libs subdirectory if it doesn't exist
+            _LOCAL_LIB_DIR.mkdir(parents=True, exist_ok=True)
+
+            # Install openai to the libs subdirectory using pip with --target flag
+            subprocess.check_call(['pip', 'install', '--target', str(_LOCAL_LIB_DIR), 'openai'])
+
+            # Add the local library directory to sys.path
+            if str(_LOCAL_LIB_DIR) not in sys.path:
+                sys.path.insert(0, str(_LOCAL_LIB_DIR))
+
+            QMessageBox.information(
+                None,
+                'Installation Complete',
+                f'OpenAI library has been successfully installed!\n\n'
+                f'Location: {_LOCAL_LIB_DIR}\n\n'
+                'The application will now start.',
+                QMessageBox.Ok
+            )
+            return True, ""
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to install OpenAI library: {str(e)}"
+            QMessageBox.critical(
+                None,
+                'Installation Failed',
+                f'{error_msg}\n\n'
+                f'Please install manually using:\npip install --target {_LOCAL_LIB_DIR} openai',
+                QMessageBox.Ok
+            )
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error during installation: {str(e)}"
+            QMessageBox.critical(
+                None,
+                'Installation Error',
+                f'{error_msg}\n\n'
+                f'Please install manually using:\npip install --target {_LOCAL_LIB_DIR} openai',
+                QMessageBox.Ok
+            )
+            return False, error_msg
+
+# Check for openai before importing
+_OPENAI_AVAILABLE, _OPENAI_ERROR_MESSAGE = check_and_install_openai()
+
+if _OPENAI_AVAILABLE:
+    from openai import OpenAI
+else:
+    OpenAI = None  # Placeholder when OpenAI is not available
 
 
 class ForShapeMainWindow(QMainWindow):
@@ -110,14 +216,15 @@ Start chatting to generate 3D shapes!
                 self.close()
             return
 
-        # Process AI request (currently disabled)
-        # response = self.ai.process_ai_request(user_input)
-        # self.ai._log_conversation("assistant", response)
-        # self.append_message("AI", response)
-
-        # Temporary placeholder response
-        response = "empty response"
-        self.append_message("AI", response)
+        # Process AI request
+        try:
+            response = self.ai.process_ai_request(user_input)
+            self.ai._log_conversation("assistant", response)
+            self.append_message("AI", response)
+        except Exception as e:
+            error_msg = f"Error processing request: {str(e)}"
+            self.ai._log_conversation("error", error_msg)
+            self.display_error(error_msg)
 
     def append_message(self, role: str, message: str):
         """
@@ -160,6 +267,12 @@ class ForShapeAI:
         Args:
             model: Optional AI model identifier to use
         """
+        # Check if OpenAI is available
+        if not _OPENAI_AVAILABLE:
+            print(f"\nError: Cannot initialize ForShapeAI - {_OPENAI_ERROR_MESSAGE}")
+            print("Please install the OpenAI library to use ForShape AI.\n")
+            raise RuntimeError(f"ForShapeAI requires OpenAI library: {_OPENAI_ERROR_MESSAGE}")
+
         self.model = model or "gpt-4"
         self.history: List[dict] = []
         self.running = True
@@ -174,7 +287,7 @@ class ForShapeAI:
 
         self._setup_directories()
         self._initialize_history_log()
-        # self.client = self._initialize_openai_client()
+        self.client = self._initialize_openai_client()
 
     def _setup_directories(self):
         """Setup .forshape and .forshape/history directories if they don't exist."""
@@ -202,7 +315,40 @@ class ForShapeAI:
             f.write(f"Session started: {timestamp}\n")
             f.write(f"{'='*60}\n\n")
 
+    def _initialize_openai_client(self):
+        """
+        Initialize the OpenAI client using API key from file or environment.
 
+        Returns:
+            OpenAI client instance or None if initialization fails
+        """
+        api_key = None
+
+        # Try to read API key from file
+        if self.api_key_file.exists():
+            try:
+                with open(self.api_key_file, 'r', encoding='utf-8') as f:
+                    api_key = f.read().strip()
+            except Exception as e:
+                print(f"Error reading API key file: {e}")
+
+        # Fall back to environment variable
+        if not api_key:
+            api_key = os.environ.get('OPENAI_API_KEY')
+
+        if not api_key:
+            print("\nWarning: No OpenAI API key found!")
+            print(f"Please either:")
+            print(f"  1. Save your API key to: {self.api_key_file}")
+            print(f"  2. Set the OPENAI_API_KEY environment variable")
+            print("\nThe application will run but AI features will not work.\n")
+            return None
+
+        try:
+            return OpenAI(api_key=api_key)
+        except Exception as e:
+            print(f"Error initializing OpenAI client: {e}")
+            return None
 
     def _log_conversation(self, role: str, content: str):
         """
@@ -275,8 +421,8 @@ Simply type your questions or requests to interact with the AI."""
         Returns:
             AI response string
         """
-        # if self.client is None:
-        #     return "Error: OpenAI client not initialized. Please check your API key."
+        if self.client is None:
+            return "Error: OpenAI client not initialized. Please check your API key."
 
         try:
             # Add user message to history

@@ -3,7 +3,7 @@ import FreeCAD as App
 import Part
 import Sketcher
 
-from shape import Shape
+from .shape import Shape
 
 # import cylinder
 # from importlib import reload

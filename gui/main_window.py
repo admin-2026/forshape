@@ -12,8 +12,8 @@ from PySide2.QtGui import QFont, QTextCursor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ai_client import AIClient
-    from history_logger import HistoryLogger
+    from .ai_client import AIClient
+    from .history_logger import HistoryLogger
 
 
 class ForShapeMainWindow(QMainWindow):

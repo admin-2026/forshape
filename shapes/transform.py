@@ -1,6 +1,6 @@
 import FreeCAD as App
 
-from context import Context
+from .context import Context
 
 class Transform:
     @staticmethod

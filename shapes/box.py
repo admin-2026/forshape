@@ -9,7 +9,7 @@ import FreeCAD as App
 import Part
 import Sketcher
 
-from shape import Shape
+from .shape import Shape
 
 class Box(Shape):
     @staticmethod

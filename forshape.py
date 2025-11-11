@@ -18,11 +18,13 @@ import sys
 from typing import Optional
 from PySide2.QtWidgets import QApplication
 
-from dependency_manager import DependencyManager
-from config_manager import ConfigurationManager
-from history_logger import HistoryLogger
-from ai_client import AIClient
-from main_window import ForShapeMainWindow
+from gui import (
+    DependencyManager,
+    ConfigurationManager,
+    HistoryLogger,
+    AIClient,
+    ForShapeMainWindow
+)
 
 
 class ForShapeAI:

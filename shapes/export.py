@@ -1,7 +1,7 @@
 import FreeCAD as App
 import os
 
-from context import Context
+from .context import Context
 
 class Export:
     @staticmethod

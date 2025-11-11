@@ -9,11 +9,6 @@ Location: `shape.py:3`
 
 Base class providing core functionality for creating FreeCAD objects, sketches, and pads.
 
-**Methods:**
-- `_create_object(label)` - Creates a PartDesign::Body object
-- `_create_sketch(sketch_label, parent_object, plane_label)` - Creates a sketch attached to a plane
-- `_create_pad(pad_label, parent_obj, sketch, z)` - Creates a pad (extrusion) from a sketch
-
 ### 2. Cylinder
 Location: `cylinder.py:13`
 
@@ -138,7 +133,7 @@ Provides spatial transformation operations for objects.
   - `degree` (float): Rotation angle in degrees
 - **Example:**
   ```python
-  Transform.rotate_to('cylinder1', 0, 1, 0, 45)  # Rotate 45 degrees around Y-axis
+  Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
 ### 6. Context
@@ -214,26 +209,17 @@ from transform import Transform
 from export import Export
 from context import Context
 
-# Create a box
 Box.create_box('main_box', 'XY_Plane', 20, 20, 10)
 
-# Create a cylinder
 Cylinder.create_cylinder('hole', 'XY_Plane', 5, 15)
 
-# Move cylinder to center of box
 Transform.translate_to('hole', 10, 10, -2.5)
 
-# Cut cylinder from box to create a hole
 Boolean.cut('box_with_hole', 'main_box', 'hole')
 
-# Print document structure
 Context.print_document()
 
-# Export result
 Export.export('main_box', 'C:/output/box_with_hole.step')
-
-# Clean up if needed
-# Context.remove_object('hole')
 ```
 
 ## Important Notes

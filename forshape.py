@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Optional, List
 from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                                 QTextEdit, QLineEdit, QLabel, QSplitter, QMessageBox)
-from PySide2.QtCore import Qt, Signal, QObject
+from PySide2.QtCore import Qt, Signal, QObject, QCoreApplication
 from PySide2.QtGui import QFont, QTextCursor
 
 # Module-level flag to track if OpenAI is available
@@ -207,6 +207,9 @@ Start chatting to generate 3D shapes!
         # Clear input field
         self.input_field.clear()
 
+        # Force UI to update immediately
+        QCoreApplication.processEvents()
+
         # Log user input
         self.ai._log_conversation("user", user_input)
 
@@ -216,14 +219,26 @@ Start chatting to generate 3D shapes!
                 self.close()
             return
 
+        # Show in-progress indicator
+        self.append_message("AI", "⏳ Processing...")
+
+        # Force UI to update to show the processing indicator
+        QCoreApplication.processEvents()
+
         # Process AI request
         try:
             response = self.ai.process_ai_request(user_input)
             self.ai._log_conversation("assistant", response)
+
+            # Remove the "Processing..." message and show actual response
+            self.remove_last_message()
             self.append_message("AI", response)
         except Exception as e:
             error_msg = f"Error processing request: {str(e)}"
             self.ai._log_conversation("error", error_msg)
+
+            # Remove the "Processing..." message and show error
+            self.remove_last_message()
             self.display_error(error_msg)
 
     def append_message(self, role: str, message: str):
@@ -236,6 +251,34 @@ Start chatting to generate 3D shapes!
         """
         formatted_message = f"\n{role}: {message}\n"
         self.conversation_display.append(formatted_message)
+
+        # Scroll to bottom
+        cursor = self.conversation_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.conversation_display.setTextCursor(cursor)
+
+    def remove_last_message(self):
+        """Remove the last message from the conversation display."""
+        # Get current text
+        text = self.conversation_display.toPlainText()
+
+        # Find the last occurrence of a message (starting with \n)
+        lines = text.split('\n')
+
+        # Remove trailing empty lines and the last message block
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        # Remove the last message line (e.g., "AI: Processing...")
+        if lines:
+            lines.pop()
+
+        # Remove the empty line before the message if present
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        # Set the modified text back
+        self.conversation_display.setPlainText('\n'.join(lines) + '\n')
 
         # Scroll to bottom
         cursor = self.conversation_display.textCursor()

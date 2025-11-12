@@ -21,16 +21,53 @@ class Boolean:
         """
         primary = Context.get_object(primary)
 
-        ### Begin command PartDesign_Boolean
-        primary.newObject('PartDesign::Boolean', label)
-        boolean_obj = App.ActiveDocument.getObject(label)
-        ### End command PartDesign_Boolean
-
         # Handle secondary as either a list or a single object
         if isinstance(secondary, list):
             secondary_objects = [Context.get_object(obj) for obj in secondary]
         else:
             secondary_objects = [Context.get_object(secondary)]
+
+        # Try to get existing boolean object with the same label
+        existing_boolean = App.ActiveDocument.getObject(label)
+
+        if existing_boolean is not None:
+            # Check the type of the existing object
+            if existing_boolean.TypeId != 'PartDesign::Boolean':
+                # Not a Boolean, remove it and create new
+                Context.remove_object(existing_boolean)
+                existing_boolean = None
+            else:
+                # Check if the parent is the same as the primary object
+                existing_parent = existing_boolean.getParent()
+                if existing_parent != primary:
+                    # Different parent, remove and recreate
+                    Context.remove_object(existing_boolean)
+                    existing_boolean = None
+                else:
+                    # Boolean exists with correct parent, update its properties
+                    needs_recompute = False
+
+                    # Update boolean type
+                    if existing_boolean.Type != boolean_type:
+                        existing_boolean.Type = boolean_type
+                        needs_recompute = True
+
+                    # Update secondary objects
+                    current_objects = existing_boolean.Group
+                    if current_objects != secondary_objects:
+                        existing_boolean.setObjects(secondary_objects)
+                        needs_recompute = True
+
+                    if needs_recompute:
+                        App.ActiveDocument.recompute()
+
+                    return
+
+        # Create new boolean object if it doesn't exist
+        ### Begin command PartDesign_Boolean
+        primary.newObject('PartDesign::Boolean', label)
+        boolean_obj = App.ActiveDocument.getObject(label)
+        ### End command PartDesign_Boolean
 
         boolean_obj.setObjects(secondary_objects)
         boolean_obj.Type = boolean_type

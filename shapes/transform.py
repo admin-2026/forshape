@@ -11,9 +11,12 @@ class Transform:
             print(f'Object not found')
             return
 
-        # Set the object's placement base to the new position
-        obj.Placement.Base = App.Vector(x, y, z)
-        App.ActiveDocument.recompute()
+        # Check if the object is already at the desired position
+        new_position = App.Vector(x, y, z)
+        if obj.Placement.Base != new_position:
+            # Set the object's placement base to the new position
+            obj.Placement.Base = new_position
+            App.ActiveDocument.recompute()
 
     @staticmethod
     def rotate_to(object_or_label, x, y, z, degree):
@@ -27,6 +30,8 @@ class Transform:
         axis = App.Vector(x, y, z)
         rotation = App.Rotation(axis, degree)
 
-        # Apply the rotation to the object's placement
-        obj.Placement.Rotation = rotation
-        App.ActiveDocument.recompute()
+        # Check if the object already has the desired rotation
+        if obj.Placement.Rotation != rotation:
+            # Apply the rotation to the object's placement
+            obj.Placement.Rotation = rotation
+            App.ActiveDocument.recompute()

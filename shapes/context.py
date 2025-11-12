@@ -79,6 +79,7 @@ class Context:
             print(f'object not found')
             return
         type_id = obj.TypeId
+        print(f'Removing object: {obj.Label} (Type: {type_id})')
         if type_id == 'Sketcher::SketchObject':
             App.ActiveDocument.removeObject(obj.Label)
             App.ActiveDocument.recompute()

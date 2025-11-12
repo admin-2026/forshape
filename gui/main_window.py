@@ -6,16 +6,83 @@ This module provides the interactive GUI interface using PySide2.
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
                                 QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton,
-                                QMenuBar, QAction)
-from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt
+                                QMenuBar, QAction, QDialog, QListWidget, QListWidgetItem,
+                                QDialogButtonBox)
+from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt, QProcess, QProcessEnvironment
 from PySide2.QtGui import QFont, QTextCursor, QColor
 
+import os
+import sys
+import glob
+import io
+import traceback
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
     from .history_logger import HistoryLogger
     from .logger import Logger
+
+
+class PythonFileSelector(QDialog):
+    """Dialog for selecting a Python file to run."""
+
+    def __init__(self, python_files, parent=None):
+        """
+        Initialize the file selector dialog.
+
+        Args:
+            python_files: List of Python file paths
+            parent: Parent widget
+        """
+        super().__init__(parent)
+        self.selected_file = None
+        self.setup_ui(python_files)
+
+    def setup_ui(self, python_files):
+        """Setup the dialog UI."""
+        self.setWindowTitle("Select Python File to Run")
+        self.setMinimumSize(400, 300)
+
+        layout = QVBoxLayout(self)
+
+        # Add label
+        label = QLabel("Select a Python file to run:")
+        label.setFont(QFont("Consolas", 10))
+        layout.addWidget(label)
+
+        # Add list widget
+        self.file_list = QListWidget()
+        self.file_list.setFont(QFont("Consolas", 9))
+
+        for file_path in python_files:
+            item = QListWidgetItem(file_path)
+            self.file_list.addItem(item)
+
+        self.file_list.itemDoubleClicked.connect(self.on_item_double_clicked)
+        layout.addWidget(self.file_list)
+
+        # Add button box
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.on_ok_clicked)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def on_item_double_clicked(self, item):
+        """Handle double-click on a list item."""
+        self.selected_file = item.text()
+        self.accept()
+
+    def on_ok_clicked(self):
+        """Handle OK button click."""
+        current_item = self.file_list.currentItem()
+        if current_item:
+            self.selected_file = current_item.text()
+            self.accept()
+
+    def get_selected_file(self):
+        """Return the selected file path."""
+        return self.selected_file
 
 
 class AIWorker(QThread):
@@ -148,8 +215,15 @@ class ForShapeMainWindow(QMainWindow):
         self.input_field.setPlaceholderText("Type your message here... (/exit to quit, /help for commands)")
         self.input_field.returnPressed.connect(self.on_user_input)
 
+        # Add Run button
+        self.run_button = QPushButton("Run Script")
+        self.run_button.setFont(QFont("Consolas", 10))
+        self.run_button.setToolTip("Run a Python script from the working directory")
+        self.run_button.clicked.connect(self.on_run_script)
+
         input_layout.addWidget(input_label)
         input_layout.addWidget(self.input_field, stretch=1)
+        input_layout.addWidget(self.run_button)
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
@@ -341,6 +415,112 @@ Start chatting to generate 3D shapes!
             self.log_widget.show()
             self.toggle_logs_action.setText("Hide Logs")
             self.toggle_logs_action.setChecked(True)
+
+    def scan_python_files(self):
+        """
+        Scan the working directory for Python files.
+
+        Returns:
+            List of Python file paths relative to the working directory
+        """
+        python_files = []
+
+        # Get working directory from context provider
+        working_dir = self.ai_client.context_provider.working_dir
+
+        # Find all .py files in the working directory (non-recursive)
+        pattern = os.path.join(working_dir, "*.py")
+        files = glob.glob(pattern)
+
+        # Convert to relative paths
+        for file_path in files:
+            rel_path = os.path.relpath(file_path, working_dir)
+            python_files.append(rel_path)
+
+        # Sort alphabetically
+        python_files.sort()
+
+        return python_files
+
+    def on_run_script(self):
+        """Handle Run Script button click."""
+        # Scan for Python files
+        python_files = self.scan_python_files()
+
+        if not python_files:
+            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
+            return
+
+        # Show file selector dialog
+        dialog = PythonFileSelector(python_files, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_file = dialog.get_selected_file()
+            if selected_file:
+                self.run_python_file(selected_file)
+
+    def run_python_file(self, file_path):
+        """
+        Run a Python file in the current Python context (FreeCAD's interpreter).
+
+        Args:
+            file_path: Path to the Python file to run
+        """
+        self.append_message("[SYSTEM]", f"Running: {file_path}")
+
+        # Get absolute path
+        abs_path = os.path.abspath(file_path)
+
+        if not os.path.exists(abs_path):
+            self.display_error(f"File not found: {file_path}")
+            return
+
+        # Add project directory to sys.path if not already there
+        project_dir = self.ai_client.context_provider.get_project_dir()
+        if project_dir not in sys.path:
+            sys.path.insert(0, project_dir)
+
+        try:
+            # Read the script content
+            with open(abs_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
+
+            # Capture stdout and stderr
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+
+            try:
+                # Execute the script in the current context
+                # This allows it to access FreeCAD's App.activeDocument()
+                exec(script_content, {'__name__': '__main__', '__file__': abs_path})
+
+                # Get captured output
+                stdout_output = sys.stdout.getvalue()
+                stderr_output = sys.stderr.getvalue()
+
+                # Display output if any
+                if stdout_output.strip():
+                    self.append_message("[OUTPUT]", stdout_output.strip())
+                if stderr_output.strip():
+                    self.append_message("[STDERR]", stderr_output.strip())
+
+                # Success message
+                self.append_message("[SYSTEM]", f"Finished running: {file_path}")
+
+            finally:
+                # Restore stdout and stderr
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+        except Exception as e:
+            # Restore stdout and stderr in case of error
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+            # Format and display the error
+            error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
+            self.display_error(error_msg)
 
     def closeEvent(self, event):
         """Handle window close event."""

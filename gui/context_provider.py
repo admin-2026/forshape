@@ -27,6 +27,7 @@ class ContextProvider:
 
         self.shapes_dir = shapes_dir
         self.working_dir = os.getcwd()
+        self.project_dir = os.path.dirname(self.shapes_dir)  # Parent of shapes_dir
         self.readme_path = os.path.join(self.shapes_dir, "README.md")
         self.forshape_path = os.path.join(self.working_dir, "FORSHAPE.md")
 
@@ -146,3 +147,7 @@ Use these tools proactively to provide a better user experience!"""
     def get_forshape_path(self) -> str:
         """Get the path to the FORSHAPE.md file."""
         return self.forshape_path
+
+    def get_project_dir(self) -> str:
+        """Get the path to the forshape project directory."""
+        return self.project_dir

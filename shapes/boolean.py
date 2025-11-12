@@ -28,7 +28,7 @@ class Boolean:
             secondary_objects = [Context.get_object(secondary)]
 
         # Try to get existing boolean object with the same label
-        existing_boolean = App.ActiveDocument.getObject(label)
+        existing_boolean = Context.get_object(label)
 
         if existing_boolean is not None:
             # Check the type of the existing object
@@ -66,7 +66,7 @@ class Boolean:
         # Create new boolean object if it doesn't exist
         ### Begin command PartDesign_Boolean
         primary.newObject('PartDesign::Boolean', label)
-        boolean_obj = App.ActiveDocument.getObject(label)
+        boolean_obj = Context.get_object(label)
         ### End command PartDesign_Boolean
 
         boolean_obj.setObjects(secondary_objects)

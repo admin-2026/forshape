@@ -23,7 +23,7 @@ class AdditiveBox(Shape):
             else:
                 # It's a Body, check if it has an AdditiveBox child
                 box_label = label + '_box'
-                existing_box = App.ActiveDocument.getObject(box_label)
+                existing_box = Context.get_object(box_label)
 
                 if existing_box is None or existing_box.TypeId != 'PartDesign::AdditiveBox':
                     # Body exists but no AdditiveBox child, remove and recreate
@@ -49,7 +49,7 @@ class AdditiveBox(Shape):
                         needs_recompute = True
 
                     # Update attachment plan
-                    plane_obj = App.ActiveDocument.getObject(plane_label)
+                    plane_obj = Context.get_object(plane_label)
                     current_plane = existing_box.AttachmentSupport[0][0] if existing_box.AttachmentSupport else None
                     if current_plane != plane_obj:
                         existing_box.AttachmentSupport = plane_obj
@@ -72,13 +72,13 @@ class AdditiveBox(Shape):
 
         box_label = label+'_box'
         App.ActiveDocument.addObject('PartDesign::AdditiveBox', box_label)
-        box = App.ActiveDocument.getObject(box_label)
+        box = Context.get_object(box_label)
         obj.addObject(box)
         box.Length=f'{length} mm'
         box.Width=f'{width} mm'
         box.Height=f'{height} mm'
 
-        box.AttachmentSupport = App.ActiveDocument.getObject(plane_label)
+        box.AttachmentSupport = Context.get_object(plane_label)
         box.MapMode = 'FlatFace'
         box.AttachmentOffset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
         App.ActiveDocument.recompute()

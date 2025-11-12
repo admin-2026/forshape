@@ -80,8 +80,15 @@ class Context:
         # Otherwise, treat as label and retrieve object
         if obj_or_label == App.ActiveDocument.Label:
             return App.ActiveDocument
-        return App.ActiveDocument.getObject(obj_or_label)
-
+        # Try to get by internal name first
+        obj = App.ActiveDocument.getObject(obj_or_label)
+        if obj is not None:
+            return obj
+        # If not found, try to get by label
+        objects = App.ActiveDocument.getObjectsByLabel(obj_or_label)
+        if objects:
+            return objects[0]
+        return None
 
     @staticmethod
     def print_document(verbose=False):

@@ -23,7 +23,7 @@ class AdditiveCylinder(Shape):
             else:
                 # It's a Body, check if it has an AdditiveCylinder child
                 cylinder_label = label + '_cylinder'
-                existing_cylinder = App.ActiveDocument.getObject(cylinder_label)
+                existing_cylinder = Context.get_object(cylinder_label)
 
                 if existing_cylinder is None or existing_cylinder.TypeId != 'PartDesign::AdditiveCylinder':
                     # Body exists but no AdditiveCylinder child, remove and recreate
@@ -56,7 +56,7 @@ class AdditiveCylinder(Shape):
                         needs_recompute = True
 
                     # Update attachment plan
-                    plane_obj = App.ActiveDocument.getObject(plane_label)
+                    plane_obj = Context.get_object(plane_label)
                     current_plane = existing_cylinder.AttachmentSupport[0][0] if existing_cylinder.AttachmentSupport else None
                     if current_plane != plane_obj:
                         existing_cylinder.AttachmentSupport = plane_obj
@@ -79,7 +79,7 @@ class AdditiveCylinder(Shape):
 
         cylinder_label = label+'_cylinder'
         App.ActiveDocument.addObject('PartDesign::AdditiveCylinder', cylinder_label)
-        cylinder = App.ActiveDocument.getObject(cylinder_label)
+        cylinder = Context.get_object(cylinder_label)
         obj.addObject(cylinder)
         cylinder.Radius=f'{radius} mm'
         cylinder.Height=f'{height} mm'
@@ -87,7 +87,7 @@ class AdditiveCylinder(Shape):
         cylinder.FirstAngle='0.00 °'
         cylinder.SecondAngle='0.00 °'
 
-        cylinder.AttachmentSupport = App.ActiveDocument.getObject(plane_label)
+        cylinder.AttachmentSupport = Context.get_object(plane_label)
         cylinder.MapMode = 'FlatFace'
         cylinder.AttachmentOffset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
         App.ActiveDocument.recompute()

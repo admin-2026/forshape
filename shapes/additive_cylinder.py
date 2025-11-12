@@ -22,5 +22,8 @@ class AdditiveCylinder(Shape):
         cylinder.SecondAngle='0.00 °'
 
         cylinder.AttachmentSupport = App.ActiveDocument.getObject(plane_label)
+        cylinder.MapMode = 'FlatFace'
         cylinder.AttachmentOffset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
         App.ActiveDocument.recompute()
+
+        return obj

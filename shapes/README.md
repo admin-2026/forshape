@@ -14,6 +14,8 @@ Location: `additive_cylinder.py:9`
 
 Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature with support for attachment offsets and rotation.
 
+The cylinder is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+
 **Public Methods:**
 
 `AdditiveCylinder.create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
@@ -41,6 +43,8 @@ Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature w
 Location: `additive_box.py:9`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
+
+The box is created with the bottom left corner on the plane origin. The height is extruded in the positive normal direction of the plane.
 
 **Public Methods:**
 

@@ -20,5 +20,8 @@ class AdditiveBox(Shape):
         box.Height=f'{height} mm'
 
         box.AttachmentSupport = App.ActiveDocument.getObject(plane_label)
+        box.MapMode = 'FlatFace'
         box.AttachmentOffset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
         App.ActiveDocument.recompute()
+
+        return obj

@@ -9,57 +9,61 @@ Location: `shape.py:3`
 
 Base class providing core functionality for creating FreeCAD objects, sketches, and pads.
 
-### 2. Cylinder
-Location: `cylinder.py:13`
+### 2. AdditiveCylinder
+Location: `additive_cylinder.py:9`
 
-Creates cylindrical shapes.
+Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature with support for attachment offsets and rotation.
 
 **Public Methods:**
 
-`Cylinder.create_cylinder(label, plane_label, r, height)`
+`AdditiveCylinder.create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
 - **Parameters:**
   - `label` (str): Name/label for the cylinder object
-  - `plane_label` (str): Plane to create on (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
-  - `r` (float): Radius of the cylinder
-  - `height` (float): Height/length of the cylinder
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
+  - `radius` (float): Radius of the cylinder in mm
+  - `height` (float): Height/length of the cylinder in mm
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from cylinder import Cylinder
-  Cylinder.create_cylinder('c1', 'XY_Plane', 5, 10)
+  from shapes.additive_cylinder import AdditiveCylinder
+  # Basic cylinder
+  AdditiveCylinder.create_cylinder('c1', 'XY_Plane', 5, 10)
+  # Cylinder with offset and rotation
+  AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, yaw=45)
   ```
 
-### 3. Box
-Location: `box.py:14`
+### 3. AdditiveBox
+Location: `additive_box.py:9`
 
-Creates rectangular box shapes with optional rounded edges.
+Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
 
 **Public Methods:**
 
-`Box.create_box(label, plane_label, x, y, z)`
+`AdditiveBox.create_box(label, plane_label, length, width, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
 - **Parameters:**
   - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to create on (e.g., 'XY_Plane')
-  - `x` (float): Width (X dimension)
-  - `y` (float): Depth (Y dimension)
-  - `z` (float): Height (Z dimension)
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
+  - `length` (float): Length dimension in mm
+  - `width` (float): Width dimension in mm
+  - `height` (float): Height dimension in mm
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from box import Box
-  Box.create_box('b1', 'XY_Plane', 10, 20, 5)
-  ```
-
-`Box.create_side_rounded_box(label, plane_label, x, y, z, r)`
-- **Parameters:**
-  - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to create on
-  - `x` (float): Width (X dimension)
-  - `y` (float): Depth (Y dimension)
-  - `z` (float): Height (Z dimension)
-  - `r` (float): Radius of rounded edges
-- **Example:**
-  ```python
-  from box import Box
-  Box.create_side_rounded_box('b2', 'XY_Plane', 10, 20, 5, 2)
+  from shapes.additive_box import AdditiveBox
+  # Basic box
+  AdditiveBox.create_box('b1', 'XY_Plane', 10, 20, 5)
+  # Box with offset and rotation
+  AdditiveBox.create_box('b2', 'XY_Plane', 10, 20, 5, x_offset=15, y_offset=10, pitch=30)
   ```
 
 ### 4. Boolean
@@ -77,7 +81,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   - `secondary` (str, object, or list): Secondary object(s) to fuse with
 - **Example:**
   ```python
-  from boolean import Boolean
+  from shapes.boolean import Boolean
   Boolean.fuse('fused', 'box1', 'box2')
   ```
 
@@ -119,7 +123,7 @@ Provides spatial transformation operations for objects.
   - `z` (float): Z coordinate
 - **Example:**
   ```python
-  from transform import Transform
+  from shapes.transform import Transform
   Transform.translate_to('box1', 10, 20, 5)
   ```
 
@@ -158,7 +162,7 @@ Utility class for managing and inspecting FreeCAD objects.
 - **Description:** Prints entire document structure
 - **Example:**
   ```python
-  from context import Context
+  from shapes.context import Context
   Context.print_document()
   ```
 
@@ -193,7 +197,7 @@ Exports FreeCAD objects to various file formats.
   - BREP (.brep) - Boundary representation
 - **Example:**
   ```python
-  from export import Export
+  from shapes.export import Export
   Export.export('box1', 'C:/output/mybox.step')
   Export.export('cylinder1', 'C:/output/cylinder.stl', 'stl')
   ```
@@ -202,24 +206,27 @@ Exports FreeCAD objects to various file formats.
 
 ```python
 import FreeCAD as App
-from box import Box
-from cylinder import Cylinder
-from boolean import Boolean
-from transform import Transform
-from export import Export
-from context import Context
+from shapes.additive_box import AdditiveBox
+from shapes.additive_cylinder import AdditiveCylinder
+from shapes.boolean import Boolean
+from shapes.transform import Transform
+from shapes.export import Export
+from shapes.context import Context
 
-Box.create_box('main_box', 'XY_Plane', 20, 20, 10)
+# Create a box with offset
+AdditiveBox.create_box('main_box', 'XY_Plane', 20, 20, 10)
 
-Cylinder.create_cylinder('hole', 'XY_Plane', 5, 15)
+# Create a cylinder with offset to position it
+AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offset=10)
 
-Transform.translate_to('hole', 10, 10, -2.5)
-
+# Cut the cylinder from the box
 Boolean.cut('box_with_hole', 'main_box', 'hole')
 
+# Print document structure
 Context.print_document()
 
-Export.export('main_box', 'C:/output/box_with_hole.step')
+# Export the result
+Export.export('box_with_hole', 'C:/output/box_with_hole.step')
 ```
 
 ## Important Notes

@@ -23,4 +23,5 @@ class Shape:
         pad.Length = z
         # App.ActiveDocument.recompute()
         pad.ReferenceAxis = (sketch,['N_Axis'])
+        pad.Midplane = 1
         return pad

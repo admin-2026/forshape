@@ -11,6 +11,7 @@ from .ai_agent import AIAgent
 from .main_window import ForShapeMainWindow
 from .context_provider import ContextProvider
 from .logger import Logger, LogLevel
+from .permission_manager import PermissionManager
 
 __all__ = [
     'DependencyManager',
@@ -21,4 +22,5 @@ __all__ = [
     'ContextProvider',
     'Logger',
     'LogLevel',
+    'PermissionManager',
 ]

@@ -11,6 +11,7 @@ from typing import List, Dict, Optional
 from .context_provider import ContextProvider
 from .logger import Logger
 from .tool_manager import ToolManager
+from .permission_manager import PermissionManager
 
 
 class AIAgent:
@@ -27,7 +28,8 @@ class AIAgent:
         context_provider: ContextProvider,
         model: str = "gpt-4o",
         max_iterations: int = 10,
-        logger: Optional[Logger] = None
+        logger: Optional[Logger] = None,
+        permission_manager: Optional[PermissionManager] = None
     ):
         """
         Initialize the AI agent.
@@ -38,13 +40,19 @@ class AIAgent:
             model: Model identifier to use (default: gpt-4o for tool calling)
             max_iterations: Maximum number of tool calling iterations (default: 10)
             logger: Optional logger for tool call logging
+            permission_manager: Optional PermissionManager instance for access control
         """
         self.model = model
         self.max_iterations = max_iterations
         self.history: List[Dict] = []
         self.client = self._initialize_client(api_key)
         self.context_provider = context_provider
-        self.tool_manager = ToolManager(context_provider.working_dir, logger)
+        self.permission_manager = permission_manager
+        self.tool_manager = ToolManager(
+            context_provider.working_dir,
+            logger,
+            self.permission_manager
+        )
         self._system_message_cache = None
         self.logger = logger
 

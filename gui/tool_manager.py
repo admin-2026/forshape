@@ -10,6 +10,7 @@ from typing import List, Dict, Callable, Any, Optional
 from pathlib import Path
 
 from .logger import Logger
+from .permission_manager import PermissionManager
 
 
 class ToolManager:
@@ -20,16 +21,23 @@ class ToolManager:
     for file system operations used by the AI agent.
     """
 
-    def __init__(self, working_dir: str, logger: Optional[Logger] = None):
+    def __init__(
+        self,
+        working_dir: str,
+        logger: Optional[Logger] = None,
+        permission_manager: Optional[PermissionManager] = None
+    ):
         """
         Initialize the tool manager.
 
         Args:
             working_dir: Working directory for file operations
             logger: Optional logger for tool call logging
+            permission_manager: Optional permission manager for access control
         """
         self.working_dir = working_dir
         self.logger = logger
+        self.permission_manager = permission_manager
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
 
@@ -144,6 +152,16 @@ class ToolManager:
         try:
             resolved_path = self._resolve_path(folder_path)
 
+            # Check permission
+            if self.permission_manager:
+                if not self.permission_manager.request_permission(
+                    str(resolved_path), "list", is_directory=True
+                ):
+                    return json.dumps({
+                        "error": f"Permission denied: {resolved_path}",
+                        "permission_denied": True
+                    })
+
             if not resolved_path.exists():
                 return json.dumps({
                     "error": f"Folder does not exist: {resolved_path}"
@@ -189,6 +207,16 @@ class ToolManager:
         try:
             resolved_path = self._resolve_path(file_path)
 
+            # Check permission
+            if self.permission_manager:
+                if not self.permission_manager.request_permission(
+                    str(resolved_path), "read", is_directory=False
+                ):
+                    return json.dumps({
+                        "error": f"Permission denied: {resolved_path}",
+                        "permission_denied": True
+                    })
+
             if not resolved_path.exists():
                 return json.dumps({
                     "error": f"File does not exist: {resolved_path}"
@@ -229,6 +257,16 @@ class ToolManager:
         """
         try:
             resolved_path = self._resolve_path(file_path)
+
+            # Check permission
+            if self.permission_manager:
+                if not self.permission_manager.request_permission(
+                    str(resolved_path), "write", is_directory=False
+                ):
+                    return json.dumps({
+                        "error": f"Permission denied: {resolved_path}",
+                        "permission_denied": True
+                    })
 
             # Handle file creation if it doesn't exist
             if not resolved_path.exists():

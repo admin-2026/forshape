@@ -17,6 +17,7 @@ Usage from Python REPL:
 import sys
 from typing import Optional
 from PySide2.QtWidgets import QApplication
+from PySide2.QtCore import QObject, Signal, QMutex, QWaitCondition
 
 from gui import (
     DependencyManager,
@@ -26,8 +27,75 @@ from gui import (
     ContextProvider,
     ForShapeMainWindow,
     Logger,
-    LogLevel
+    LogLevel,
+    PermissionManager
 )
+
+
+class PermissionDialogHelper(QObject):
+    """Helper class to show permission dialogs on the main thread using signals."""
+
+    # Signal to request permission dialog on main thread
+    request_permission = Signal(str, str)  # path, operation
+
+    def __init__(self, logger):
+        """Initialize the helper.
+
+        Args:
+            logger: Logger instance for logging
+        """
+        super().__init__()
+        self.logger = logger
+        self.mutex = QMutex()
+        self.wait_condition = QWaitCondition()
+        self.permission_result = False
+
+        # Connect signal to slot
+        self.request_permission.connect(self._show_dialog_slot)
+
+    def _show_dialog_slot(self, path: str, operation: str):
+        """Slot that shows the dialog on the main thread.
+
+        Args:
+            path: The path being accessed
+            operation: The operation being performed
+        """
+        from PySide2.QtWidgets import QMessageBox
+
+        try:
+            msg = QMessageBox()
+            msg.setWindowTitle("Permission Request")
+            msg.setText(f"The AI agent is requesting permission to {operation} a file/directory.")
+            msg.setInformativeText(f"Path: {path}")
+            msg.setIcon(QMessageBox.Question)
+
+            # Add buttons
+            allow_once = msg.addButton("Allow Once", QMessageBox.AcceptRole)
+            allow_session = msg.addButton("Allow for Session", QMessageBox.AcceptRole)
+            deny = msg.addButton("Deny", QMessageBox.RejectRole)
+
+            msg.exec_()
+            clicked = msg.clickedButton()
+
+            # Store result
+            self.mutex.lock()
+            if clicked == allow_once or clicked == allow_session:
+                self.permission_result = True
+                self.logger.info(f"Permission granted: {operation} on {path}")
+            else:
+                self.permission_result = False
+                self.logger.info(f"Permission denied: {operation} on {path}")
+
+            # Wake up the waiting thread
+            self.wait_condition.wakeAll()
+            self.mutex.unlock()
+
+        except Exception as e:
+            self.logger.error(f"Error showing permission dialog: {e}")
+            self.mutex.lock()
+            self.permission_result = False
+            self.wait_condition.wakeAll()
+            self.mutex.unlock()
 
 
 class ForShapeAI:
@@ -68,11 +136,23 @@ class ForShapeAI:
         self.logger = Logger(log_file=log_file, min_level=LogLevel.INFO)
         self.logger.info("ForShape AI initialized")
 
+        # Initialize permission dialog helper for cross-thread communication
+        self.permission_dialog_helper = PermissionDialogHelper(self.logger)
+
+        # Initialize permission manager with GUI callback
+        self.permission_manager = PermissionManager(self._permission_callback)
+
         # Initialize AI agent with context provider
         api_key = self.config.get_api_key()
         # Use gpt-4o for tool calling support, fallback to user's model choice
         agent_model = model if model else "gpt-4o"
-        self.ai_client = AIAgent(api_key, self.context_provider, model=agent_model, logger=self.logger)
+        self.ai_client = AIAgent(
+            api_key,
+            self.context_provider,
+            model=agent_model,
+            logger=self.logger,
+            permission_manager=self.permission_manager
+        )
 
         # GUI window (will be created in run())
         self.main_window = None
@@ -97,6 +177,41 @@ class ForShapeAI:
 
         # Start Qt event loop
         return app.exec_()
+
+    def _permission_callback(self, path: str, operation: str) -> bool:
+        """
+        GUI-based permission callback for file access.
+
+        This method uses signals and mutex/wait conditions to safely
+        show dialogs from worker threads.
+
+        Args:
+            path: The path being accessed
+            operation: The operation being performed (read, write, list)
+
+        Returns:
+            True if permission is granted, False otherwise
+        """
+        # Lock the mutex before emitting signal
+        helper = self.permission_dialog_helper
+        helper.mutex.lock()
+
+        # Emit signal to show dialog on main thread
+        helper.request_permission.emit(path, operation)
+
+        # Wait for the dialog to complete (max 60 seconds)
+        wait_result = helper.wait_condition.wait(helper.mutex, 60000)  # 60 second timeout
+
+        if not wait_result:
+            self.logger.error(f"Timeout waiting for permission response")
+            helper.mutex.unlock()
+            return False
+
+        # Get the result
+        result = helper.permission_result
+        helper.mutex.unlock()
+
+        return result
 
     def handle_special_commands(self, user_input: str, window: ForShapeMainWindow) -> bool:
         """

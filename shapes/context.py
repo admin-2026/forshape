@@ -8,54 +8,69 @@ import FreeCAD as App
 
 class Context:
     @staticmethod
-    def print_object(obj_or_label, indent=0):
+    def print_object(obj_or_label, indent=0, verbose=False):
         obj = Context.get_object(obj_or_label)
         prefix = '  ' * indent
         print(f'{prefix}{obj.Label}')
         type_id = obj.TypeId
         if type_id == 'Sketcher::SketchObject':
-            print(f'{prefix}  Type: SketchObject')
+            if verbose:
+                print(f'{prefix}  Type: SketchObject')
             return
         if type_id == 'PartDesign::Pad':
-            print(f'{prefix}  Type: Pad')
+            if verbose:
+                print(f'{prefix}  Type: Pad')
             return
         if type_id == 'PartDesign::Boolean':
-            # obj.Type returns the operation name as a string
-            operation = obj.Type if hasattr(obj, 'Type') else 'Unknown'
-            print(f'{prefix}  Type: Boolean')
-            print(f'{prefix}  Operation: {operation}')
-            # Print secondary operands
-            if hasattr(obj, 'Group') and obj.Group:
-                operand_labels = [operand.Label for operand in obj.Group]
-                print(f'{prefix}  Operands: {operand_labels}')
+            if verbose:
+                # obj.Type returns the operation name as a string
+                operation = obj.Type if hasattr(obj, 'Type') else 'Unknown'
+                print(f'{prefix}  Type: Boolean')
+                print(f'{prefix}  Operation: {operation}')
+                # Print secondary operands recursively
+                if hasattr(obj, 'Group') and obj.Group:
+                    print(f'{prefix}  Operands:')
+                    for operand in obj.Group:
+                        Context.print_object(operand, indent + 2, verbose)
             return
         if type_id == 'PartDesign::AdditiveBox':
-            print(f'{prefix}  Type: AdditiveBox')
-            print(f'{prefix}  Dimensions: Length={obj.Length}, Width={obj.Width}, Height={obj.Height}')
-            attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
-            print(f'{prefix}  Attachment: {attachment}')
-            print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+            if verbose:
+                print(f'{prefix}  Type: AdditiveBox')
+                print(f'{prefix}  Dimensions: Length={obj.Length}, Width={obj.Width}, Height={obj.Height}')
+                attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
+                print(f'{prefix}  Attachment: {attachment}')
+                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
             return
         if type_id == 'PartDesign::AdditiveCylinder':
-            print(f'{prefix}  Type: AdditiveCylinder')
-            print(f'{prefix}  Dimensions: Radius={obj.Radius}, Height={obj.Height}')
-            attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
-            print(f'{prefix}  Attachment: {attachment}')
-            print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+            if verbose:
+                print(f'{prefix}  Type: AdditiveCylinder')
+                print(f'{prefix}  Dimensions: Radius={obj.Radius}, Height={obj.Height}')
+                attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
+                print(f'{prefix}  Attachment: {attachment}')
+                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
             return
         if type_id == 'PartDesign::Body':
-            print(f'{prefix}  Type: Body')
+            if verbose:
+                print(f'{prefix}  Type: Body')
+                for child in obj.Group:
+                    Context.print_object(child, indent + 1, verbose)
+            return
+        if type_id == 'App::DocumentObjectGroup':
+            if verbose:
+                print(f'{prefix}  Type: DocumentObjectGroup')
             for child in obj.Group:
-                Context.print_object(child, indent + 1)
+                Context.print_object(child, indent + 1, verbose)
             return
         if type_id == 'App::Document':
-            print(f'{prefix}  Type: Document')
+            if verbose:
+                print(f'{prefix}  Type: Document')
             for child in obj.Objects:
-                # only print Body
-                if child.TypeId == 'PartDesign::Body':
-                    Context.print_object(child, indent + 1)
+                # only print top level object
+                if child.getParent() is None:
+                    Context.print_object(child, indent + 1, verbose)
             return
-        print(f'{prefix}  Unsupported object type: {type_id}')
+        if verbose:
+            print(f'{prefix}  Unsupported object type: {type_id}')
 
     @staticmethod
     def get_object(obj_or_label):
@@ -69,8 +84,8 @@ class Context:
 
 
     @staticmethod
-    def print_document():
-        Context.print_object(App.ActiveDocument)
+    def print_document(verbose=False):
+        Context.print_object(App.ActiveDocument, verbose=verbose)
 
     @staticmethod
     def remove_object(obj_or_label):

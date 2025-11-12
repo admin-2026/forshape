@@ -144,42 +144,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 6. Context
-Location: `context.py:9`
-
-Utility class for managing and inspecting FreeCAD objects.
-
-**Public Methods:**
-
-`Context.get_object(obj_or_label)`
-- **Description:** Retrieves FreeCAD object from label or returns object if already an object
-- **Parameters:**
-  - `obj_or_label` (str or object): Object label or object itself
-- **Returns:** FreeCAD object
-
-`Context.print_object(obj_or_label)`
-- **Description:** Prints object hierarchy/structure
-- **Parameters:**
-  - `obj_or_label` (str or object): Object or label to print
-
-`Context.print_document()`
-- **Description:** Prints entire document structure
-- **Example:**
-  ```python
-  from shapes.context import Context
-  Context.print_document()
-  ```
-
-`Context.remove_object(obj_or_label)`
-- **Description:** Removes object and its children from the document
-- **Parameters:**
-  - `obj_or_label` (str or object): Object or label to remove
-- **Example:**
-  ```python
-  Context.remove_object('box1')
-  ```
-
-### 7. Export
+### 6. Export
 Location: `export.py:6`
 
 Exports FreeCAD objects to various file formats.
@@ -226,11 +191,8 @@ AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offse
 # Cut the cylinder from the box
 Boolean.cut('box_with_hole', 'main_box', 'hole')
 
-# Print document structure
-Context.print_document()
-
 # Export the result
-Export.export('box_with_hole', 'C:/output/box_with_hole.step')
+Export.export('box_with_hole', 'box_with_hole.step')
 ```
 
 ## Important Notes
@@ -248,14 +210,10 @@ Export.export('box_with_hole', 'C:/output/box_with_hole.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Error Handling:** Most methods will print error messages if objects are not found or operations fail
-
 ## Tips for LLM Usage
 
-- Always ensure a FreeCAD document is active before using these classes
 - Use descriptive labels for objects to make them easy to reference later
 - Boolean operations can accept single objects or lists of objects for the secondary parameter
 - Transform operations use absolute positioning (not relative)
 - Export automatically creates directories if they don't exist
-- Use Context.print_document() to inspect the current object hierarchy
 - When performing multiple operations, consider the order: create shapes, transform them, then apply boolean operations

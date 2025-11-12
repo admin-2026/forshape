@@ -122,7 +122,7 @@ class AIAgent:
                 "type": "function",
                 "function": {
                     "name": "edit_file",
-                    "description": "Edit a file by replacing old content with new content. Performs a string replacement in the file.",
+                    "description": "Edit a file by replacing old content with new content. If the file doesn't exist, it will be created with the new_content. For new files, set old_content to an empty string.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -132,11 +132,11 @@ class AIAgent:
                             },
                             "old_content": {
                                 "type": "string",
-                                "description": "The exact content to be replaced in the file."
+                                "description": "The exact content to be replaced in the file. Use empty string for new files."
                             },
                             "new_content": {
                                 "type": "string",
-                                "description": "The new content to replace the old content with."
+                                "description": "The new content to replace the old content with. For new files, this is the entire file content."
                             }
                         },
                         "required": ["file_path", "old_content", "new_content"]
@@ -262,7 +262,7 @@ class AIAgent:
 
         Args:
             file_path: Path to the file to edit
-            old_content: Content to be replaced
+            old_content: Content to be replaced (empty string for new files)
             new_content: New content to insert
 
         Returns:
@@ -271,10 +271,20 @@ class AIAgent:
         try:
             resolved_path = self._resolve_path(file_path)
 
+            # Handle file creation if it doesn't exist
             if not resolved_path.exists():
+                # Create parent directories if they don't exist
+                resolved_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Create new file with new_content
+                with open(resolved_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+
                 return json.dumps({
-                    "error": f"File does not exist: {resolved_path}"
-                })
+                    "success": True,
+                    "file": str(resolved_path),
+                    "message": "File created successfully"
+                }, indent=2)
 
             if not resolved_path.is_file():
                 return json.dumps({

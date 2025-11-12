@@ -22,7 +22,7 @@ from gui import (
     DependencyManager,
     ConfigurationManager,
     HistoryLogger,
-    AIClient,
+    AIAgent,
     ForShapeMainWindow
 )
 
@@ -57,10 +57,12 @@ class ForShapeAI:
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
 
-        # Initialize AI client with working directory for context
+        # Initialize AI agent with working directory for file operations and context
         api_key = self.config.get_api_key()
         working_dir = str(self.config.get_base_dir())
-        self.ai_client = AIClient(api_key, model or "gpt-5", working_dir=working_dir)
+        # Use gpt-4o for tool calling support, fallback to user's model choice
+        agent_model = model if model else "gpt-4o"
+        self.ai_client = AIAgent(api_key, model=agent_model, working_dir=working_dir)
 
         # GUI window (will be created in run())
         self.main_window = None

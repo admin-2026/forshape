@@ -12,7 +12,7 @@ from PySide2.QtGui import QFont, QTextCursor
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .ai_client import AIClient
+    from .ai_agent import AIAgent
     from .history_logger import HistoryLogger
 
 
@@ -22,12 +22,12 @@ class AIWorker(QThread):
     # Signal emitted when AI processing is complete (response or error)
     finished = Signal(str, bool)  # (message, is_error)
 
-    def __init__(self, ai_client: 'AIClient', user_input: str):
+    def __init__(self, ai_client: 'AIAgent', user_input: str):
         """
         Initialize the AI worker thread.
 
         Args:
-            ai_client: The AIClient instance
+            ai_client: The AIAgent instance
             user_input: The user's input to process
         """
         super().__init__()
@@ -47,13 +47,13 @@ class AIWorker(QThread):
 class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
-    def __init__(self, ai_client: 'AIClient', history_logger: 'HistoryLogger',
+    def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
                  special_commands_handler, exit_handler):
         """
         Initialize the main window.
 
         Args:
-            ai_client: The AIClient instance for AI interactions
+            ai_client: The AIAgent instance for AI interactions
             history_logger: The HistoryLogger instance for logging
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit

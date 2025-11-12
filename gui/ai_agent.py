@@ -10,6 +10,8 @@ import json
 from typing import List, Dict, Optional, Callable, Any
 from pathlib import Path
 
+from .context_provider import ContextProvider
+
 
 class AIAgent:
     """
@@ -42,6 +44,8 @@ class AIAgent:
         self.client = self._initialize_client(api_key)
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
+        self.context_provider = ContextProvider(working_dir=str(self.working_dir))
+        self._system_message_cache = None
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -320,6 +324,44 @@ class AIAgent:
         except Exception as e:
             return json.dumps({"error": f"Tool execution error: {str(e)}"})
 
+    def process_request(self, user_input: str) -> str:
+        """
+        Process the user's request through the AI agent (compatible with AIClient interface).
+
+        This method is designed to be compatible with the existing ForShape GUI code
+        that expects an AIClient-like interface.
+
+        Args:
+            user_input: The user's input string
+
+        Returns:
+            AI response string
+        """
+        if self.client is None:
+            return "Error: OpenAI client not initialized. Please check your API key."
+
+        try:
+            # Get system message from context provider (only once, then cache it)
+            if self._system_message_cache is None:
+                system_message, forshape_context = self.context_provider.get_context(include_agent_tools=True)
+                self._system_message_cache = system_message
+            else:
+                system_message = self._system_message_cache
+                forshape_context = self.context_provider.load_forshape_context()
+
+            # Augment user input with FORSHAPE.md context if available
+            augmented_input = user_input
+            if forshape_context:
+                augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{user_input}"
+
+            # Use the run method with the context
+            response = self.run(augmented_input, system_message)
+            return response
+
+        except Exception as e:
+            error_msg = f"Error processing AI request: {str(e)}"
+            return error_msg
+
     def run(self, user_message: str, system_message: Optional[str] = None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
@@ -427,3 +469,12 @@ class AIAgent:
             Working directory path as string
         """
         return str(self.working_dir)
+
+    def get_model(self) -> str:
+        """
+        Get the model identifier being used.
+
+        Returns:
+            Model identifier string
+        """
+        return self.model

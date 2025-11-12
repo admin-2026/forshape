@@ -5,7 +5,8 @@ This module provides the interactive GUI interface using PySide2.
 """
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-                                QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton)
+                                QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton,
+                                QMenuBar, QAction)
 from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt
 from PySide2.QtGui import QFont, QTextCursor, QColor
 
@@ -81,6 +82,16 @@ class ForShapeMainWindow(QMainWindow):
         self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
         self.setMinimumSize(1000, 600)
 
+        # Create menu bar
+        menubar = self.menuBar()
+        view_menu = menubar.addMenu("View")
+
+        # Add toggle logs action
+        self.toggle_logs_action = QAction("Show Logs", self)
+        self.toggle_logs_action.setCheckable(True)
+        self.toggle_logs_action.triggered.connect(self.toggle_log_panel)
+        view_menu.addAction(self.toggle_logs_action)
+
         # Create central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -137,15 +148,8 @@ class ForShapeMainWindow(QMainWindow):
         self.input_field.setPlaceholderText("Type your message here... (/exit to quit, /help for commands)")
         self.input_field.returnPressed.connect(self.on_user_input)
 
-        # Toggle log button
-        self.toggle_log_button = QPushButton("Show Logs")
-        self.toggle_log_button.setFont(QFont("Consolas", 9))
-        self.toggle_log_button.setMaximumWidth(100)
-        self.toggle_log_button.clicked.connect(self.toggle_log_panel)
-
         input_layout.addWidget(input_label)
         input_layout.addWidget(self.input_field, stretch=1)
-        input_layout.addWidget(self.toggle_log_button)
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
@@ -331,10 +335,12 @@ Start chatting to generate 3D shapes!
         """Toggle the visibility of the log panel."""
         if self.log_widget.isVisible():
             self.log_widget.hide()
-            self.toggle_log_button.setText("Show Logs")
+            self.toggle_logs_action.setText("Show Logs")
+            self.toggle_logs_action.setChecked(False)
         else:
             self.log_widget.show()
-            self.toggle_log_button.setText("Hide Logs")
+            self.toggle_logs_action.setText("Hide Logs")
+            self.toggle_logs_action.setChecked(True)
 
     def closeEvent(self, event):
         """Handle window close event."""

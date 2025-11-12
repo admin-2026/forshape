@@ -23,6 +23,7 @@ from gui import (
     ConfigurationManager,
     HistoryLogger,
     AIAgent,
+    ContextProvider,
     ForShapeMainWindow,
     Logger,
     LogLevel
@@ -39,8 +40,11 @@ class ForShapeAI:
         Args:
             model: Optional AI model identifier to use
         """
-        # Initialize configuration manager
-        self.config = ConfigurationManager()
+        # Initialize context provider first - single source of truth for working directory
+        self.context_provider = ContextProvider()
+
+        # Initialize configuration manager with context provider
+        self.config = ConfigurationManager(self.context_provider)
         self.config.setup_directories()
 
         # Check and install dependencies
@@ -64,12 +68,11 @@ class ForShapeAI:
         self.logger = Logger(log_file=log_file, min_level=LogLevel.INFO)
         self.logger.info("ForShape AI initialized")
 
-        # Initialize AI agent with working directory for file operations and context
+        # Initialize AI agent with context provider
         api_key = self.config.get_api_key()
-        working_dir = str(self.config.get_base_dir())
         # Use gpt-4o for tool calling support, fallback to user's model choice
         agent_model = model if model else "gpt-4o"
-        self.ai_client = AIAgent(api_key, model=agent_model, working_dir=working_dir, logger=self.logger)
+        self.ai_client = AIAgent(api_key, self.context_provider, model=agent_model, logger=self.logger)
 
         # GUI window (will be created in run())
         self.main_window = None

@@ -6,20 +6,24 @@ This module handles directory setup, API key management, and application configu
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .context_provider import ContextProvider
 
 
 class ConfigurationManager:
     """Manages configuration, directories, and API keys for ForShape AI."""
 
-    def __init__(self, base_dir: Optional[Path] = None):
+    def __init__(self, context_provider: "ContextProvider"):
         """
         Initialize the configuration manager.
 
         Args:
-            base_dir: Base directory for the application (defaults to current working directory)
+            context_provider: ContextProvider instance to get working directory from
         """
-        self.base_dir = base_dir or Path.cwd()
+        self.context_provider = context_provider
+        self.base_dir = Path(context_provider.working_dir)
         self.forshape_dir = self.base_dir / ".forshape"
         self.history_dir = self.forshape_dir / "history"
         self.api_key_file = self.forshape_dir / "api-key"

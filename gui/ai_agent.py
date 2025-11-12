@@ -25,8 +25,8 @@ class AIAgent:
     def __init__(
         self,
         api_key: Optional[str],
+        context_provider: ContextProvider,
         model: str = "gpt-4o",
-        working_dir: Optional[str] = None,
         max_iterations: int = 10,
         logger: Optional[Logger] = None
     ):
@@ -35,19 +35,18 @@ class AIAgent:
 
         Args:
             api_key: OpenAI API key
+            context_provider: ContextProvider instance for file operations and context
             model: Model identifier to use (default: gpt-4o for tool calling)
-            working_dir: Working directory for file operations (defaults to current directory)
             max_iterations: Maximum number of tool calling iterations (default: 10)
             logger: Optional logger for tool call logging
         """
         self.model = model
-        self.working_dir = Path(working_dir) if working_dir else Path.cwd()
         self.max_iterations = max_iterations
         self.history: List[Dict] = []
         self.client = self._initialize_client(api_key)
+        self.context_provider = context_provider
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
-        self.context_provider = ContextProvider(working_dir=str(self.working_dir))
         self._system_message_cache = None
         self.logger = logger
 
@@ -170,7 +169,8 @@ class AIAgent:
         """
         path_obj = Path(path)
         if not path_obj.is_absolute():
-            path_obj = self.working_dir / path_obj
+            working_dir = Path(self.context_provider.working_dir)
+            path_obj = working_dir / path_obj
         return path_obj.resolve()
 
     def _tool_list_files(self, folder_path: str) -> str:
@@ -197,11 +197,12 @@ class AIAgent:
                 })
 
             items = []
+            working_dir = Path(self.context_provider.working_dir)
             for item in resolved_path.iterdir():
                 item_info = {
                     "name": item.name,
                     "type": "directory" if item.is_dir() else "file",
-                    "path": str(item.relative_to(self.working_dir)) if item.is_relative_to(self.working_dir) else str(item)
+                    "path": str(item.relative_to(working_dir)) if item.is_relative_to(working_dir) else str(item)
                 }
                 items.append(item_info)
 
@@ -504,7 +505,7 @@ class AIAgent:
         Returns:
             Working directory path as string
         """
-        return str(self.working_dir)
+        return self.context_provider.working_dir
 
     def get_model(self) -> str:
         """

@@ -13,24 +13,20 @@ from typing import Optional, Tuple
 class ContextProvider:
     """Provides context messages for AI interactions."""
 
-    def __init__(self, shapes_dir: Optional[str] = None, working_dir: Optional[str] = None):
+    def __init__(self, shapes_dir: Optional[str] = None):
         """
         Initialize the context provider.
 
         Args:
             shapes_dir: Path to shapes directory (defaults to ../shapes relative to this file)
-            working_dir: Working directory to search for FORSHAPE.md (defaults to current working directory)
         """
         if shapes_dir is None:
             # Get the directory of this file and go up one level to find shapes
             current_dir = os.path.dirname(os.path.abspath(__file__))
             shapes_dir = os.path.join(os.path.dirname(current_dir), "shapes")
 
-        if working_dir is None:
-            working_dir = os.getcwd()
-
         self.shapes_dir = shapes_dir
-        self.working_dir = working_dir
+        self.working_dir = os.getcwd()
         self.readme_path = os.path.join(self.shapes_dir, "README.md")
         self.forshape_path = os.path.join(self.working_dir, "FORSHAPE.md")
 

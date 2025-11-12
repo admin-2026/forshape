@@ -23,7 +23,9 @@ from gui import (
     ConfigurationManager,
     HistoryLogger,
     AIAgent,
-    ForShapeMainWindow
+    ForShapeMainWindow,
+    Logger,
+    LogLevel
 )
 
 
@@ -57,12 +59,17 @@ class ForShapeAI:
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
 
+        # Initialize logger for tool calls and system events
+        log_file = self.config.get_history_dir() / "system.log"
+        self.logger = Logger(log_file=log_file, min_level=LogLevel.INFO)
+        self.logger.info("ForShape AI initialized")
+
         # Initialize AI agent with working directory for file operations and context
         api_key = self.config.get_api_key()
         working_dir = str(self.config.get_base_dir())
         # Use gpt-4o for tool calling support, fallback to user's model choice
         agent_model = model if model else "gpt-4o"
-        self.ai_client = AIAgent(api_key, model=agent_model, working_dir=working_dir)
+        self.ai_client = AIAgent(api_key, model=agent_model, working_dir=working_dir, logger=self.logger)
 
         # GUI window (will be created in run())
         self.main_window = None
@@ -79,6 +86,7 @@ class ForShapeAI:
         self.main_window = ForShapeMainWindow(
             ai_client=self.ai_client,
             history_logger=self.history_logger,
+            logger=self.logger,
             special_commands_handler=self.handle_special_commands,
             exit_handler=self.handle_exit
         )

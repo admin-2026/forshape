@@ -4,16 +4,17 @@ Main window GUI for ForShape AI.
 This module provides the interactive GUI interface using PySide2.
 """
 
-from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
-                                QTextEdit, QLineEdit, QLabel)
-from PySide2.QtCore import QCoreApplication, QThread, Signal
-from PySide2.QtGui import QFont, QTextCursor
+from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
+                                QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton)
+from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt
+from PySide2.QtGui import QFont, QTextCursor, QColor
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
     from .history_logger import HistoryLogger
+    from .logger import Logger
 
 
 class AIWorker(QThread):
@@ -48,52 +49,106 @@ class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 special_commands_handler, exit_handler):
+                 logger: 'Logger', special_commands_handler, exit_handler):
         """
         Initialize the main window.
 
         Args:
             ai_client: The AIAgent instance for AI interactions
             history_logger: The HistoryLogger instance for logging
+            logger: The Logger instance for tool call logging
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
         """
         super().__init__()
         self.ai_client = ai_client
         self.history_logger = history_logger
+        self.logger = logger
         self.handle_special_commands = special_commands_handler
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
         self.pending_input = ""  # Store pending user input when AI is busy
         self.worker = None  # Current worker thread
+
+        # Connect logger signal to display handler
+        if self.logger:
+            self.logger.log_message.connect(self.on_log_message)
+
         self.setup_ui()
 
     def setup_ui(self):
         """Setup the user interface components."""
         self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 600)
 
         # Create central widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
 
-        # Create conversation display area (read-only)
+        # Create horizontal splitter for conversation and log
+        splitter = QSplitter(Qt.Horizontal)
+
+        # Left side: Conversation area
+        conversation_widget = QWidget()
+        conversation_layout = QVBoxLayout(conversation_widget)
+        conversation_layout.setContentsMargins(0, 0, 0, 0)
+
         self.conversation_display = QTextEdit()
         self.conversation_display.setReadOnly(True)
         self.conversation_display.setFont(QFont("Consolas", 10))
+        conversation_layout.addWidget(self.conversation_display)
 
-        # Create input field
+        # Right side: Log area
+        self.log_widget = QWidget()
+        log_layout = QVBoxLayout(self.log_widget)
+        log_layout.setContentsMargins(0, 0, 0, 0)
+
+        log_label = QLabel("System Logs")
+        log_label.setFont(QFont("Consolas", 10, QFont.Bold))
+        log_layout.addWidget(log_label)
+
+        self.log_display = QTextEdit()
+        self.log_display.setReadOnly(True)
+        self.log_display.setFont(QFont("Consolas", 9))
+        self.log_display.setMaximumHeight(600)
+        log_layout.addWidget(self.log_display)
+
+        # Add both sides to splitter
+        splitter.addWidget(conversation_widget)
+        splitter.addWidget(self.log_widget)
+
+        # Set initial splitter sizes (70% conversation, 30% logs)
+        splitter.setSizes([700, 300])
+
+        # Hide log panel by default
+        self.log_widget.hide()
+
+        main_layout.addWidget(splitter, stretch=1)
+
+        # Create input area with button
+        input_container = QWidget()
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(0, 0, 0, 0)
+
         input_label = QLabel("You:")
         self.input_field = QLineEdit()
         self.input_field.setFont(QFont("Consolas", 10))
         self.input_field.setPlaceholderText("Type your message here... (/exit to quit, /help for commands)")
         self.input_field.returnPressed.connect(self.on_user_input)
 
-        # Add widgets to layout
-        layout.addWidget(self.conversation_display, stretch=1)
-        layout.addWidget(input_label)
-        layout.addWidget(self.input_field)
+        # Toggle log button
+        self.toggle_log_button = QPushButton("Show Logs")
+        self.toggle_log_button.setFont(QFont("Consolas", 9))
+        self.toggle_log_button.setMaximumWidth(100)
+        self.toggle_log_button.clicked.connect(self.toggle_log_panel)
+
+        input_layout.addWidget(input_label)
+        input_layout.addWidget(self.input_field, stretch=1)
+        input_layout.addWidget(self.toggle_log_button)
+
+        # Add input container to main layout
+        main_layout.addWidget(input_container)
 
         # Display welcome message
         self.display_welcome()
@@ -242,6 +297,44 @@ Start chatting to generate 3D shapes!
             error_message: The error message to display
         """
         self.append_message("[ERROR]", error_message)
+
+    def on_log_message(self, level: str, message: str, timestamp: str):
+        """
+        Handle log messages from the logger.
+
+        Args:
+            level: Log level (DEBUG, INFO, WARN, ERROR)
+            message: Log message
+            timestamp: Timestamp of the log
+        """
+        # Color code based on log level
+        color_map = {
+            "DEBUG": "#888888",
+            "INFO": "#0066CC",
+            "WARN": "#FF8800",
+            "ERROR": "#CC0000"
+        }
+        color = color_map.get(level, "#000000")
+
+        # Format the log message with color
+        formatted_log = f'<span style="color: {color};">[{timestamp}] [{level}] {message}</span>'
+
+        # Append to log display
+        self.log_display.append(formatted_log)
+
+        # Scroll to bottom
+        cursor = self.log_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.log_display.setTextCursor(cursor)
+
+    def toggle_log_panel(self):
+        """Toggle the visibility of the log panel."""
+        if self.log_widget.isVisible():
+            self.log_widget.hide()
+            self.toggle_log_button.setText("Show Logs")
+        else:
+            self.log_widget.show()
+            self.toggle_log_button.setText("Hide Logs")
 
     def closeEvent(self, event):
         """Handle window close event."""

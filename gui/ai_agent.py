@@ -11,6 +11,7 @@ from typing import List, Dict, Optional, Callable, Any
 from pathlib import Path
 
 from .context_provider import ContextProvider
+from .logger import Logger
 
 
 class AIAgent:
@@ -26,7 +27,8 @@ class AIAgent:
         api_key: Optional[str],
         model: str = "gpt-4o",
         working_dir: Optional[str] = None,
-        max_iterations: int = 10
+        max_iterations: int = 10,
+        logger: Optional[Logger] = None
     ):
         """
         Initialize the AI agent.
@@ -36,6 +38,7 @@ class AIAgent:
             model: Model identifier to use (default: gpt-4o for tool calling)
             working_dir: Working directory for file operations (defaults to current directory)
             max_iterations: Maximum number of tool calling iterations (default: 10)
+            logger: Optional logger for tool call logging
         """
         self.model = model
         self.working_dir = Path(working_dir) if working_dir else Path.cwd()
@@ -46,6 +49,7 @@ class AIAgent:
         self.tool_functions = self._register_tool_functions()
         self.context_provider = ContextProvider(working_dir=str(self.working_dir))
         self._system_message_cache = None
+        self.logger = logger
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -316,13 +320,35 @@ class AIAgent:
             Tool execution result as string
         """
         if tool_name not in self.tool_functions:
-            return json.dumps({"error": f"Unknown tool: {tool_name}"})
+            error_msg = f"Unknown tool: {tool_name}"
+            if self.logger:
+                self.logger.error(error_msg)
+            return json.dumps({"error": error_msg})
+
+        # Log the tool call
+        args_str = ", ".join([f"{k}={repr(v)}" for k, v in tool_arguments.items()])
+        if self.logger:
+            self.logger.info(f"Tool call: {tool_name}({args_str})")
 
         tool_func = self.tool_functions[tool_name]
         try:
-            return tool_func(**tool_arguments)
+            result = tool_func(**tool_arguments)
+
+            # Check if result contains an error
+            try:
+                result_dict = json.loads(result)
+                if "error" in result_dict:
+                    if self.logger:
+                        self.logger.warn(f"Tool {tool_name} failed: {result_dict['error']}")
+            except (json.JSONDecodeError, TypeError):
+                pass  # Result is not JSON, which is fine
+
+            return result
         except Exception as e:
-            return json.dumps({"error": f"Tool execution error: {str(e)}"})
+            error_msg = f"Tool execution error: {str(e)}"
+            if self.logger:
+                self.logger.error(f"Tool {tool_name} error: {error_msg}")
+            return json.dumps({"error": error_msg})
 
     def process_request(self, user_input: str) -> str:
         """

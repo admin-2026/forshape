@@ -10,6 +10,7 @@ from .history_logger import HistoryLogger
 from .ai_agent import AIAgent
 from .main_window import ForShapeMainWindow
 from .context_provider import ContextProvider
+from .logger import Logger, LogLevel
 
 __all__ = [
     'DependencyManager',
@@ -18,4 +19,6 @@ __all__ = [
     'AIAgent',
     'ForShapeMainWindow',
     'ContextProvider',
+    'Logger',
+    'LogLevel',
 ]

@@ -8,6 +8,7 @@ from .dependency_manager import DependencyManager
 from .config_manager import ConfigurationManager
 from .history_logger import HistoryLogger
 from .ai_client import AIClient
+from .ai_agent import AIAgent
 from .main_window import ForShapeMainWindow
 from .context_provider import ContextProvider
 
@@ -16,6 +17,7 @@ __all__ = [
     'ConfigurationManager',
     'HistoryLogger',
     'AIClient',
+    'AIAgent',
     'ForShapeMainWindow',
     'ContextProvider',
 ]

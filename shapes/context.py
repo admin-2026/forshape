@@ -159,3 +159,27 @@ class Context:
             print('cannot remove document')
             return
         print(f'Unsupported object type: {type_id}')
+
+    @staticmethod
+    def rename_object(obj_or_label, new_label):
+        """
+        Rename an object by changing its Label property.
+
+        Args:
+            obj_or_label: The object or label/name to identify the object to rename
+            new_label: The new label for the object
+
+        Returns:
+            None
+        """
+        obj = Context.get_object(obj_or_label)
+        if obj is None:
+            print(f'object not found: {obj_or_label}')
+            return
+        if obj.TypeId == 'App::Document':
+            print('cannot rename document')
+            return
+        old_label = obj.Label
+        obj.Label = new_label
+        App.ActiveDocument.recompute()
+        print(f'Renamed object: "{old_label}" -> "{new_label}"')

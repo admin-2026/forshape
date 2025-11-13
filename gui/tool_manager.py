@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .logger import Logger
 from .permission_manager import PermissionManager
+from shapes.context import Context
 
 
 class ToolManager:
@@ -107,6 +108,102 @@ class ToolManager:
                         "required": ["file_path", "old_content", "new_content"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "print_object",
+                    "description": "Print information about a FreeCAD object by its label or name. Optionally prints recursively with verbose details.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "obj_or_label": {
+                                "type": "string",
+                                "description": "The object label, name, or the object itself to print information about."
+                            },
+                            "indent": {
+                                "type": "integer",
+                                "description": "Indentation level for nested objects (default: 0)."
+                            },
+                            "verbose": {
+                                "type": "boolean",
+                                "description": "If true, prints detailed information including object types and properties (default: false)."
+                            }
+                        },
+                        "required": ["obj_or_label"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "find_objects_by_regex",
+                    "description": "Scan all objects in the active FreeCAD document to find objects whose label, name, or label2 matches a regex pattern. Returns a list of matched strings and field names.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "pattern": {
+                                "type": "string",
+                                "description": "A regex pattern string to match against object attributes (Label, Name, or Label2)."
+                            }
+                        },
+                        "required": ["pattern"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "print_document",
+                    "description": "Print information about all objects in the active FreeCAD document.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "verbose": {
+                                "type": "boolean",
+                                "description": "If true, prints detailed information including object types and properties (default: false)."
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "rename_object",
+                    "description": "Rename a FreeCAD object by changing its Label property.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "obj_or_label": {
+                                "type": "string",
+                                "description": "The object label or internal name to identify the object to rename."
+                            },
+                            "new_label": {
+                                "type": "string",
+                                "description": "The new label for the object."
+                            }
+                        },
+                        "required": ["obj_or_label", "new_label"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "remove_object",
+                    "description": "Remove a FreeCAD object from the document. Handles different object types appropriately (Sketcher, Pad, Boolean, Body, etc.).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "obj_or_label": {
+                                "type": "string",
+                                "description": "The object label or internal name to identify the object to remove."
+                            }
+                        },
+                        "required": ["obj_or_label"]
+                    }
+                }
             }
         ]
 
@@ -120,7 +217,12 @@ class ToolManager:
         return {
             "list_files": self._tool_list_files,
             "read_file": self._tool_read_file,
-            "edit_file": self._tool_edit_file
+            "edit_file": self._tool_edit_file,
+            "print_object": self._tool_print_object,
+            "find_objects_by_regex": self._tool_find_objects_by_regex,
+            "print_document": self._tool_print_document,
+            "rename_object": self._tool_rename_object,
+            "remove_object": self._tool_remove_object
         }
 
     def _resolve_path(self, path: str) -> Path:
@@ -315,6 +417,187 @@ class ToolManager:
         except Exception as e:
             return json.dumps({"error": f"Error editing file: {str(e)}"})
 
+    def _tool_print_object(self, obj_or_label: str, indent: int = 0, verbose: bool = False) -> str:
+        """
+        Implementation of the print_object tool.
+
+        Args:
+            obj_or_label: The object label or name to print
+            indent: Indentation level for nested objects
+            verbose: If true, prints detailed information
+
+        Returns:
+            JSON string with success or error message
+        """
+        try:
+            import io
+            import sys
+
+            # Capture print output
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            Context.print_object(obj_or_label, indent=indent, verbose=verbose)
+
+            # Restore stdout
+            sys.stdout = sys.__stdout__
+
+            output = captured_output.getvalue()
+
+            return json.dumps({
+                "success": True,
+                "output": output
+            }, indent=2)
+
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            return json.dumps({"error": f"Error printing object: {str(e)}"})
+
+    def _tool_find_objects_by_regex(self, pattern: str) -> str:
+        """
+        Implementation of the find_objects_by_regex tool.
+
+        Args:
+            pattern: Regex pattern to match against object attributes
+
+        Returns:
+            JSON string with list of matches or error message
+        """
+        try:
+            matches = Context.find_objects_by_regex(pattern)
+
+            # Convert to list of dicts for better JSON representation
+            matches_list = [
+                {"matched_string": matched_str, "field_name": field_name}
+                for matched_str, field_name in matches
+            ]
+
+            return json.dumps({
+                "success": True,
+                "matches": matches_list,
+                "count": len(matches_list)
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({"error": f"Error finding objects by regex: {str(e)}"})
+
+    def _tool_print_document(self, verbose: bool = False) -> str:
+        """
+        Implementation of the print_document tool.
+
+        Args:
+            verbose: If true, prints detailed information
+
+        Returns:
+            JSON string with success or error message
+        """
+        try:
+            import io
+            import sys
+
+            # Capture print output
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            Context.print_document(verbose=verbose)
+
+            # Restore stdout
+            sys.stdout = sys.__stdout__
+
+            output = captured_output.getvalue()
+
+            return json.dumps({
+                "success": True,
+                "output": output
+            }, indent=2)
+
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            return json.dumps({"error": f"Error printing document: {str(e)}"})
+
+    def _tool_rename_object(self, obj_or_label: str, new_label: str) -> str:
+        """
+        Implementation of the rename_object tool.
+
+        Args:
+            obj_or_label: The object label or name to identify the object
+            new_label: The new label for the object
+
+        Returns:
+            JSON string with success or error message
+        """
+        try:
+            import io
+            import sys
+
+            # Capture print output
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            Context.rename_object(obj_or_label, new_label)
+
+            # Restore stdout
+            sys.stdout = sys.__stdout__
+
+            output = captured_output.getvalue()
+
+            # Check if there was an error message in the output
+            if "not found" in output or "cannot rename" in output:
+                return json.dumps({
+                    "success": False,
+                    "message": output.strip()
+                }, indent=2)
+
+            return json.dumps({
+                "success": True,
+                "message": output.strip()
+            }, indent=2)
+
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            return json.dumps({"error": f"Error renaming object: {str(e)}"})
+
+    def _tool_remove_object(self, obj_or_label: str) -> str:
+        """
+        Implementation of the remove_object tool.
+
+        Args:
+            obj_or_label: The object label or name to identify the object
+
+        Returns:
+            JSON string with success or error message
+        """
+        try:
+            import io
+            import sys
+
+            # Capture print output
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            Context.remove_object(obj_or_label)
+
+            # Restore stdout
+            sys.stdout = sys.__stdout__
+
+            output = captured_output.getvalue()
+
+            # Check if there was an error message in the output
+            if "not found" in output or "cannot remove" in output or "Unsupported" in output:
+                return json.dumps({
+                    "success": False,
+                    "message": output.strip()
+                }, indent=2)
+
+            return json.dumps({
+                "success": True,
+                "message": output.strip()
+            }, indent=2)
+
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            return json.dumps({"error": f"Error removing object: {str(e)}"})
+
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.
@@ -365,3 +648,77 @@ class ToolManager:
             List of tool definitions
         """
         return self.tools
+
+    @staticmethod
+    def get_tool_usage_instructions() -> str:
+        """
+        Get comprehensive tool usage instructions for the AI agent.
+
+        Returns:
+            Formatted string with tool usage instructions
+        """
+        return """
+
+## Available Tools
+
+You have access to the following tools:
+
+### File Management Tools
+1. **list_files** - List files and directories in any folder
+2. **read_file** - Read the contents of any file
+3. **edit_file** - Edit files by replacing content
+
+### FreeCAD Object Tools
+4. **print_object** - Print information about a FreeCAD object by label or name
+5. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
+6. **print_document** - Print information about all objects in the active document
+7. **rename_object** - Rename a FreeCAD object by changing its Label property
+8. **remove_object** - Remove a FreeCAD object from the document
+
+### Working with Generated Scripts
+
+When users ask you to generate or modify Python scripts for shapes:
+1. You can use your tools to **directly update the generated script files**
+2. You can read existing scripts to understand what's already been created
+3. You can edit scripts to fix issues, add features, or improve code
+4. Scripts are typically stored in the working directory or shapes folder
+
+### Working with FreeCAD Objects
+
+When users ask about objects in their FreeCAD document:
+1. Use **print_document** to see all objects in the scene
+2. Use **print_object** with verbose=true to get detailed information about specific objects
+3. Use **find_objects_by_regex** to search for objects by name patterns
+
+### Best Practices
+
+- When a user reports an error in a generated script, **read the script first** to understand the issue
+- After generating new code, you can **directly write or edit the script file** instead of just showing code
+- Use **list_files** to explore the project structure when needed
+- Always verify changes by reading the file after editing
+- Use **find_objects_by_regex** to locate objects when you need to reference them by pattern
+
+### Example Workflows
+
+**User says: "Add a red sphere to the scene"**
+→ Generate the code and either tell the user to save it, OR directly edit their current script file
+
+**User says: "The script has an error on line 15"**
+→ Read the script file, identify the issue, edit the file to fix it, confirm the fix
+
+**User says: "What scripts have I created?"**
+→ List files in the working directory to show them their generated scripts
+
+**User says: "Show me all objects in the document"**
+→ Use print_document with verbose=true to show the full object hierarchy
+
+**User says: "Find all boxes in the scene"**
+→ Use find_objects_by_regex with pattern like "box.*" or "Box.*"
+
+**User says: "Rename the box to 'MainBox'"**
+→ Use rename_object with obj_or_label="box" and new_label="MainBox"
+
+**User says: "Delete the sphere" or "Remove the cylinder"**
+→ Use remove_object with obj_or_label="sphere" or "cylinder"
+
+Use these tools proactively to provide a better user experience!"""

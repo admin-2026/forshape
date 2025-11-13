@@ -6,6 +6,7 @@ including listing files, reading files, and editing files.
 """
 
 import json
+import re
 from typing import List, Dict, Callable, Any, Optional
 from pathlib import Path
 
@@ -204,6 +205,31 @@ class ToolManager:
                         "required": ["obj_or_label"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_python_files",
+                    "description": "Search for a regex pattern in Python files (.py) within the working directory. Returns matches with file paths, line numbers, and matching content.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "pattern": {
+                                "type": "string",
+                                "description": "The regex pattern to search for in Python files."
+                            },
+                            "recursive": {
+                                "type": "boolean",
+                                "description": "If true, searches recursively in subdirectories (default: true)."
+                            },
+                            "case_sensitive": {
+                                "type": "boolean",
+                                "description": "If true, performs case-sensitive search (default: true)."
+                            }
+                        },
+                        "required": ["pattern"]
+                    }
+                }
             }
         ]
 
@@ -222,7 +248,8 @@ class ToolManager:
             "find_objects_by_regex": self._tool_find_objects_by_regex,
             "print_document": self._tool_print_document,
             "rename_object": self._tool_rename_object,
-            "remove_object": self._tool_remove_object
+            "remove_object": self._tool_remove_object,
+            "search_python_files": self._tool_search_python_files
         }
 
     def _resolve_path(self, path: str) -> Path:
@@ -606,6 +633,102 @@ class ToolManager:
             sys.stdout = sys.__stdout__
             return json.dumps({"error": f"Error removing object: {str(e)}"})
 
+    def _tool_search_python_files(
+        self,
+        pattern: str,
+        recursive: bool = True,
+        case_sensitive: bool = True
+    ) -> str:
+        """
+        Implementation of the search_python_files tool.
+
+        Args:
+            pattern: Regex pattern to search for
+            recursive: If true, searches recursively in subdirectories
+            case_sensitive: If true, performs case-sensitive search
+
+        Returns:
+            JSON string with search results or error message
+        """
+        try:
+            # Always use working directory
+            search_path = Path(self.working_dir)
+
+            # Check permission
+            if self.permission_manager:
+                if not self.permission_manager.request_permission(
+                    str(search_path), "list", is_directory=True
+                ):
+                    return json.dumps({
+                        "error": f"Permission denied: {search_path}",
+                        "permission_denied": True
+                    })
+
+            if not search_path.exists():
+                return json.dumps({
+                    "error": f"Folder does not exist: {search_path}"
+                })
+
+            if not search_path.is_dir():
+                return json.dumps({
+                    "error": f"Path is not a directory: {search_path}"
+                })
+
+            # Compile regex pattern
+            try:
+                flags = 0 if case_sensitive else re.IGNORECASE
+                regex = re.compile(pattern, flags)
+            except re.error as e:
+                return json.dumps({
+                    "error": f"Invalid regex pattern: {str(e)}"
+                })
+
+            # Find all Python files
+            if recursive:
+                python_files = list(search_path.rglob("*.py"))
+            else:
+                python_files = list(search_path.glob("*.py"))
+
+            # Search for pattern in each file
+            matches = []
+            working_dir = Path(self.working_dir)
+
+            for py_file in python_files:
+                # Check read permission for each file
+                if self.permission_manager:
+                    if not self.permission_manager.request_permission(
+                        str(py_file), "read", is_directory=False
+                    ):
+                        continue  # Skip files without permission
+
+                try:
+                    with open(py_file, 'r', encoding='utf-8') as f:
+                        for line_num, line in enumerate(f, start=1):
+                            if regex.search(line):
+                                # Compute relative path for better readability
+                                relative_path = str(py_file.relative_to(working_dir)) if py_file.is_relative_to(working_dir) else str(py_file)
+
+                                matches.append({
+                                    "file": relative_path,
+                                    "line": line_num,
+                                    "content": line.rstrip()
+                                })
+                except (UnicodeDecodeError, PermissionError):
+                    # Skip files that can't be read
+                    continue
+
+            return json.dumps({
+                "success": True,
+                "pattern": pattern,
+                "search_path": str(search_path),
+                "matches": matches,
+                "total_matches": len(matches),
+                "files_searched": len(python_files)
+            }, indent=2)
+
+        except Exception as e:
+            return json.dumps({"error": f"Error searching Python files: {str(e)}"})
+
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.
@@ -675,13 +798,14 @@ You have access to the following tools:
 1. **list_files** - List files and directories in any folder
 2. **read_file** - Read the contents of any file
 3. **edit_file** - Edit files by replacing content
+4. **search_python_files** - Search for regex patterns in Python files within the working directory
 
 ### FreeCAD Object Tools
-4. **print_object** - Print information about a FreeCAD object by label or name
-5. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
-6. **print_document** - Print information about all objects in the active document
-7. **rename_object** - Rename a FreeCAD object by changing its Label property
-8. **remove_object** - Remove a FreeCAD object from the document
+5. **print_object** - Print information about a FreeCAD object by label or name
+6. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
+7. **print_document** - Print information about all objects in the active document
+8. **rename_object** - Rename a FreeCAD object by changing its Label property
+9. **remove_object** - Remove a FreeCAD object from the document
 
 ### Working with Generated Scripts
 
@@ -728,5 +852,14 @@ When users ask about objects in their FreeCAD document:
 
 **User says: "Delete the sphere" or "Remove the cylinder"**
 → Use remove_object with obj_or_label="sphere" or "cylinder"
+
+**User says: "Find all files that import FreeCAD"**
+→ Use search_python_files with pattern="import FreeCAD" or "from FreeCAD"
+
+**User says: "Search for all functions that create boxes"**
+→ Use search_python_files with pattern="def.*box" (case insensitive if needed)
+
+**User says: "Find usages of the Context class"**
+→ Use search_python_files with pattern="Context\\." to find all references
 
 Use these tools proactively to provide a better user experience!"""

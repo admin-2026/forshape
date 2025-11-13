@@ -221,7 +221,7 @@ class ForShapeAI:
 
     def handle_special_commands(self, user_input: str, window: ForShapeMainWindow) -> bool:
         """
-        Handle special commands like /help, /exit, /clear, etc.
+        Handle special commands like /help, /clear, etc.
 
         Args:
             user_input: The user's input string
@@ -232,21 +232,18 @@ class ForShapeAI:
         """
         command = user_input.strip().lower()
 
-        if command == "/exit":
-            self.handle_exit()
-            return True
-
         if command == "/help":
             help_text = """Available commands:
-  /exit - Exit the program
   /help - Show this help message
-  /clear - Clear conversation history (coming soon)
+  /clear - Clear conversation history
 
 Simply type your questions or requests to interact with the AI."""
             window.append_message("System", help_text)
             return True
 
-        # TODO: Implement other special commands (/clear, etc.)
+        if command == "/clear":
+            window.clear_conversation()
+            return True
 
         return False
 

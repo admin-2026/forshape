@@ -234,7 +234,7 @@ class ForShapeMainWindow(QMainWindow):
         input_label = QLabel("You:")
         self.input_field = QLineEdit()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... (/exit to quit, /help for commands)")
+        self.input_field.setPlaceholderText("Type your message here... (/help for commands)")
         self.input_field.returnPressed.connect(self.on_user_input)
 
         # Add Run button
@@ -265,8 +265,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 <strong>Context:</strong> {context_status}</p>
 
 <p style="margin: 5px 0;"><strong>Commands:</strong><br>
-  /exit - Exit the program<br>
-  /help - Show help (coming soon)</p>
+  /help - Show help<br>
+  /clear - Clear conversation history</p>
 
 <p style="margin: 5px 0;">Start chatting to generate 3D shapes!</p>
 <pre style="margin: 0;">{'='*60}</pre>
@@ -275,6 +275,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.conversation_display.insertHtml(welcome_html)
         # Add line breaks after welcome message to separate from first user message
         self.conversation_display.insertHtml('<br><br>')
+
+    def clear_conversation(self):
+        """Clear the conversation display and AI history."""
+        # Clear the AI agent's conversation history
+        self.ai_client.clear_history()
+
+        # Clear the conversation display
+        self.conversation_display.clear()
+
+        # Redisplay the welcome message
+        self.display_welcome()
+
+        # Show confirmation message
+        self.append_message("System", "Conversation history cleared.")
 
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
@@ -303,8 +317,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Handle special commands
         if self.handle_special_commands(user_input, self):
-            if user_input.strip().lower() == "/exit":
-                self.close()
             return
 
         # Show in-progress indicator

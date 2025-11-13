@@ -568,6 +568,14 @@ class ToolManager:
             JSON string with success or error message
         """
         try:
+            # Check permission
+            if self.permission_manager:
+                if not self.permission_manager.request_object_deletion_permission(obj_or_label):
+                    return json.dumps({
+                        "error": f"Permission denied: Cannot delete object '{obj_or_label}'",
+                        "permission_denied": True
+                    })
+
             import io
             import sys
 

@@ -1,8 +1,8 @@
 """
-Permission Manager for AI Agent file access.
+Permission Manager for AI Agent file access and object operations.
 
 This module provides a permission manager that requests and tracks user permissions
-for file and directory access during an AI agent session.
+for file, directory access, and object deletion during an AI agent session.
 """
 
 from typing import Set, Optional, Callable
@@ -11,10 +11,10 @@ from pathlib import Path
 
 class PermissionManager:
     """
-    Manages permissions for file and directory access.
+    Manages permissions for file, directory access, and object operations.
 
     This class tracks granted permissions for the current session and
-    requests user approval before allowing file/directory operations.
+    requests user approval before allowing file/directory operations and object deletion.
     """
 
     def __init__(self, permission_callback: Optional[Callable[[str, str], bool]] = None):
@@ -23,27 +23,27 @@ class PermissionManager:
 
         Args:
             permission_callback: Optional callback function that asks the user for permission.
-                                Should accept (path, operation) and return True if granted.
+                                Should accept (resource, operation) and return True if granted.
                                 If None, a default console-based prompt will be used.
         """
         self.granted_paths: Set[str] = set()
         self.granted_directories: Set[str] = set()  # Directories with recursive access
         self.permission_callback = permission_callback or self._default_permission_callback
 
-    def _default_permission_callback(self, path: str, operation: str) -> bool:
+    def _default_permission_callback(self, resource: str, operation: str) -> bool:
         """
         Default permission callback that prompts via console.
 
         Args:
-            path: The path being accessed
-            operation: The operation being performed (read, write, list)
+            resource: The resource being accessed (path or object name)
+            operation: The operation being performed (read, write, list, delete_object)
 
         Returns:
             True if permission is granted, False otherwise
         """
         print(f"\n[Permission Request]")
         print(f"Operation: {operation}")
-        print(f"Path: {path}")
+        print(f"Resource: {resource}")
         response = input("Grant permission? (y/n/session): ").strip().lower()
         return response in ['y', 'yes', 'session']
 
@@ -172,3 +172,19 @@ class PermissionManager:
             True if any permissions exist, False otherwise
         """
         return len(self.granted_paths) > 0 or len(self.granted_directories) > 0
+
+    def request_object_deletion_permission(self, object_name: str) -> bool:
+        """
+        Request permission to delete an object.
+
+        Note: Object deletion permissions are not cached since deletion is a
+        one-time operation and the object won't exist afterward.
+
+        Args:
+            object_name: Name of the object to delete
+
+        Returns:
+            True if permission is granted, False otherwise
+        """
+        # Always request permission from user (no caching for deletions)
+        return self.permission_callback(object_name, "delete_object")

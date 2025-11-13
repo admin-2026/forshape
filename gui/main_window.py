@@ -117,7 +117,8 @@ class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 logger: 'Logger', special_commands_handler, exit_handler):
+                 logger: 'Logger', special_commands_handler, exit_handler,
+                 prestart_checker=None):
         """
         Initialize the main window.
 
@@ -127,6 +128,7 @@ class ForShapeMainWindow(QMainWindow):
             logger: The Logger instance for tool call logging
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
+            prestart_checker: Optional PrestartChecker instance for prestart validation
         """
         super().__init__()
         self.ai_client = ai_client
@@ -137,6 +139,10 @@ class ForShapeMainWindow(QMainWindow):
         self.is_ai_busy = False  # Track if AI is currently processing
         self.pending_input = ""  # Store pending user input when AI is busy
         self.worker = None  # Current worker thread
+
+        # Prestart check mode
+        self.prestart_checker = prestart_checker
+        self.prestart_check_mode = True if prestart_checker else False  # Start in prestart check mode if checker provided
 
         # Connect logger signal to display handler
         if self.logger:
@@ -290,17 +296,47 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
 
+    def handle_prestart_input(self, user_input: str):
+        """
+        Handle user input during prestart check mode.
+
+        Args:
+            user_input: The user's input
+        """
+        if not self.prestart_checker:
+            return
+
+        current_status = self.prestart_checker.get_status()
+
+        if current_status == "dir_mismatch":
+            # Handle directory mismatch response (yes/no/cancel)
+            should_continue = self.prestart_checker.handle_directory_mismatch(self, user_input)
+            if should_continue:
+                # Re-run prestart checks
+                status = self.prestart_checker.check(self)
+                if status == "ready":
+                    self.enable_ai_mode()
+            else:
+                # User cancelled or error
+                self.prestart_check_mode = False
+        else:
+            # For "waiting" or other status, re-run checks when user provides input
+            status = self.prestart_checker.check(self)
+            if status == "ready":
+                self.enable_ai_mode()
+            elif status == "error":
+                self.prestart_check_mode = False
+
+    def enable_ai_mode(self):
+        """Enable normal AI interaction mode after prestart checks pass."""
+        self.prestart_check_mode = False
+        # No need to show additional message, prestart_check already shows success message
+
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
         user_input = self.input_field.text().strip()
 
         if not user_input:
-            return
-
-        # Check if AI is currently busy
-        if self.is_ai_busy:
-            # Show message that AI is busy without clearing the input
-            self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
             return
 
         # Display user input
@@ -311,6 +347,17 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Force UI to update immediately
         QCoreApplication.processEvents()
+
+        # Handle prestart check mode
+        if self.prestart_check_mode:
+            self.handle_prestart_input(user_input)
+            return
+
+        # Check if AI is currently busy
+        if self.is_ai_busy:
+            # Show message that AI is busy without clearing the input
+            self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
+            return
 
         # Log user input
         self.history_logger.log_conversation("user", user_input)

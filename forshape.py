@@ -28,7 +28,8 @@ from gui import (
     ForShapeMainWindow,
     Logger,
     LogLevel,
-    PermissionManager
+    PermissionManager,
+    PrestartChecker
 )
 
 
@@ -160,6 +161,9 @@ class ForShapeAI:
             permission_manager=self.permission_manager
         )
 
+        # Initialize prestart checker
+        self.prestart_checker = PrestartChecker(self.context_provider, self.logger)
+
         # GUI window (will be created in run())
         self.main_window = None
         self.running = True
@@ -171,15 +175,29 @@ class ForShapeAI:
         if app is None:
             app = QApplication(sys.argv)
 
-        # Create and show main window
+        # Create and show main window first (so user can see messages and interact with FreeCAD)
         self.main_window = ForShapeMainWindow(
             ai_client=self.ai_client,
             history_logger=self.history_logger,
             logger=self.logger,
             special_commands_handler=self.handle_special_commands,
-            exit_handler=self.handle_exit
+            exit_handler=self.handle_exit,
+            prestart_checker=self.prestart_checker
         )
         self.main_window.show()
+
+        # Run initial prestart check
+        status = self.prestart_checker.check(self.main_window)
+        if status == "ready":
+            # All checks passed, enable AI
+            self.main_window.enable_ai_mode()
+        elif status == "error":
+            # Fatal error, keep window open but AI disabled
+            self.main_window.prestart_check_mode = False
+        else:
+            # Waiting for user action ("waiting" or "dir_mismatch")
+            # Window will handle user input and re-run checks
+            pass
 
         # Start Qt event loop
         return app.exec_()

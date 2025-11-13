@@ -12,6 +12,7 @@ from .main_window import ForShapeMainWindow
 from .context_provider import ContextProvider
 from .logger import Logger, LogLevel
 from .permission_manager import PermissionManager
+from .prestart_checker import PrestartChecker
 
 __all__ = [
     'DependencyManager',
@@ -23,4 +24,5 @@ __all__ = [
     'Logger',
     'LogLevel',
     'PermissionManager',
+    'PrestartChecker',
 ]

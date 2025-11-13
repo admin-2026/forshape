@@ -1,5 +1,6 @@
 
 import FreeCAD as App
+import re
 
 # from importlib import reload
 # reload(context)
@@ -89,6 +90,37 @@ class Context:
         if objects:
             return objects[0]
         return None
+
+    @staticmethod
+    def find_objects_by_regex(pattern):
+        """
+        Scans all objects in the active document to find objects whose label, name, or label2 matches the regex pattern.
+
+        Args:
+            pattern: A regex pattern string to match against object attributes
+
+        Returns:
+            A list of tuples (matched_string, field_name) where:
+            - matched_string: The actual string value that matched the pattern
+            - field_name: The name of the field that matched ('Label', 'Name', or 'Label2')
+        """
+        regex = re.compile(pattern)
+        matches = []
+
+        for obj in App.ActiveDocument.Objects:
+            # Check Label
+            if hasattr(obj, 'Label') and regex.search(obj.Label):
+                matches.append((obj.Label, 'Label'))
+
+            # Check Name (internal name)
+            if hasattr(obj, 'Name') and regex.search(obj.Name):
+                matches.append((obj.Name, 'Name'))
+
+            # Check Label2 (if it exists)
+            if hasattr(obj, 'Label2') and obj.Label2 and regex.search(obj.Label2):
+                matches.append((obj.Label2, 'Label2'))
+
+        return matches
 
     @staticmethod
     def print_document(verbose=False):

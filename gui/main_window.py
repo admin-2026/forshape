@@ -118,17 +118,18 @@ class ForShapeMainWindow(QMainWindow):
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
                  logger: 'Logger', special_commands_handler, exit_handler,
-                 prestart_checker=None):
+                 prestart_checker=None, completion_callback=None):
         """
         Initialize the main window.
 
         Args:
-            ai_client: The AIAgent instance for AI interactions
-            history_logger: The HistoryLogger instance for logging
+            ai_client: The AIAgent instance for AI interactions (can be None initially)
+            history_logger: The HistoryLogger instance for logging (can be None initially)
             logger: The Logger instance for tool call logging
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
             prestart_checker: Optional PrestartChecker instance for prestart validation
+            completion_callback: Optional callback to complete initialization after checks pass
         """
         super().__init__()
         self.ai_client = ai_client
@@ -143,6 +144,7 @@ class ForShapeMainWindow(QMainWindow):
         # Prestart check mode
         self.prestart_checker = prestart_checker
         self.prestart_check_mode = True if prestart_checker else False  # Start in prestart check mode if checker provided
+        self.completion_callback = completion_callback
 
         # Connect logger signal to display handler
         if self.logger:
@@ -261,20 +263,30 @@ class ForShapeMainWindow(QMainWindow):
 
     def display_welcome(self):
         """Display welcome message in the conversation area."""
-        context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
+        # Check if AI client is initialized
+        if self.ai_client:
+            context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
+            model_info = f"<strong>Using model:</strong> {self.ai_client.get_model()}<br>"
+            context_info = f"<strong>Context:</strong> {context_status}"
+            start_message = "Start chatting to generate 3D shapes!"
+        else:
+            # During prestart checks
+            model_info = ""
+            context_info = "<strong>Status:</strong> Setting up..."
+            start_message = "Please complete the setup steps below to begin."
+
         welcome_html = f"""
 <div style="font-family: Consolas, monospace; margin: 10px 0;">
 <pre style="margin: 0;">{'='*60}
 Welcome to ForShape AI - Interactive 3D Shape Generator
 {'='*60}</pre>
-<p style="margin: 5px 0;"><strong>Using model:</strong> {self.ai_client.get_model()}<br>
-<strong>Context:</strong> {context_status}</p>
+<p style="margin: 5px 0;">{model_info}{context_info}</p>
 
 <p style="margin: 5px 0;"><strong>Commands:</strong><br>
   /help - Show help<br>
   /clear - Clear conversation history</p>
 
-<p style="margin: 5px 0;">Start chatting to generate 3D shapes!</p>
+<p style="margin: 5px 0;">{start_message}</p>
 <pre style="margin: 0;">{'='*60}</pre>
 </div>
 """
@@ -285,7 +297,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
     def clear_conversation(self):
         """Clear the conversation display and AI history."""
         # Clear the AI agent's conversation history
-        self.ai_client.clear_history()
+        if self.ai_client:
+            self.ai_client.clear_history()
 
         # Clear the conversation display
         self.conversation_display.clear()
@@ -295,6 +308,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
+
+    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger'):
+        """
+        Set the AI client and history logger after initialization completes.
+
+        Args:
+            ai_client: The AIAgent instance
+            history_logger: The HistoryLogger instance
+        """
+        self.ai_client = ai_client
+        self.history_logger = history_logger
+
+        # Reconnect logger signal if logger was updated
+        if self.logger and hasattr(self.logger, 'log_message'):
+            try:
+                self.logger.log_message.disconnect(self.on_log_message)
+            except:
+                pass
+            self.logger.log_message.connect(self.on_log_message)
 
     def handle_prestart_input(self, user_input: str):
         """
@@ -315,14 +347,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 # Re-run prestart checks
                 status = self.prestart_checker.check(self)
                 if status == "ready":
+                    # Complete initialization if callback provided
+                    if self.completion_callback:
+                        self.completion_callback()
                     self.enable_ai_mode()
             else:
                 # User cancelled or error
                 self.prestart_check_mode = False
         else:
-            # For "waiting" or other status, re-run checks when user provides input
+            # For "waiting", "need_api_key", or other status, re-run checks when user provides input
             status = self.prestart_checker.check(self)
             if status == "ready":
+                # Complete initialization if callback provided
+                if self.completion_callback:
+                    self.completion_callback()
                 self.enable_ai_mode()
             elif status == "error":
                 self.prestart_check_mode = False
@@ -330,7 +368,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
     def enable_ai_mode(self):
         """Enable normal AI interaction mode after prestart checks pass."""
         self.prestart_check_mode = False
-        # No need to show additional message, prestart_check already shows success message
+        # Update welcome message to show full AI details now that ai_client is initialized
+        if self.ai_client:
+            context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
+            self.append_message("System",
+                f"🎉 **Initialization Complete!**\n\n"
+                f"**Using model:** {self.ai_client.get_model()}\n"
+                f"**Context:** {context_status}\n\n"
+                f"You can now chat with the AI to generate 3D shapes!")
 
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
@@ -353,6 +398,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.handle_prestart_input(user_input)
             return
 
+        # Check if AI client is available
+        if not self.ai_client:
+            self.append_message("[SYSTEM]", "⚠ AI is not yet initialized. Please wait for setup to complete.")
+            return
+
         # Check if AI is currently busy
         if self.is_ai_busy:
             # Show message that AI is busy without clearing the input
@@ -360,7 +410,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             return
 
         # Log user input
-        self.history_logger.log_conversation("user", user_input)
+        if self.history_logger:
+            self.history_logger.log_conversation("user", user_input)
 
         # Handle special commands
         if self.handle_special_commands(user_input, self):
@@ -393,10 +444,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Display the response or error
         if is_error:
-            self.history_logger.log_conversation("error", message)
+            if self.history_logger:
+                self.history_logger.log_conversation("error", message)
             self.display_error(message)
         else:
-            self.history_logger.log_conversation("assistant", message)
+            if self.history_logger:
+                self.history_logger.log_conversation("assistant", message)
             self.append_message("AI", message)
 
         # Reset busy state

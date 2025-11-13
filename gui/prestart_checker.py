@@ -1,37 +1,52 @@
 """
-Prestart checker for FreeCAD document validation.
+Prestart checker for FreeCAD document validation and configuration setup.
 
-This module provides functionality to check if FreeCAD has an active document
-and that the working directory is properly configured before starting the AI agent.
+This module provides functionality to check and setup:
+- .forshape directory and configuration files
+- OpenAI API key
+- FreeCAD active document
+- Working directory configuration
 """
 
 import os
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
     from .main_window import ForShapeMainWindow
     from .context_provider import ContextProvider
+    from .config_manager import ConfigurationManager
     from .logger import Logger
 
 
 class PrestartChecker:
-    """Handles prestart checks for FreeCAD document and working directory validation."""
+    """Handles prestart checks for configuration setup and FreeCAD document validation."""
 
-    def __init__(self, context_provider: 'ContextProvider', logger: 'Logger'):
+    def __init__(self, context_provider: 'ContextProvider', config_manager: 'ConfigurationManager', logger: 'Logger'):
         """
         Initialize the prestart checker.
 
         Args:
             context_provider: Context provider for working directory management
+            config_manager: Configuration manager for directory and API key management
             logger: Logger instance for logging check results
         """
         self.context_provider = context_provider
+        self.config_manager = config_manager
         self.logger = logger
-        self.status: Literal["waiting", "dir_mismatch", "ready", "error"] = "waiting"
+        self.status: Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"] = "waiting"
+        self.api_key: Optional[str] = None
 
-    def check(self, window: 'ForShapeMainWindow') -> Literal["waiting", "dir_mismatch", "ready", "error"]:
+    def check(self, window: 'ForShapeMainWindow') -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
         """
-        Check if FreeCAD has an active document and it's saved in the current directory.
+        Check configuration setup and FreeCAD document status.
+
+        Performs checks in order:
+        1. FreeCAD module availability
+        2. Active document existence
+        3. Document saved status
+        4. Working directory match
+        5. .forshape directory setup (in document's directory)
+        6. API key availability
 
         Uses chatbox for interaction instead of modal dialogs so user can interact with FreeCAD.
 
@@ -39,9 +54,11 @@ class PrestartChecker:
             window: The main window instance to display messages
 
         Returns:
-            Status string: "ready" if checks passed, "waiting" if waiting for user action,
-                          "dir_mismatch" if directory needs confirmation, "error" if fatal error
+            Status string: "ready" if all checks passed, "waiting" if waiting for user action,
+                          "dir_mismatch" if directory needs confirmation, "need_api_key" if API key missing,
+                          "error" if fatal error
         """
+        # Check 1: FreeCAD availability
         try:
             import FreeCAD as App
         except ImportError:
@@ -51,7 +68,7 @@ class PrestartChecker:
             self.status = "error"
             return "error"
 
-        # Check 1: Is there an active document?
+        # Check 2: Is there an active document?
         if App.ActiveDocument is None:
             window.append_message("System",
                 "⚠️ **No Active Document**\n\n"
@@ -63,7 +80,7 @@ class PrestartChecker:
             self.status = "waiting"
             return "waiting"
 
-        # Check 2: Is the document saved?
+        # Check 3: Is the document saved?
         doc_path = App.ActiveDocument.FileName
         if not doc_path or doc_path == "":
             window.append_message("System",
@@ -75,7 +92,7 @@ class PrestartChecker:
             self.status = "waiting"
             return "waiting"
 
-        # Check 3: Does the working directory match the document's directory?
+        # Check 4: Does the working directory match the document's directory?
         doc_dir = os.path.dirname(os.path.abspath(doc_path))
         current_dir = os.path.abspath(self.context_provider.working_dir)
 
@@ -92,15 +109,92 @@ class PrestartChecker:
             self.status = "dir_mismatch"
             return "dir_mismatch"
 
+        # At this point, working directory is correct
+        # Check 5: Setup .forshape directory (now that we know the correct location)
+        if not self._check_and_setup_directories(window):
+            self.status = "error"
+            return "error"
+
+        # Check 6: API key availability
+        self.api_key = self.config_manager.get_api_key()
+        if not self.api_key:
+            window.append_message("System",
+                "⚠️ **OpenAI API Key Not Found**\n\n"
+                "No OpenAI API key was found. The AI features require an API key to function.\n\n"
+                "**To add your API key:**\n"
+                f"1. Save your API key to: `{self.config_manager.get_api_key_file()}`\n"
+                f"2. **OR** set the `OPENAI_API_KEY` environment variable\n\n"
+                "**After adding the API key:**\n"
+                "• Type anything (e.g., 'ready') to continue\n\n"
+                "**Don't have an API key?**\n"
+                "• Get one at: https://platform.openai.com/api-keys")
+            self.status = "need_api_key"
+            return "need_api_key"
+
         # All checks passed
-        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.context_provider.working_dir}")
+        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.context_provider.working_dir}, API key: {'present' if self.api_key else 'missing'}")
         window.append_message("System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
-            f"📂 Working directory: `{self.context_provider.working_dir}`\n\n"
+            f"📂 Working directory: `{self.context_provider.working_dir}`\n"
+            f"🔑 API key: Configured\n\n"
             f"You can now start chatting with the AI!")
         self.status = "ready"
         return "ready"
+
+    def _check_and_setup_directories(self, window: 'ForShapeMainWindow') -> bool:
+        """
+        Check and setup .forshape directory and configuration files.
+
+        Args:
+            window: The main window instance to display messages
+
+        Returns:
+            True if successful, False on error
+        """
+        try:
+            # Setup directories
+            forshape_dir = self.config_manager.get_forshape_dir()
+            history_dir = self.config_manager.get_history_dir()
+            forshape_md = self.config_manager.get_forshape_md_file()
+
+            created_items = []
+
+            # Create .forshape directory
+            if not forshape_dir.exists():
+                forshape_dir.mkdir(parents=True, exist_ok=True)
+                created_items.append(f"📁 Created directory: `{forshape_dir}`")
+                self.logger.info(f"Created .forshape directory: {forshape_dir}")
+
+            # Create history directory
+            if not history_dir.exists():
+                history_dir.mkdir(parents=True, exist_ok=True)
+                created_items.append(f"📁 Created directory: `{history_dir}`")
+                self.logger.info(f"Created history directory: {history_dir}")
+
+            # Create default FORSHAPE.md if it doesn't exist
+            if not forshape_md.exists():
+                default_content = """# Add any additional notes or context that would help the AI understand your project better.
+"""
+                with open(forshape_md, 'w', encoding='utf-8') as f:
+                    f.write(default_content)
+                created_items.append(f"📄 Created file: `{forshape_md}`")
+                self.logger.info(f"Created default FORSHAPE.md: {forshape_md}")
+
+            # Show what was created if anything
+            if created_items:
+                window.append_message("System",
+                    "✅ **Configuration Setup**\n\n" +
+                    "\n".join(created_items))
+
+            return True
+
+        except Exception as e:
+            window.append_message("System",
+                f"❌ **Configuration Setup Failed**\n\n"
+                f"Failed to create configuration directories:\n{str(e)}")
+            self.logger.error(f"Failed to setup directories: {e}")
+            return False
 
     def handle_directory_mismatch(self, window: 'ForShapeMainWindow', user_input: str) -> bool:
         """
@@ -135,6 +229,15 @@ class PrestartChecker:
             try:
                 os.chdir(doc_dir)
                 self.context_provider.working_dir = doc_dir
+
+                # Reinitialize config manager with new working directory
+                from pathlib import Path
+                self.config_manager.base_dir = Path(doc_dir)
+                self.config_manager.forshape_dir = self.config_manager.base_dir / ".forshape"
+                self.config_manager.history_dir = self.config_manager.forshape_dir / "history"
+                self.config_manager.api_key_file = self.config_manager.forshape_dir / "api-key"
+                self.config_manager.forshape_md_file = self.config_manager.base_dir / "FORSHAPE.md"
+
                 self.logger.info(f"Changed working directory to: {doc_dir}")
                 window.append_message("System",
                     f"✅ **Directory Changed**\n\n"
@@ -149,13 +252,22 @@ class PrestartChecker:
                 self.status = "error"
                 return False
         elif response == "no":
+            # User wants to keep current directory - ensure config manager is using current dir
+            from pathlib import Path
+            current_dir = self.context_provider.working_dir
+            self.config_manager.base_dir = Path(current_dir)
+            self.config_manager.forshape_dir = self.config_manager.base_dir / ".forshape"
+            self.config_manager.history_dir = self.config_manager.forshape_dir / "history"
+            self.config_manager.api_key_file = self.config_manager.forshape_dir / "api-key"
+            self.config_manager.forshape_md_file = self.config_manager.base_dir / "FORSHAPE.md"
+
             window.append_message("System", "Continuing with current directory. Rechecking setup...")
             return True
         else:
             window.append_message("System", "⚠️ Please type 'yes', 'no', or 'cancel'")
             return True
 
-    def get_status(self) -> Literal["waiting", "dir_mismatch", "ready", "error"]:
+    def get_status(self) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
         """
         Get the current status of prestart checks.
 
@@ -172,3 +284,12 @@ class PrestartChecker:
             True if ready, False otherwise
         """
         return self.status == "ready"
+
+    def get_api_key(self) -> Optional[str]:
+        """
+        Get the API key after checks have passed.
+
+        Returns:
+            API key if available, None otherwise
+        """
+        return self.api_key

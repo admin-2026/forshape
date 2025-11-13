@@ -114,7 +114,7 @@ class ForShapeAI:
 
         # Initialize configuration manager with context provider
         self.config = ConfigurationManager(self.context_provider)
-        self.config.setup_directories()
+        # Note: Directory setup moved to prestart checker for interactive handling
 
         # Check and install dependencies
         self.dependency_manager = DependencyManager(self.config.get_libs_dir())
@@ -135,13 +135,41 @@ class ForShapeAI:
             print(f"Warning: Failed to install markdown library - GUI will use fallback rendering")
             print(f"Details: {markdown_error}")
 
-        # Initialize history logger
-        self.history_logger = HistoryLogger(self.config.get_history_dir())
+        # Initialize prestart checker (will setup directories and check API key)
+        # Create a minimal logger before directories exist
+        import tempfile
+        from pathlib import Path
+        temp_log = Path(tempfile.gettempdir()) / "forshape_init.log"
+        self.logger = Logger(log_file=temp_log, min_level=LogLevel.INFO)
+        self.prestart_checker = PrestartChecker(self.context_provider, self.config, self.logger)
 
-        # Initialize logger for tool calls and system events
+        # Store model preference for later
+        self.model = model
+
+        # These will be initialized after prestart checks pass
+        self.history_logger = None
+        self.permission_dialog_helper = None
+        self.permission_manager = None
+        self.ai_client = None
+
+        # GUI window (will be created in run())
+        self.main_window = None
+        self.running = True
+
+    def _complete_initialization(self):
+        """
+        Complete initialization after prestart checks pass.
+
+        This creates the AI agent, history logger, and other components that
+        require the configuration directories and API key to exist.
+        """
+        # Reinitialize logger with proper log file in .forshape directory
         log_file = self.config.get_history_dir() / "system.log"
         self.logger = Logger(log_file=log_file, min_level=LogLevel.INFO)
-        self.logger.info("ForShape AI initialized")
+        self.logger.info("ForShape AI initialization completed")
+
+        # Initialize history logger
+        self.history_logger = HistoryLogger(self.config.get_history_dir())
 
         # Initialize permission dialog helper for cross-thread communication
         self.permission_dialog_helper = PermissionDialogHelper(self.logger)
@@ -149,10 +177,10 @@ class ForShapeAI:
         # Initialize permission manager with GUI callback
         self.permission_manager = PermissionManager(self._permission_callback)
 
-        # Initialize AI agent with context provider
-        api_key = self.config.get_api_key()
+        # Initialize AI agent with API key from prestart checker
+        api_key = self.prestart_checker.get_api_key()
         # Use gpt-4o for tool calling support, fallback to user's model choice
-        agent_model = model if model else "gpt-4o"
+        agent_model = self.model if self.model else "gpt-4o"
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
@@ -160,13 +188,11 @@ class ForShapeAI:
             logger=self.logger,
             permission_manager=self.permission_manager
         )
+        self.logger.info(f"AI client initialized with model: {agent_model}")
 
-        # Initialize prestart checker
-        self.prestart_checker = PrestartChecker(self.context_provider, self.logger)
-
-        # GUI window (will be created in run())
-        self.main_window = None
-        self.running = True
+        # Update the main window with the initialized components
+        if self.main_window:
+            self.main_window.set_components(self.ai_client, self.history_logger)
 
     def run(self):
         """Start the interactive GUI interface."""
@@ -176,26 +202,29 @@ class ForShapeAI:
             app = QApplication(sys.argv)
 
         # Create and show main window first (so user can see messages and interact with FreeCAD)
+        # Pass None for components that haven't been initialized yet
         self.main_window = ForShapeMainWindow(
-            ai_client=self.ai_client,
-            history_logger=self.history_logger,
+            ai_client=None,  # Will be set after prestart checks
+            history_logger=None,  # Will be set after prestart checks
             logger=self.logger,
             special_commands_handler=self.handle_special_commands,
             exit_handler=self.handle_exit,
-            prestart_checker=self.prestart_checker
+            prestart_checker=self.prestart_checker,
+            completion_callback=self._complete_initialization
         )
         self.main_window.show()
 
         # Run initial prestart check
         status = self.prestart_checker.check(self.main_window)
         if status == "ready":
-            # All checks passed, enable AI
+            # All checks passed, complete initialization (which also sets components) and enable AI
+            self._complete_initialization()
             self.main_window.enable_ai_mode()
         elif status == "error":
             # Fatal error, keep window open but AI disabled
             self.main_window.prestart_check_mode = False
         else:
-            # Waiting for user action ("waiting" or "dir_mismatch")
+            # Waiting for user action ("waiting", "dir_mismatch", or "need_api_key")
             # Window will handle user input and re-run checks
             pass
 

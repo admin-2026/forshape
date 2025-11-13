@@ -23,6 +23,7 @@ class DependencyManager:
         """
         self.local_lib_dir = local_lib_dir
         self.openai_available = False
+        self.markdown_available = False
         self.error_message = ""
 
     def check_and_install_openai(self) -> tuple[bool, str]:
@@ -145,6 +146,54 @@ class DependencyManager:
             self.error_message = error_msg
             return False, error_msg
 
+    def check_and_install_markdown(self) -> tuple[bool, str]:
+        """
+        Check if markdown library is installed. If not, attempt to install it locally.
+
+        Returns:
+            tuple: (success: bool, error_message: str)
+        """
+        # Add local library directory to sys.path if it exists
+        if self.local_lib_dir.exists() and str(self.local_lib_dir) not in sys.path:
+            sys.path.insert(0, str(self.local_lib_dir))
+
+        try:
+            import markdown
+            self.markdown_available = True
+            return True, ""
+        except ImportError:
+            return self._install_markdown()
+
+    def _install_markdown(self) -> tuple[bool, str]:
+        """
+        Install markdown library to local directory without prompting.
+
+        Returns:
+            tuple: (success: bool, error_message: str)
+        """
+        try:
+            # Create the libs subdirectory if it doesn't exist
+            self.local_lib_dir.mkdir(parents=True, exist_ok=True)
+
+            # Install markdown to the libs subdirectory using pip with --target flag
+            subprocess.check_call(['pip', 'install', '--target', str(self.local_lib_dir), 'markdown'])
+
+            # Add the local library directory to sys.path
+            if str(self.local_lib_dir) not in sys.path:
+                sys.path.insert(0, str(self.local_lib_dir))
+
+            self.markdown_available = True
+            return True, ""
+
+        except subprocess.CalledProcessError as e:
+            error_msg = f"Failed to install markdown library: {str(e)}"
+            self.markdown_available = False
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error during markdown installation: {str(e)}"
+            self.markdown_available = False
+            return False, error_msg
+
     def is_openai_available(self) -> bool:
         """
         Check if OpenAI library is available.
@@ -153,6 +202,15 @@ class DependencyManager:
             bool: True if OpenAI is available, False otherwise
         """
         return self.openai_available
+
+    def is_markdown_available(self) -> bool:
+        """
+        Check if markdown library is available.
+
+        Returns:
+            bool: True if markdown is available, False otherwise
+        """
+        return self.markdown_available
 
     def get_error_message(self) -> str:
         """

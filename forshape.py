@@ -128,6 +128,12 @@ class ForShapeAI:
             print(f"{'='*60}\n")
             return
 
+        # Check and install markdown library (optional, for GUI markdown support)
+        markdown_success, markdown_error = self.dependency_manager.check_and_install_markdown()
+        if not markdown_success:
+            print(f"Warning: Failed to install markdown library - GUI will use fallback rendering")
+            print(f"Details: {markdown_error}")
+
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
 

@@ -175,6 +175,28 @@ class ForShapeMainWindow(QMainWindow):
         self.conversation_display = QTextEdit()
         self.conversation_display.setReadOnly(True)
         self.conversation_display.setFont(QFont("Consolas", 10))
+        # Enable rich text (HTML) rendering for markdown support
+        self.conversation_display.setAcceptRichText(True)
+
+        # Set default stylesheet for better markdown rendering
+        self.conversation_display.document().setDefaultStyleSheet("""
+            p { margin: 5px 0; }
+            pre {
+                background-color: #f5f5f5;
+                padding: 10px;
+                border-radius: 3px;
+                font-family: Consolas, monospace;
+            }
+            code {
+                background-color: #f0f0f0;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-family: Consolas, monospace;
+            }
+            strong { font-weight: bold; }
+            em { font-style: italic; }
+        """)
+
         conversation_layout.addWidget(self.conversation_display)
 
         # Right side: Log area
@@ -234,22 +256,25 @@ class ForShapeMainWindow(QMainWindow):
     def display_welcome(self):
         """Display welcome message in the conversation area."""
         context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
-        welcome_text = f"""
-{'='*60}
+        welcome_html = f"""
+<div style="font-family: Consolas, monospace; margin: 10px 0;">
+<pre style="margin: 0;">{'='*60}
 Welcome to ForShape AI - Interactive 3D Shape Generator
-{'='*60}
-Using model: {self.ai_client.get_model()}
-Context: {context_status}
+{'='*60}</pre>
+<p style="margin: 5px 0;"><strong>Using model:</strong> {self.ai_client.get_model()}<br>
+<strong>Context:</strong> {context_status}</p>
 
-Commands:
-  /exit - Exit the program
-  /help - Show help (coming soon)
+<p style="margin: 5px 0;"><strong>Commands:</strong><br>
+  /exit - Exit the program<br>
+  /help - Show help (coming soon)</p>
 
-Start chatting to generate 3D shapes!
-{'='*60}
-
+<p style="margin: 5px 0;">Start chatting to generate 3D shapes!</p>
+<pre style="margin: 0;">{'='*60}</pre>
+</div>
 """
-        self.conversation_display.append(welcome_text)
+        self.conversation_display.insertHtml(welcome_html)
+        # Add line breaks after welcome message to separate from first user message
+        self.conversation_display.insertHtml('<br><br>')
 
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
@@ -323,16 +348,80 @@ Start chatting to generate 3D shapes!
             self.worker.deleteLater()
             self.worker = None
 
+    def markdown_to_html(self, text: str) -> str:
+        """
+        Convert markdown text to HTML.
+
+        Args:
+            text: Markdown text to convert
+
+        Returns:
+            HTML string
+        """
+        # Try to import markdown library (lazy import to allow dependency manager to install it first)
+        try:
+            import markdown as md
+
+            # Configure markdown extensions for better rendering
+            extensions = [
+                'markdown.extensions.fenced_code',  # Code blocks with ```
+                'markdown.extensions.tables',        # Tables
+                'markdown.extensions.nl2br',         # Newline to <br>
+                'markdown.extensions.codehilite',    # Syntax highlighting
+            ]
+
+            try:
+                html_output = md.markdown(text, extensions=extensions)
+                # Debug: Log that markdown conversion succeeded
+                if self.logger:
+                    self.logger.debug(f"Markdown converted to HTML: {html_output[:100]}...")
+                return html_output
+            except Exception as e:
+                # Fallback if conversion fails
+                if self.logger:
+                    self.logger.warn(f"Markdown conversion failed: {e}, using fallback")
+                import html
+                text = html.escape(text)
+                text = text.replace('\n', '<br>')
+                return text
+
+        except ImportError:
+            # Fallback: basic HTML escaping and line break conversion if markdown not available
+            if self.logger:
+                self.logger.warn("Markdown library not available, using fallback rendering")
+            import html
+            text = html.escape(text)
+            text = text.replace('\n', '<br>')
+            return text
+
     def append_message(self, role: str, message: str):
         """
-        Append a message to the conversation display.
+        Append a message to the conversation display with markdown support.
 
         Args:
             role: The role (You, AI, Error, etc.)
-            message: The message content
+            message: The message content (supports markdown)
         """
-        formatted_message = f"\n{role}: {message}\n"
-        self.conversation_display.append(formatted_message)
+        # Move cursor to end before inserting
+        cursor = self.conversation_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.conversation_display.setTextCursor(cursor)
+
+        # Convert markdown to HTML for AI messages
+        if role == "AI":
+            message_html = self.markdown_to_html(message)
+            formatted_message = f'<div style="margin: 15px 0; padding: 8px; background-color: #f9f9f9; border-left: 3px solid #0066CC;"><strong style="color: #0066CC;">{role}:</strong><br>{message_html}</div>'
+        else:
+            # For user messages and system messages, use simpler formatting
+            import html
+            escaped_message = html.escape(message).replace('\n', '<br>')
+            formatted_message = f'<div style="margin: 15px 0; padding: 8px;"><strong style="color: #333;">{role}:</strong><br>{escaped_message}</div>'
+
+        # Use insertHtml instead of append for proper HTML rendering
+        self.conversation_display.insertHtml(formatted_message)
+
+        # Add a line break after each message to separate consecutive messages
+        self.conversation_display.insertHtml('<br>')
 
         # Scroll to bottom
         cursor = self.conversation_display.textCursor()
@@ -341,26 +430,45 @@ Start chatting to generate 3D shapes!
 
     def remove_last_message(self):
         """Remove the last message from the conversation display."""
-        # Get current text
-        text = self.conversation_display.toPlainText()
+        # Get the document
+        document = self.conversation_display.document()
 
-        # Find the last occurrence of a message (starting with \n)
-        lines = text.split('\n')
+        # Start from the end and work backwards to find and remove the last div block
+        cursor = self.conversation_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
 
-        # Remove trailing empty lines and the last message block
-        while lines and not lines[-1].strip():
-            lines.pop()
+        # Move to the start of the document and select all
+        cursor.movePosition(QTextCursor.Start, QTextCursor.MoveAnchor)
+        cursor.movePosition(QTextCursor.End, QTextCursor.KeepAnchor)
 
-        # Remove the last message line (e.g., "AI: Processing...")
-        if lines:
-            lines.pop()
+        # Get HTML content
+        html_content = cursor.selection().toHtml()
 
-        # Remove the empty line before the message if present
-        while lines and not lines[-1].strip():
-            lines.pop()
+        # Find and remove the last message div (work from the end)
+        # Look for the last occurrence of a div with our message styling
+        last_div_start = html_content.rfind('<div style="margin: 15px 0; padding: 8px')
 
-        # Set the modified text back
-        self.conversation_display.setPlainText('\n'.join(lines) + '\n')
+        if last_div_start != -1:
+            # Find the closing </div> after this opening tag
+            search_from = last_div_start + 10
+            div_end = html_content.find('</div>', search_from)
+
+            if div_end != -1:
+                # Also remove the <br> that follows
+                br_end = html_content.find('<br>', div_end)
+                if br_end != -1 and br_end - div_end < 20:  # Make sure it's the immediate <br>
+                    end_pos = br_end + 4  # Include the <br>
+                else:
+                    end_pos = div_end + 6  # Just </div>
+
+                # Remove the last message div and br
+                html_content = html_content[:last_div_start] + html_content[end_pos:]
+
+                # Set the modified HTML back
+                cursor.movePosition(QTextCursor.Start, QTextCursor.MoveAnchor)
+                cursor.movePosition(QTextCursor.End, QTextCursor.KeepAnchor)
+                cursor.removeSelectedText()
+                cursor.insertHtml(html_content)
 
         # Scroll to bottom
         cursor = self.conversation_display.textCursor()
@@ -395,10 +503,15 @@ Start chatting to generate 3D shapes!
         color = color_map.get(level, "#000000")
 
         # Format the log message with color
-        formatted_log = f'<span style="color: {color};">[{timestamp}] [{level}] {message}</span>'
+        formatted_log = f'<span style="color: {color};">[{timestamp}] [{level}] {message}</span><br>'
 
-        # Append to log display
-        self.log_display.append(formatted_log)
+        # Move cursor to end before inserting
+        cursor = self.log_display.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        self.log_display.setTextCursor(cursor)
+
+        # Insert HTML
+        self.log_display.insertHtml(formatted_log)
 
         # Scroll to bottom
         cursor = self.log_display.textCursor()

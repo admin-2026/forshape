@@ -17,8 +17,8 @@ class AdditiveCylinder(Shape):
         if existing_obj is not None:
             # Check the type of the existing object
             if existing_obj.TypeId != 'PartDesign::Body':
-                # Not a Body, remove it and create new
-                Context.remove_object(existing_obj)
+                # Not a Body, move to trash and create new
+                Shape._move_to_trash_bin(existing_obj)
                 existing_obj = None
             else:
                 # It's a Body, check if it has an AdditiveCylinder child
@@ -26,8 +26,8 @@ class AdditiveCylinder(Shape):
                 existing_cylinder = Context.get_object(cylinder_label)
 
                 if existing_cylinder is None or existing_cylinder.TypeId != 'PartDesign::AdditiveCylinder':
-                    # Body exists but no AdditiveCylinder child, remove and recreate
-                    Context.remove_object(existing_obj)
+                    # Body exists but no AdditiveCylinder child, move to trash and recreate
+                    Shape._move_to_trash_bin(existing_obj)
                     existing_obj = None
                 else:
                     # AdditiveCylinder exists, update its properties

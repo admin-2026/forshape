@@ -17,8 +17,8 @@ class AdditiveBox(Shape):
         if existing_obj is not None:
             # Check the type of the existing object
             if existing_obj.TypeId != 'PartDesign::Body':
-                # Not a Body, remove it and create new
-                Context.remove_object(existing_obj)
+                # Not a Body, move to trash and create new
+                Shape._move_to_trash_bin(existing_obj)
                 existing_obj = None
             else:
                 # It's a Body, check if it has an AdditiveBox child
@@ -26,8 +26,8 @@ class AdditiveBox(Shape):
                 existing_box = Context.get_object(box_label)
 
                 if existing_box is None or existing_box.TypeId != 'PartDesign::AdditiveBox':
-                    # Body exists but no AdditiveBox child, remove and recreate
-                    Context.remove_object(existing_obj)
+                    # Body exists but no AdditiveBox child, move to trash and recreate
+                    Shape._move_to_trash_bin(existing_obj)
                     existing_obj = None
                 else:
                     # AdditiveBox exists, update its properties

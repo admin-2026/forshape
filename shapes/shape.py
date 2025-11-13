@@ -1,4 +1,5 @@
 import FreeCAD as App
+from datetime import datetime
 
 from .context import Context
 
@@ -27,3 +28,31 @@ class Shape:
         pad.ReferenceAxis = (sketch,['N_Axis'])
         pad.Midplane = 1
         return pad
+
+    @staticmethod
+    def _move_to_trash_bin(obj):
+        """
+        Move an existing object to a trash_bin folder instead of deleting it.
+        Creates the trash_bin folder if it doesn't exist.
+        Renames the object with a timestamp to avoid name conflicts.
+
+        Args:
+            obj: The object to move to trash_bin
+        """
+        # Get or create trash_bin folder
+        trash_bin = Context.get_object('trash_bin')
+        if trash_bin is None:
+            App.ActiveDocument.addObject('App::DocumentObjectGroup', 'trash_bin')
+            trash_bin = Context.get_object('trash_bin')
+
+        # Generate new name with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        new_label = f"{obj.Label}_{timestamp}"
+
+        # Rename the object
+        obj.Label = new_label
+
+        # Move to trash_bin folder
+        trash_bin.addObject(obj)
+
+        print(f'Moved object to trash_bin: {new_label}')

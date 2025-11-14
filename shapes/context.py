@@ -10,6 +10,32 @@ import re
 # Context.remove_object('b3')
 
 class Context:
+    _epsilon = 0.01  # Default epsilon for fillet operations (mm)
+
+    @classmethod
+    def get_epsilon(cls):
+        """
+        Get the epsilon value used for fillet operations.
+        FreeCAD cannot create fillets that touch each other, so epsilon is subtracted
+        to prevent adjacent fillets from overlapping.
+
+        Returns:
+            float: The current epsilon value in mm
+        """
+        return cls._epsilon
+
+    @classmethod
+    def set_epsilon(cls, value):
+        """
+        Set the epsilon value used for fillet operations.
+
+        Args:
+            value (float): The epsilon value in mm (must be positive)
+        """
+        if value <= 0:
+            raise ValueError("Epsilon must be a positive value")
+        cls._epsilon = value
+
     @staticmethod
     def print_object(obj_or_label, indent=0, verbose=False):
         obj = Context.get_object(obj_or_label)

@@ -28,6 +28,12 @@ class AdditiveCylinder(Shape):
                 # It's a Body, check if it has an AdditiveCylinder child
                 cylinder_label = label + '_cylinder'
                 existing_cylinder = Context.get_object(cylinder_label)
+                
+                if existing_cylinder is not None and existing_cylinder.getParent() != existing_obj:
+                    # Cylinder exists but has wrong parent - label conflict
+                    other_parent = existing_cylinder.getParent()
+                    other_parent_label = other_parent.Label if other_parent else "None"
+                    raise ValueError(f"Creating object with conflicting label: '{cylinder_label}' already exists with different parent '{other_parent_label}'")
 
                 if existing_cylinder is None or existing_cylinder.TypeId != 'PartDesign::AdditiveCylinder':
                     # Body exists but no AdditiveCylinder child, move to trash and recreate

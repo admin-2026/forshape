@@ -118,7 +118,7 @@ class ForShapeMainWindow(QMainWindow):
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
                  logger: 'Logger', special_commands_handler, exit_handler,
-                 prestart_checker=None, completion_callback=None):
+                 prestart_checker=None, completion_callback=None, window_close_callback=None):
         """
         Initialize the main window.
 
@@ -130,6 +130,7 @@ class ForShapeMainWindow(QMainWindow):
             exit_handler: Function to handle exit
             prestart_checker: Optional PrestartChecker instance for prestart validation
             completion_callback: Optional callback to complete initialization after checks pass
+            window_close_callback: Optional callback to call when window is closed
         """
         super().__init__()
         self.ai_client = ai_client
@@ -145,6 +146,7 @@ class ForShapeMainWindow(QMainWindow):
         self.prestart_checker = prestart_checker
         self.prestart_check_mode = True if prestart_checker else False  # Start in prestart check mode if checker provided
         self.completion_callback = completion_callback
+        self.window_close_callback = window_close_callback
 
         # Connect logger signal to display handler
         if self.logger:
@@ -750,4 +752,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
     def closeEvent(self, event):
         """Handle window close event."""
         self.handle_exit()
+
+        # Call the window close callback to clear the active window reference
+        if self.window_close_callback:
+            self.window_close_callback()
+
         event.accept()

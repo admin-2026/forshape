@@ -26,7 +26,7 @@ class AIAgent:
         self,
         api_key: Optional[str],
         context_provider: ContextProvider,
-        model: str = "gpt-4o",
+        model: str,
         max_iterations: int = 10,
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None
@@ -37,7 +37,7 @@ class AIAgent:
         Args:
             api_key: OpenAI API key
             context_provider: ContextProvider instance for file operations and context
-            model: Model identifier to use (default: gpt-4o for tool calling)
+            model: Model identifier to use
             max_iterations: Maximum number of tool calling iterations (default: 10)
             logger: Optional logger for tool call logging
             permission_manager: Optional PermissionManager instance for access control

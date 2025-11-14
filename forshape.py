@@ -102,6 +102,14 @@ class PermissionDialogHelper(QObject):
 class ForShapeAI:
     """Main orchestrator class for the AI-powered GUI interface."""
 
+    # Class variable to track the existing GUI window across instances
+    _active_window = None
+
+    @classmethod
+    def _clear_active_window(cls):
+        """Clear the active window reference when window is closed."""
+        cls._active_window = None
+
     def __init__(self, model: Optional[str] = None):
         """
         Initialize the ForShape AI application.
@@ -179,8 +187,8 @@ class ForShapeAI:
 
         # Initialize AI agent with API key from prestart checker
         api_key = self.prestart_checker.get_api_key()
-        # Use gpt-4o for tool calling support, fallback to user's model choice
-        agent_model = self.model if self.model else "gpt-4o"
+        # Use gpt-5 for tool calling support, fallback to user's model choice
+        agent_model = self.model if self.model else "gpt-5"
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
@@ -201,6 +209,20 @@ class ForShapeAI:
         if app is None:
             app = QApplication(sys.argv)
 
+        # Check if a window already exists and is visible
+        if ForShapeAI._active_window is not None:
+            try:
+                # Check if the window is still valid and visible
+                if ForShapeAI._active_window.isVisible():
+                    # Bring the existing window to front
+                    ForShapeAI._active_window.raise_()
+                    ForShapeAI._active_window.activateWindow()
+                    self.logger.info("Existing GUI window brought to front")
+                    return 0
+            except RuntimeError:
+                # Window was deleted, clear the reference
+                ForShapeAI._active_window = None
+
         # Create and show main window first (so user can see messages and interact with FreeCAD)
         # Pass None for components that haven't been initialized yet
         self.main_window = ForShapeMainWindow(
@@ -210,8 +232,13 @@ class ForShapeAI:
             special_commands_handler=self.handle_special_commands,
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,
-            completion_callback=self._complete_initialization
+            completion_callback=self._complete_initialization,
+            window_close_callback=ForShapeAI._clear_active_window
         )
+
+        # Store the window as the active window
+        ForShapeAI._active_window = self.main_window
+
         self.main_window.show()
 
         # Run initial prestart check

@@ -140,24 +140,24 @@ class Context:
         type_id = obj.TypeId
         print(f'Removing object: {obj.Label} (Type: {type_id})')
         if type_id == 'Sketcher::SketchObject':
-            App.ActiveDocument.removeObject(obj.Label)
+            App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
         if type_id == 'PartDesign::Pad':
             parent = obj.getParent()
             parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Label)
+            App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
         if type_id == 'PartDesign::Boolean':
             parent = obj.getParent()
             parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Label)
+            App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
         if type_id == 'PartDesign::Body':
             obj.removeObjectsFromDocument()
-            App.ActiveDocument.removeObject(obj.Label)
+            App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
         if type_id == 'App::Document':

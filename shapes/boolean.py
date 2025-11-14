@@ -21,6 +21,12 @@ class Boolean:
         """
         primary = Context.get_object(primary)
 
+        # If primary is a Boolean, use its parent (Body) instead
+        if primary is not None and primary.TypeId == 'PartDesign::Boolean':
+            parent = primary.getParent()
+            if parent is not None:
+                primary = parent
+
         # Handle secondary as either a list or a single object
         if isinstance(secondary, list):
             secondary_objects = [Context.get_object(obj) for obj in secondary]

@@ -174,7 +174,6 @@ Exports FreeCAD objects to various file formats.
 ## Complete Usage Example
 
 ```python
-import FreeCAD as App
 from shapes.additive_box import AdditiveBox
 from shapes.additive_cylinder import AdditiveCylinder
 from shapes.boolean import Boolean

@@ -4,9 +4,12 @@ Context provider for ForShape AI GUI.
 This module provides context for AI interactions by loading:
 - System message from shapes/README.md
 - User context from FORSHAPE.md (if present)
+- Current FreeCAD document structure
 """
 
 import os
+import sys
+from io import StringIO
 from typing import Optional, Tuple
 from .tool_manager import ToolManager
 
@@ -42,7 +45,7 @@ class ContextProvider:
         Returns:
             Base system message
         """
-        prefix = "You are an AI assistant helping users create and manipulate 3D shapes using provided Python APIs."
+        prefix = "You are an AI assistant helping users create and manipulate 3D shapes using provided Python APIs. Use tool to print and inspect FreeCAD object details. There could be existing scripts to generate the Freecad document. Update the script instead of creating a new one. Generated script should be saved to file without asking user."
         suffix = "Avoid inserting dangerous Python code into the generated Python script."
 
         if api_docs:
@@ -96,6 +99,39 @@ class ContextProvider:
             print(f"Warning: Could not load FORSHAPE.md: {e}")
             return None
 
+    def get_document_structure(self) -> Optional[str]:
+        """
+        Get the current FreeCAD document structure using Context.print_document().
+
+        Returns:
+            String representation of the document structure, or None if unavailable
+        """
+        try:
+            # Import Context class
+            sys.path.insert(0, self.shapes_dir)
+            from context import Context
+            import FreeCAD as App
+
+            # Check if there's an active document
+            if App.ActiveDocument is None:
+                return None
+
+            # Capture the output of Context.print_document()
+            old_stdout = sys.stdout
+            sys.stdout = StringIO()
+
+            try:
+                Context.print_document()
+                output = sys.stdout.getvalue()
+            finally:
+                sys.stdout = old_stdout
+
+            return output if output.strip() else None
+
+        except Exception as e:
+            print(f"Warning: Could not get document structure: {e}")
+            return None
+
     def get_context(self, include_agent_tools: bool = False) -> Tuple[str, Optional[str]]:
         """
         Get both system message and user context.
@@ -106,11 +142,21 @@ class ContextProvider:
         Returns:
             Tuple of (system_message, forshape_context)
             - system_message: Always returns a string (from README.md or default)
-            - forshape_context: None if FORSHAPE.md doesn't exist
+            - forshape_context: Combined context from FORSHAPE.md and document structure
         """
         system_message = self.load_system_message(include_agent_tools=include_agent_tools)
         forshape_context = self.load_forshape_context()
-        return system_message, forshape_context
+        document_structure = self.get_document_structure()
+
+        # Combine contexts
+        contexts = []
+        if forshape_context:
+            contexts.append(forshape_context)
+        if document_structure:
+            contexts.append("# Current Document Structure\n\n```\n" + document_structure + "```")
+
+        combined_context = "\n\n".join(contexts) if contexts else None
+        return system_message, combined_context
 
     def has_forshape(self) -> bool:
         """

@@ -15,8 +15,12 @@ class AdditiveBox(Shape):
         existing_obj = Context.get_object(label)
 
         if existing_obj is not None:
+            # Check if the existing object is the document itself
+            if existing_obj == App.ActiveDocument:
+                # Don't move the document to trash, just continue creation
+                existing_obj = None
             # Check the type of the existing object
-            if existing_obj.TypeId != 'PartDesign::Body':
+            elif existing_obj.TypeId != 'PartDesign::Body':
                 # Not a Body, move to trash and create new
                 Shape._move_to_trash_bin(existing_obj)
                 existing_obj = None

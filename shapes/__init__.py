@@ -15,6 +15,7 @@ from .context import Context
 from .boolean import Boolean
 from .transform import Transform
 from .export import Export
+from .image_context import ImageContext, Perspective
 
 __all__ = [
     'Shape',
@@ -27,4 +28,6 @@ __all__ = [
     'Boolean',
     'Transform',
     'Export',
+    'ImageContext',
+    'Perspective',
 ]

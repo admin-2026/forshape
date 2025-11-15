@@ -117,7 +117,7 @@ class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 logger: 'Logger', special_commands_handler, exit_handler,
+                 logger: 'Logger', context_provider, special_commands_handler, exit_handler,
                  prestart_checker=None, completion_callback=None, window_close_callback=None):
         """
         Initialize the main window.
@@ -126,6 +126,7 @@ class ForShapeMainWindow(QMainWindow):
             ai_client: The AIAgent instance for AI interactions (can be None initially)
             history_logger: The HistoryLogger instance for logging (can be None initially)
             logger: The Logger instance for tool call logging
+            context_provider: The ContextProvider instance for accessing working directory and project info
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
             prestart_checker: Optional PrestartChecker instance for prestart validation
@@ -136,6 +137,7 @@ class ForShapeMainWindow(QMainWindow):
         self.ai_client = ai_client
         self.history_logger = history_logger
         self.logger = logger
+        self.context_provider = context_provider
         self.handle_special_commands = special_commands_handler
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
@@ -253,9 +255,16 @@ class ForShapeMainWindow(QMainWindow):
         self.run_button.setToolTip("Run a Python script from the working directory")
         self.run_button.clicked.connect(self.on_run_script)
 
+        # Add Redo button
+        self.redo_button = QPushButton("Redo Script")
+        self.redo_button.setFont(QFont("Consolas", 10))
+        self.redo_button.setToolTip("Teardown and rebuild - select a script to redo")
+        self.redo_button.clicked.connect(self.on_redo_script)
+
         input_layout.addWidget(input_label)
         input_layout.addWidget(self.input_field, stretch=1)
         input_layout.addWidget(self.run_button)
+        input_layout.addWidget(self.redo_button)
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
@@ -653,7 +662,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         python_files = []
 
         # Get working directory from context provider
-        working_dir = self.ai_client.context_provider.working_dir
+        working_dir = self.context_provider.working_dir
 
         # Find all .py files in the working directory (non-recursive)
         pattern = os.path.join(working_dir, "*.py")
@@ -685,6 +694,125 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if selected_file:
                 self.run_python_file(selected_file)
 
+    def on_redo_script(self):
+        """Handle Redo Script button click."""
+        # Scan for Python files
+        python_files = self.scan_python_files()
+
+        if not python_files:
+            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
+            return
+
+        # Show file selector dialog
+        dialog = PythonFileSelector(python_files, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_file = dialog.get_selected_file()
+            if selected_file:
+                self.redo_python_file(selected_file)
+
+    def redo_python_file(self, file_path):
+        """
+        Redo a Python file - teardown then rebuild.
+        First runs the script with TEARDOWN_MODE=True to remove objects,
+        then runs it again with TEARDOWN_MODE=False to recreate them.
+
+        Args:
+            file_path: Path to the Python file to redo
+        """
+        self.append_message("[SYSTEM]", f"Redoing: {file_path}")
+        self.append_message("[SYSTEM]", "Phase 1: Tearing down...")
+
+        # Get absolute path
+        abs_path = os.path.abspath(file_path)
+
+        if not os.path.exists(abs_path):
+            self.display_error(f"File not found: {file_path}")
+            return
+
+        # Add project directory to sys.path if not already there
+        project_dir = self.context_provider.get_project_dir()
+        if project_dir not in sys.path:
+            sys.path.insert(0, project_dir)
+
+        try:
+            # Read the script content
+            with open(abs_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
+
+            # Phase 1: Teardown
+            # Capture stdout and stderr
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+
+            try:
+                # Execute the script in teardown mode
+                exec_globals = {
+                    '__name__': '__main__',
+                    '__file__': abs_path,
+                    'TEARDOWN_MODE': True
+                }
+                exec(script_content, exec_globals)
+
+                # Get captured output
+                stdout_output = sys.stdout.getvalue()
+                stderr_output = sys.stderr.getvalue()
+
+                # Display output if any
+                if stdout_output.strip():
+                    self.append_message("[TEARDOWN OUTPUT]", stdout_output.strip())
+                if stderr_output.strip():
+                    self.append_message("[TEARDOWN STDERR]", stderr_output.strip())
+
+            finally:
+                # Restore stdout and stderr
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+            self.append_message("[SYSTEM]", "Phase 2: Rebuilding...")
+
+            # Phase 2: Rebuild
+            # Capture stdout and stderr again
+            sys.stdout = io.StringIO()
+            sys.stderr = io.StringIO()
+
+            try:
+                # Execute the script in normal mode
+                exec_globals = {
+                    '__name__': '__main__',
+                    '__file__': abs_path,
+                    'TEARDOWN_MODE': False
+                }
+                exec(script_content, exec_globals)
+
+                # Get captured output
+                stdout_output = sys.stdout.getvalue()
+                stderr_output = sys.stderr.getvalue()
+
+                # Display output if any
+                if stdout_output.strip():
+                    self.append_message("[BUILD OUTPUT]", stdout_output.strip())
+                if stderr_output.strip():
+                    self.append_message("[BUILD STDERR]", stderr_output.strip())
+
+                # Success message
+                self.append_message("[SYSTEM]", f"Redo completed successfully: {file_path}")
+
+            finally:
+                # Restore stdout and stderr
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+        except Exception as e:
+            # Restore stdout and stderr in case of error
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+            # Format and display the error
+            error_msg = f"Error during redo of {file_path}:\n{traceback.format_exc()}"
+            self.display_error(error_msg)
+
     def run_python_file(self, file_path):
         """
         Run a Python file in the current Python context (FreeCAD's interpreter).
@@ -702,7 +830,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             return
 
         # Add project directory to sys.path if not already there
-        project_dir = self.ai_client.context_provider.get_project_dir()
+        project_dir = self.context_provider.get_project_dir()
         if project_dir not in sys.path:
             sys.path.insert(0, project_dir)
 

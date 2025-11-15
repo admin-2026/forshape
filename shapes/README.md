@@ -39,8 +39,41 @@ The cylinder is created at the given plane center. The height is extruded in the
   AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, yaw=45)
   ```
 
-### 3. AdditiveBox
-Location: `additive_box.py:9`
+### 3. AdditivePrism
+Location: `additive_prism.py:9`
+
+Creates regular polygon prism shapes using FreeCAD's PartDesign AdditivePrism feature with support for attachment offsets and rotation.
+
+The prism is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+
+**Public Methods:**
+
+`AdditivePrism.create_prism(label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Parameters:**
+  - `label` (str): Name/label for the prism object
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
+  - `polygon` (int): Number of sides for the prism (e.g., 3=triangle, 6=hexagon, 8=octagon)
+  - `circumradius` (float): Radius of the circumscribed circle in mm
+  - `height` (float): Height/length of the prism in mm
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+- **Example:**
+  ```python
+  from shapes.additive_prism import AdditivePrism
+  # Hexagonal prism
+  AdditivePrism.create_prism('hex1', 'XY_Plane', 6, 5, 10)
+  # Triangle with offset and rotation
+  AdditivePrism.create_prism('tri1', 'XY_Plane', 3, 8, 15, x_offset=20, yaw=30)
+  # Octagon
+  AdditivePrism.create_prism('oct1', 'XY_Plane', 8, 6, 12)
+  ```
+
+### 4. AdditiveBox
+Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
 
@@ -96,7 +129,7 @@ The box is created with the bottom left corner on the plane origin. The height i
   AdditiveBox.create_slot('slot3', 'XY_Plane', 15, 8, 3, 1.5, x_offset=10, y_offset=15, yaw=45)
   ```
 
-### 4. Pad
+### 5. Pad
 Location: `pad.py:10`
 
 Creates a body with a pad feature from an existing sketch. Useful when you have a pre-existing sketch and want to extrude it into a 3D body.
@@ -118,7 +151,7 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   Pad.create_pad('extruded_shape', 'my_sketch', 20)
   ```
 
-### 5. Boolean
+### 6. Boolean
 Location: `boolean.py:9`
 
 Performs boolean operations between shapes (union, difference, intersection).
@@ -159,7 +192,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 6. Transform
+### 7. Transform
 Location: `transform.py:5`
 
 Provides spatial transformation operations for objects.
@@ -192,7 +225,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 7. Export
+### 8. Export
 Location: `export.py:6`
 
 Exports FreeCAD objects to various file formats.
@@ -258,7 +291,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, and `create_pad` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, and `create_pad` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 

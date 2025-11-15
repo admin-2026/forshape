@@ -8,6 +8,7 @@ This package contains classes and utilities for creating and manipulating
 from .shape import Shape
 from .additive_box import AdditiveBox
 from .additive_cylinder import AdditiveCylinder
+from .additive_prism import AdditivePrism
 from .pad import Pad
 from .context import Context
 from .boolean import Boolean
@@ -18,6 +19,7 @@ __all__ = [
     'Shape',
     'AdditiveBox',
     'AdditiveCylinder',
+    'AdditivePrism',
     'Pad',
     'Context',
     'Boolean',

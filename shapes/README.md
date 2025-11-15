@@ -70,6 +70,32 @@ The box is created with the bottom left corner on the plane origin. The height i
   AdditiveBox.create_box('b2', 'XY_Plane', 10, 20, 5, x_offset=15, y_offset=10, pitch=30)
   ```
 
+`AdditiveBox.create_slot(label, plane_label, length, width, height, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular slot with rounded corners using fillets. Useful for creating elongated holes or slots with smooth edges.
+- **Parameters:**
+  - `label` (str): Name/label for the slot object
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
+  - `length` (float): Length dimension in mm
+  - `width` (float): Width dimension in mm
+  - `height` (float): Height dimension in mm
+  - `radius` (float): Fillet radius for rounded corners in mm
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+- **Example:**
+  ```python
+  from shapes.additive_box import AdditiveBox
+  # Basic slot with rounded corners
+  AdditiveBox.create_slot('slot1', 'XY_Plane', 20, 10, 5, 2)
+  # Fully rounded slot (stadium shape) - diameter equals width
+  AdditiveBox.create_slot('slot2', 'XY_Plane', 30, 10, 5, 5, x_offset=25)
+  # Slot with offset and rotation
+  AdditiveBox.create_slot('slot3', 'XY_Plane', 15, 8, 3, 1.5, x_offset=10, y_offset=15, yaw=45)
+  ```
+
 ### 4. Boolean
 Location: `boolean.py:9`
 
@@ -177,9 +203,7 @@ Exports FreeCAD objects to various file formats.
 from shapes.additive_box import AdditiveBox
 from shapes.additive_cylinder import AdditiveCylinder
 from shapes.boolean import Boolean
-from shapes.transform import Transform
 from shapes.export import Export
-from shapes.context import Context
 
 # Create a box with offset
 AdditiveBox.create_box('main_box', 'XY_Plane', 20, 20, 10)
@@ -187,11 +211,14 @@ AdditiveBox.create_box('main_box', 'XY_Plane', 20, 20, 10)
 # Create a cylinder with offset to position it
 AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offset=10)
 
-# Cut the cylinder from the box
-Boolean.cut('box_with_hole', 'main_box', 'hole')
+# Create a rounded slot (stadium shape)
+AdditiveBox.create_slot('slot', 'XY_Plane', 15, 6, 15, 3, x_offset=25)
+
+# Cut the cylinder and slot from the box
+Boolean.cut('box_with_holes', 'main_box', ['hole', 'slot'])
 
 # Export the result
-Export.export('box_with_hole', 'box_with_hole.step')
+Export.export('box_with_holes', 'box_with_holes.step')
 ```
 
 ## Important Notes
@@ -209,6 +236,8 @@ Export.export('box_with_hole', 'box_with_hole.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
+6. **Idempotent Operations:** The `create_box`, `create_slot`, and `create_cylinder` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+
 ## Tips for LLM Usage
 
 - Use descriptive labels for objects to make them easy to reference later
@@ -216,3 +245,4 @@ Export.export('box_with_hole', 'box_with_hole.step')
 - Transform operations use absolute positioning (not relative)
 - Export automatically creates directories if they don't exist
 - When performing multiple operations, consider the order: create shapes, transform them, then apply boolean operations
+- For elongated holes with rounded ends (stadium/obround shapes), use `create_slot` with radius equal to half the width

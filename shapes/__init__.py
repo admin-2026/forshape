@@ -10,6 +10,7 @@ from .additive_box import AdditiveBox
 from .additive_cylinder import AdditiveCylinder
 from .additive_prism import AdditivePrism
 from .pad import Pad
+from .edge_feature import EdgeFeature
 from .context import Context
 from .boolean import Boolean
 from .transform import Transform
@@ -21,6 +22,7 @@ __all__ = [
     'AdditiveCylinder',
     'AdditivePrism',
     'Pad',
+    'EdgeFeature',
     'Context',
     'Boolean',
     'Transform',

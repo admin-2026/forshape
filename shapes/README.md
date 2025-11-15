@@ -151,7 +151,56 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   Pad.create_pad('extruded_shape', 'my_sketch', 20)
   ```
 
-### 6. Boolean
+### 6. EdgeFeature
+Location: `edge_feature.py:10`
+
+Adds design features (fillets, chamfers, drafts) to edges or faces of existing objects.
+
+**Public Methods:**
+
+`EdgeFeature.add_fillet(label, object_label, edges, radius)`
+- **Description:** Adds a fillet (rounded edge) to selected edges of an existing object
+- **Parameters:**
+  - `label` (str): Name/label for the fillet feature
+  - `object_label` (str): Label of the existing object to add fillet to
+  - `edges` (list): List of edge labels (e.g., ['Edge1', 'Edge2', 'Edge3'])
+  - `radius` (float): Fillet radius in mm
+- **Example:**
+  ```python
+  from shapes.edge_feature import EdgeFeature
+  from shapes.additive_box import AdditiveBox
+  # Create a box
+  AdditiveBox.create_box('box1', 'XY_Plane', 10, 10, 10)
+  # Add fillet to specific edges
+  EdgeFeature.add_fillet('fillet1', 'box1', ['Edge1', 'Edge2', 'Edge3'], 2)
+  ```
+
+`EdgeFeature.add_chamfer(label, object_label, edges, size)`
+- **Description:** Adds a chamfer (beveled edge) to selected edges of an existing object
+- **Parameters:**
+  - `label` (str): Name/label for the chamfer feature
+  - `object_label` (str): Label of the existing object to add chamfer to
+  - `edges` (list): List of edge labels (e.g., ['Edge1', 'Edge2'])
+  - `size` (float): Chamfer size in mm
+- **Example:**
+  ```python
+  EdgeFeature.add_chamfer('chamfer1', 'box1', ['Edge5', 'Edge6'], 1.5)
+  ```
+
+`EdgeFeature.add_draft(label, object_label, faces, angle, neutral_plane)`
+- **Description:** Adds a draft (tapered face) to selected faces of an existing object
+- **Parameters:**
+  - `label` (str): Name/label for the draft feature
+  - `object_label` (str): Label of the existing object to add draft to
+  - `faces` (list): List of face labels (e.g., ['Face1', 'Face2'])
+  - `angle` (float): Draft angle in degrees
+  - `neutral_plane` (str): Neutral plane label (e.g., 'XY_Plane')
+- **Example:**
+  ```python
+  EdgeFeature.add_draft('draft1', 'box1', ['Face1', 'Face2'], 5, 'XY_Plane')
+  ```
+
+### 7. Boolean
 Location: `boolean.py:9`
 
 Performs boolean operations between shapes (union, difference, intersection).
@@ -192,7 +241,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 7. Transform
+### 8. Transform
 Location: `transform.py:5`
 
 Provides spatial transformation operations for objects.
@@ -225,7 +274,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 8. Export
+### 9. Export
 Location: `export.py:6`
 
 Exports FreeCAD objects to various file formats.

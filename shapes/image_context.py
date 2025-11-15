@@ -24,24 +24,34 @@ class Perspective(Enum):
 
 class ImageContext:
     """
-    Simplified screenshot API for FreeCAD 3D views.
+    Screenshot API for FreeCAD 3D views.
 
-    Main method:
-        capture(path, target=None, perspective="isometric")
+    Auto-saves screenshots to configured images folder with timestamp.
+    Naming: {target}_{perspective}_{timestamp}.png
+    Example: MyBox_front_20240115_143022.png
 
-    Examples:
-        # Capture entire scene from isometric view
-        ImageContext.capture("output.png")
+    Designed for providing vision feedback to LLM - captures and returns
+    images that the LLM can see and analyze.
 
-        # Capture from front view
-        ImageContext.capture("front.png", perspective="front")
+    Usage:
+        # Create instance with images directory
+        image_ctx = ImageContext(images_dir="/path/to/history/images")
 
-        # Capture specific object
-        ImageContext.capture("box.png", target="MyBox")
-
-        # Capture with multiple perspectives
-        ImageContext.capture("model.png", perspectives=["front", "top", "isometric"])
+        # Capture screenshots
+        image_ctx.capture()  # -> scene_isometric_20240115_143022.png
+        image_ctx.capture(target="MyBox")  # -> MyBox_isometric_20240115_143022.png
+        image_ctx.capture(perspective="front")  # -> scene_front_20240115_143022.png
+        image_ctx.capture(target="MyBox", perspective="top")  # -> MyBox_top_20240115_143022.png
     """
+
+    def __init__(self, images_dir):
+        """
+        Initialize ImageContext with images directory.
+
+        Args:
+            images_dir: Path to the directory where screenshots will be saved
+        """
+        self.images_dir = images_dir
 
     @staticmethod
     def _get_view():
@@ -75,13 +85,12 @@ class ImageContext:
             print(f"Unknown perspective '{perspective_str}'. Using current view.")
             print("Available: front, back, top, bottom, left, right, isometric")
 
-    @staticmethod
-    def capture(path, target=None, perspective="isometric", perspectives=None):
+    def capture(self, path=None, target=None, perspective="isometric", perspectives=None):
         """
         Capture a screenshot of the 3D view.
 
         Args:
-            path: File path to save screenshot (e.g., "output.png")
+            path: Optional file path to save screenshot. If None, auto-generates with timestamp
                  For multiple perspectives, use "{}" placeholder (e.g., "model_{}.png")
             target: Optional object name/label to focus on. If None, captures entire scene
             perspective: View angle - "front", "back", "top", "bottom", "left", "right", "isometric"
@@ -94,27 +103,48 @@ class ImageContext:
             str or dict: File path if single capture, dict of {perspective: path} if multiple
 
         Examples:
-            ImageContext.capture("box.png")
-            ImageContext.capture("box.png", target="MyBox", perspective="front")
-            ImageContext.capture("model_{}.png", perspectives=["front", "top"])
+            image_ctx.capture()  # Auto-generates path with timestamp
+            image_ctx.capture(target="MyBox", perspective="front")
+            image_ctx.capture(perspectives=["front", "top"])
         """
+        from datetime import datetime
+
         view = ImageContext._get_view()
         if view is None:
             return None
+
+        # Auto-generate path if not provided
+        if path is None:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+
+            # Generate filename: target_perspective_timestamp
+            if target:
+                filename = f"{target}_{perspective}_{timestamp}.png"
+            else:
+                filename = f"scene_{perspective}_{timestamp}.png"
+
+            path = os.path.join(self.images_dir, filename)
 
         # Handle multiple perspectives
         if perspectives is not None:
             results = {}
             for persp in perspectives:
                 # Generate path for this perspective
-                if '{}' in path:
+                if path and '{}' in path:
                     file_path = path.format(persp)
                 else:
-                    base, ext = os.path.splitext(path)
-                    file_path = f"{base}_{persp}{ext}"
+                    # Auto-generate individual paths: target_perspective_timestamp
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+
+                    if target:
+                        filename = f"{target}_{persp}_{timestamp}.png"
+                    else:
+                        filename = f"scene_{persp}_{timestamp}.png"
+
+                    file_path = os.path.join(self.images_dir, filename)
 
                 # Capture single perspective
-                result = ImageContext.capture(file_path, target=target, perspective=persp)
+                result = self.capture(file_path, target=target, perspective=persp)
                 if result:
                     results[persp] = result
 

@@ -185,6 +185,11 @@ class ForShapeAI:
         # Initialize permission manager with GUI callback
         self.permission_manager = PermissionManager(self._permission_callback)
 
+        # Initialize ImageContext for screenshot capture
+        from shapes.image_context import ImageContext
+        images_dir = self.config.get_history_dir() / "images"
+        image_context = ImageContext(str(images_dir))
+
         # Initialize AI agent with API key from prestart checker
         api_key = self.prestart_checker.get_api_key()
         # Use gpt-5 for tool calling support, fallback to user's model choice
@@ -194,7 +199,8 @@ class ForShapeAI:
             self.context_provider,
             model=agent_model,
             logger=self.logger,
-            permission_manager=self.permission_manager
+            permission_manager=self.permission_manager,
+            image_context=image_context
         )
         self.logger.info(f"AI client initialized with model: {agent_model}")
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from .logger import Logger
 from .permission_manager import PermissionManager
 from shapes.context import Context
+from shapes.image_context import ImageContext
 
 
 class ToolManager:
@@ -27,7 +28,8 @@ class ToolManager:
         self,
         working_dir: str,
         logger: Optional[Logger] = None,
-        permission_manager: Optional[PermissionManager] = None
+        permission_manager: Optional[PermissionManager] = None,
+        image_context: Optional[ImageContext] = None
     ):
         """
         Initialize the tool manager.
@@ -36,10 +38,13 @@ class ToolManager:
             working_dir: Working directory for file operations
             logger: Optional logger for tool call logging
             permission_manager: Optional permission manager for access control
+            image_context: Optional ImageContext instance for screenshot capture
         """
         self.working_dir = working_dir
         self.logger = logger
         self.permission_manager = permission_manager
+        self.image_context = image_context
+
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
 
@@ -230,6 +235,34 @@ class ToolManager:
                         "required": ["pattern"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "capture_screenshot",
+                    "description": "Capture a screenshot of the FreeCAD 3D view. Automatically saves to history/images folder with timestamp. Can capture entire scene or focus on a specific object, from various perspectives (front, top, isometric, etc.). Supports multiple perspectives in a single call.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "target": {
+                                "type": "string",
+                                "description": "Optional object label/name to focus on. If not specified, captures entire scene."
+                            },
+                            "perspective": {
+                                "type": "string",
+                                "description": "View angle: 'front', 'back', 'top', 'bottom', 'left', 'right', or 'isometric' (default: 'isometric'). Ignored if perspectives is specified."
+                            },
+                            "perspectives": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Optional list of perspectives for multiple captures. Example: ['front', 'top', 'isometric']. When provided, ignores the 'perspective' parameter."
+                            }
+                        },
+                        "required": []
+                    }
+                }
             }
         ]
 
@@ -249,7 +282,8 @@ class ToolManager:
             "print_document": self._tool_print_document,
             "rename_object": self._tool_rename_object,
             "remove_object": self._tool_remove_object,
-            "search_python_files": self._tool_search_python_files
+            "search_python_files": self._tool_search_python_files,
+            "capture_screenshot": self._tool_capture_screenshot
         }
 
     def _resolve_path(self, path: str) -> Path:
@@ -729,6 +763,101 @@ class ToolManager:
         except Exception as e:
             return json.dumps({"error": f"Error searching Python files: {str(e)}"})
 
+    def _tool_capture_screenshot(
+        self,
+        target: Optional[str] = None,
+        perspective: str = "isometric",
+        perspectives: Optional[List[str]] = None
+    ) -> str:
+        """
+        Implementation of the capture_screenshot tool.
+        Automatically saves screenshots to history/images folder with timestamp.
+        Returns the image data as base64 so the LLM can see it.
+
+        Args:
+            target: Optional object label/name to focus on
+            perspective: View angle (default: "isometric")
+            perspectives: Optional list of perspectives for multiple captures
+
+        Returns:
+            JSON string with success or error message, including base64-encoded image(s)
+        """
+        try:
+            import base64
+
+            # Check if image_context is available
+            if self.image_context is None:
+                return json.dumps({
+                    "success": False,
+                    "message": "ImageContext not configured"
+                })
+
+            # Capture output
+            import io
+            import sys
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+
+            # Call image_context.capture()
+            result = self.image_context.capture(
+                target=target,
+                perspective=perspective,
+                perspectives=perspectives
+            )
+
+            # Restore stdout
+            sys.stdout = sys.__stdout__
+            output = captured_output.getvalue()
+
+            # Check if capture was successful
+            if result is None:
+                return json.dumps({
+                    "success": False,
+                    "message": output.strip() if output else "Screenshot capture failed"
+                }, indent=2)
+
+            # Helper function to encode image to base64
+            def encode_image(file_path: str) -> str:
+                """Encode image file to base64 string."""
+                try:
+                    with open(file_path, 'rb') as image_file:
+                        return base64.b64encode(image_file.read()).decode('utf-8')
+                except Exception as e:
+                    return f"Error encoding image: {str(e)}"
+
+            # Handle single vs multiple captures
+            if isinstance(result, dict):
+                # Multiple perspectives - encode all images
+                images_data = {}
+                for persp, file_path in result.items():
+                    images_data[persp] = {
+                        "file": file_path,
+                        "image_base64": encode_image(file_path)
+                    }
+
+                return json.dumps({
+                    "success": True,
+                    "message": "Screenshots captured successfully",
+                    "images": images_data,
+                    "count": len(result),
+                    "output": output.strip()
+                }, indent=2)
+            else:
+                # Single perspective - encode single image
+                image_base64 = encode_image(result)
+
+                return json.dumps({
+                    "success": True,
+                    "message": "Screenshot captured successfully",
+                    "file": result,
+                    "image_base64": image_base64,
+                    "output": output.strip()
+                }, indent=2)
+
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            return json.dumps({"error": f"Error capturing screenshot: {str(e)}"})
+
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.
@@ -807,6 +936,9 @@ You have access to the following tools:
 8. **rename_object** - Rename a FreeCAD object by changing its Label property
 9. **remove_object** - Remove a FreeCAD object from the document
 
+### FreeCAD Visualization Tools
+10. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
+
 ### Working with Generated Scripts
 
 When users ask you to generate or modify Python scripts for shapes:
@@ -861,5 +993,17 @@ When users ask about objects in their FreeCAD document:
 
 **User says: "Find usages of the Context class"**
 → Use search_python_files with pattern="Context\\." to find all references
+
+**User says: "Take a screenshot of the model"**
+→ Use capture_screenshot (no parameters needed - auto-saves with timestamp)
+
+**User says: "Capture the box from the front view"**
+→ Use capture_screenshot with target="box", perspective="front"
+
+**User says: "Take screenshots from multiple angles"**
+→ Use capture_screenshot with perspectives=["front", "top", "isometric"]
+
+**User says: "Show me what the object looks like"**
+→ Use capture_screenshot to capture an image of the object and return the image
 
 Use these tools proactively to provide a better user experience!"""

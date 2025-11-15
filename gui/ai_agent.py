@@ -29,7 +29,8 @@ class AIAgent:
         model: str,
         max_iterations: int = 10,
         logger: Optional[Logger] = None,
-        permission_manager: Optional[PermissionManager] = None
+        permission_manager: Optional[PermissionManager] = None,
+        image_context = None
     ):
         """
         Initialize the AI agent.
@@ -41,6 +42,7 @@ class AIAgent:
             max_iterations: Maximum number of tool calling iterations (default: 10)
             logger: Optional logger for tool call logging
             permission_manager: Optional PermissionManager instance for access control
+            image_context: Optional ImageContext instance for screenshot capture
         """
         self.model = model
         self.max_iterations = max_iterations
@@ -51,7 +53,8 @@ class AIAgent:
         self.tool_manager = ToolManager(
             context_provider.working_dir,
             logger,
-            self.permission_manager
+            self.permission_manager,
+            image_context
         )
         self._system_message_cache = None
         self.logger = logger
@@ -179,6 +182,10 @@ class AIAgent:
                             "content": tool_result
                         })
 
+                        # Special handling for screenshot tools - present images to LLM
+                        if tool_name == "capture_screenshot":
+                            self._add_screenshot_to_conversation(messages, tool_result)
+
                     # Continue the loop to get the next response
                     continue
 
@@ -196,6 +203,68 @@ class AIAgent:
 
         # If we hit max iterations
         return "Agent reached maximum iterations without completing the task."
+
+    def _add_screenshot_to_conversation(self, messages: List[Dict], tool_result: str):
+        """
+        Parse screenshot tool result and add images to conversation for LLM to see.
+
+        Args:
+            messages: The conversation messages list
+            tool_result: The JSON string returned from capture_screenshot tool
+        """
+        try:
+            result_data = json.loads(tool_result)
+
+            if not result_data.get("success"):
+                return
+
+            # Check if we have single or multiple images
+            if "image_base64" in result_data:
+                # Single image
+                base64_image = result_data["image_base64"]
+                if base64_image and not base64_image.startswith("Error"):
+                    messages.append({
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Here is the screenshot that was just captured:"
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}",
+                                    "detail": "high"
+                                }
+                            }
+                        ]
+                    })
+
+            elif "images" in result_data:
+                # Multiple images
+                content = [{"type": "text", "text": "Here are the screenshots that were just captured:"}]
+
+                for perspective, image_data in result_data["images"].items():
+                    base64_image = image_data.get("image_base64")
+                    if base64_image and not base64_image.startswith("Error"):
+                        content.append({"type": "text", "text": f"\n{perspective} view:"})
+                        content.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{base64_image}",
+                                "detail": "high"
+                            }
+                        })
+
+                if len(content) > 1:  # More than just the intro text
+                    messages.append({
+                        "role": "user",
+                        "content": content
+                    })
+
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error adding screenshot to conversation: {str(e)}")
 
     def get_history(self) -> List[Dict]:
         """

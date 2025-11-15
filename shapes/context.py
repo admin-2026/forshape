@@ -206,66 +206,42 @@ class Context:
             return
         type_id = obj.TypeId
         print(f'Removing object: {obj.Label} (Type: {type_id})')
+
+        # Object types that need to be removed from their parent first
+        partdesign_child_types = {
+            'PartDesign::Pad',
+            'PartDesign::AdditiveBox',
+            'PartDesign::AdditiveCylinder',
+            'PartDesign::AdditivePrism',
+            'PartDesign::Boolean',
+            'PartDesign::Fillet',
+            'PartDesign::Chamfer',
+            'PartDesign::Draft'
+        }
+
+        if type_id in partdesign_child_types:
+            parent = obj.getParent()
+            if parent is not None:
+                parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+
         if type_id == 'Sketcher::SketchObject':
             App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
-        if type_id == 'PartDesign::Pad':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::AdditiveBox':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::AdditiveCylinder':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::AdditivePrism':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::Boolean':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::Fillet':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::Chamfer':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
-        if type_id == 'PartDesign::Draft':
-            parent = obj.getParent()
-            parent.removeObject(obj)
-            App.ActiveDocument.removeObject(obj.Name)
-            App.ActiveDocument.recompute()
-            return
+
         if type_id == 'PartDesign::Body':
             obj.removeObjectsFromDocument()
             App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
+
         if type_id == 'App::Document':
             print('cannot remove document')
             return
+
         print(f'Unsupported object type: {type_id}')
 
     @staticmethod

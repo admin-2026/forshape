@@ -1,6 +1,7 @@
 import FreeCAD as App
 
 from .context import Context
+from .shape import Shape
 
 # from importlib import reload
 # reload(boolean)
@@ -61,30 +62,36 @@ class Boolean:
                 existing_boolean = None
             else:
                 # Check if the parent is the same as the primary object
-                existing_parent = existing_boolean.Parents[0][0]
-                if existing_parent != primary:
-                    # Different parent, remove and recreate
+                # Handle case where Parents might be empty (e.g., parent was removed)
+                if not existing_boolean.Parents or len(existing_boolean.Parents) == 0:
+                    # No parent, remove and recreate
                     Context.remove_object(existing_boolean)
                     existing_boolean = None
                 else:
-                    # Boolean exists with correct parent, update its properties
-                    needs_recompute = False
+                    existing_parent = existing_boolean.Parents[0][0]
+                    if existing_parent != primary:
+                        # Different parent, remove and recreate
+                        Context.remove_object(existing_boolean)
+                        existing_boolean = None
+                    else:
+                        # Boolean exists with correct parent, update its properties
+                        needs_recompute = False
 
-                    # Update boolean type
-                    if existing_boolean.Type != boolean_type:
-                        existing_boolean.Type = boolean_type
-                        needs_recompute = True
+                        # Update boolean type
+                        if existing_boolean.Type != boolean_type:
+                            existing_boolean.Type = boolean_type
+                            needs_recompute = True
 
-                    # Update secondary objects
-                    current_objects = existing_boolean.Group
-                    if current_objects != secondary_objects:
-                        existing_boolean.setObjects(secondary_objects)
-                        needs_recompute = True
+                        # Update secondary objects
+                        current_objects = existing_boolean.Group
+                        if current_objects != secondary_objects:
+                            existing_boolean.setObjects(secondary_objects)
+                            needs_recompute = True
 
-                    if needs_recompute:
-                        App.ActiveDocument.recompute()
+                        if needs_recompute:
+                            App.ActiveDocument.recompute()
 
-                    return
+                        return
 
         # Create new boolean object if it doesn't exist
         ### Begin command PartDesign_Boolean
@@ -98,12 +105,21 @@ class Boolean:
 
     @staticmethod
     def fuse(fuse_label, primary, secondary):
+        # Handle teardown mode
+        if Shape._teardown_if_needed(fuse_label):
+            return None
         Boolean._create_boolean(fuse_label, primary, secondary, 0)
 
     @staticmethod
     def common(common_label, primary, secondary):
+        # Handle teardown mode
+        if Shape._teardown_if_needed(common_label):
+            return None
         Boolean._create_boolean(common_label, primary, secondary, 2)
 
     @staticmethod
     def cut(cut_label, primary, secondary):
+        # Handle teardown mode
+        if Shape._teardown_if_needed(cut_label):
+            return None
         Boolean._create_boolean(cut_label, primary, secondary, 1)

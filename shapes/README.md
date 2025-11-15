@@ -96,7 +96,29 @@ The box is created with the bottom left corner on the plane origin. The height i
   AdditiveBox.create_slot('slot3', 'XY_Plane', 15, 8, 3, 1.5, x_offset=10, y_offset=15, yaw=45)
   ```
 
-### 4. Boolean
+### 4. Pad
+Location: `pad.py:10`
+
+Creates a body with a pad feature from an existing sketch. Useful when you have a pre-existing sketch and want to extrude it into a 3D body.
+
+**Public Methods:**
+
+`Pad.create_pad(label, sketch_label, height)`
+- **Description:** Creates a body with a pad from an existing sketch. The pad is extruded centered on the sketch plane (midplane mode).
+- **Parameters:**
+  - `label` (str): Name/label for the body object
+  - `sketch_label` (str): Label of the existing sketch to pad
+  - `height` (float): Extrusion height in mm
+- **Example:**
+  ```python
+  from shapes.pad import Pad
+  # Assuming 'my_sketch' already exists in the document
+  Pad.create_pad('extruded_shape', 'my_sketch', 15)
+  # Update existing pad with new height
+  Pad.create_pad('extruded_shape', 'my_sketch', 20)
+  ```
+
+### 5. Boolean
 Location: `boolean.py:9`
 
 Performs boolean operations between shapes (union, difference, intersection).
@@ -137,7 +159,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 5. Transform
+### 6. Transform
 Location: `transform.py:5`
 
 Provides spatial transformation operations for objects.
@@ -170,7 +192,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 6. Export
+### 7. Export
 Location: `export.py:6`
 
 Exports FreeCAD objects to various file formats.
@@ -236,7 +258,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_slot`, and `create_cylinder` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, and `create_pad` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 

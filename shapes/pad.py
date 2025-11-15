@@ -21,6 +21,9 @@ class Pad(Shape):
         Returns:
             The created or updated Body object
         """
+        # Handle teardown mode (sketch is preserved, only pad is removed)
+        if Shape._teardown_if_needed(label, created_children=[label + '_pad']):
+            return None
 
         # Check for existing object and get children if they exist
         pad_label = label + '_pad'

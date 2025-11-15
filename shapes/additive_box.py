@@ -33,6 +33,9 @@ class AdditiveBox(Shape):
 
     @staticmethod
     def create_box(label, plane_label, length, width, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=[label + '_box']):
+            return None
 
         # Check for existing object and get children if they exist
         box_label = label + '_box'
@@ -87,6 +90,9 @@ class AdditiveBox(Shape):
 
     @staticmethod
     def create_slot(label, plane_label, length, width, height, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=[label + '_slot', label + '_fillet']):
+            return None
 
         # Check for existing object and get children if they exist
         slot_label = label + '_slot'

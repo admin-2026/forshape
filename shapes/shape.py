@@ -30,6 +30,60 @@ class Shape:
         return pad
 
     @staticmethod
+    def _teardown_if_needed(label, created_children=None):
+        """
+        Check if we're in teardown mode and remove object if so.
+        Implements proper dependency handling: children are removed first,
+        and children not created by the script are preserved (moved out).
+
+        Args:
+            label (str): The main object label to remove
+            created_children (list, optional): List of child labels that were created by the script.
+                                              These will be removed in reverse order.
+                                              Children not in this list will be moved out of the parent.
+                                              If None, only the main object will be removed.
+
+        Returns:
+            bool: True if in teardown mode (caller should return None),
+                  False if not in teardown mode (caller should proceed normally)
+        """
+        if not globals().get('TEARDOWN_MODE', False):
+            return False
+
+        # We are in teardown mode
+        obj = Context.get_object(label)
+        if obj is None:
+            return True  # Object doesn't exist, nothing to remove
+
+        # If no children specified, just remove the main object
+        if created_children is None:
+            Context.remove_object(label)
+            return True
+
+        # Get all children of the object
+        if hasattr(obj, 'Group'):
+            all_children = list(obj.Group)
+        else:
+            all_children = []
+
+        created_children_set = set(created_children)
+
+        # Move out children not created by script (preserve them)
+        for child in all_children:
+            if child.Label not in created_children_set:
+                # This child was not created by the script, remove from parent to preserve it
+                obj.removeObject(child)
+
+        # Remove children that were created by script (in reverse order for proper dependency handling)
+        for child_label in reversed(created_children):
+            Context.remove_object(child_label)
+
+        # Finally remove the main object
+        Context.remove_object(label)
+
+        return True
+
+    @staticmethod
     def _get_or_recreate_body(label, expected_children):
         """
         Get existing Body or prepare for recreation.

@@ -22,6 +22,10 @@ class EdgeFeature(Shape):
         Returns:
             The fillet object
         """
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label):
+            return None
+
         # Get the parent object
         parent_obj = Context.get_object(object_label)
         if parent_obj is None:
@@ -96,6 +100,10 @@ class EdgeFeature(Shape):
         Returns:
             The chamfer object
         """
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label):
+            return None
+
         # Get the parent object
         parent_obj = Context.get_object(object_label)
         if parent_obj is None:
@@ -171,6 +179,10 @@ class EdgeFeature(Shape):
         Returns:
             The draft object
         """
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label):
+            return None
+
         # Get the parent object
         parent_obj = Context.get_object(object_label)
         if parent_obj is None:

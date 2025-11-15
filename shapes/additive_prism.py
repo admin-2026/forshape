@@ -29,6 +29,9 @@ class AdditivePrism(Shape):
         Returns:
             The created or updated Body object
         """
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=[label + '_prism']):
+            return None
 
         # Check for existing object and get children if they exist
         prism_label = label + '_prism'

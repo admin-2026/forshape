@@ -11,6 +11,10 @@ class AdditiveCylinder(Shape):
     def create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
         from .context import Context
 
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=[label + '_cylinder']):
+            return None
+
         # Check for existing object and get children if they exist
         cylinder_label = label + '_cylinder'
         existing_obj, children = Shape._get_or_recreate_body(label, [

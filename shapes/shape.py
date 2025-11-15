@@ -47,7 +47,10 @@ class Shape:
             bool: True if in teardown mode (caller should return None),
                   False if not in teardown mode (caller should proceed normally)
         """
-        if not globals().get('TEARDOWN_MODE', False):
+        import builtins
+        teardown_mode = getattr(builtins, 'TEARDOWN_MODE', False)
+
+        if not teardown_mode:
             return False
 
         # We are in teardown mode

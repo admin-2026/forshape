@@ -229,6 +229,7 @@ class ForShapeAI:
             ai_client=None,  # Will be set after prestart checks
             history_logger=None,  # Will be set after prestart checks
             logger=self.logger,
+            context_provider=self.context_provider,
             special_commands_handler=self.handle_special_commands,
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,

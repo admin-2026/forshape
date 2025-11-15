@@ -249,16 +249,16 @@ class ForShapeMainWindow(QMainWindow):
         self.input_field.setPlaceholderText("Type your message here... (/help for commands)")
         self.input_field.returnPressed.connect(self.on_user_input)
 
-        # Add Run button
-        self.run_button = QPushButton("Run Script")
+        # Add Build button
+        self.run_button = QPushButton("Build")
         self.run_button.setFont(QFont("Consolas", 10))
-        self.run_button.setToolTip("Run a Python script from the working directory")
+        self.run_button.setToolTip("Build - run a Python script from the working directory")
         self.run_button.clicked.connect(self.on_run_script)
 
-        # Add Redo button
-        self.redo_button = QPushButton("Redo Script")
+        # Add Teardown button
+        self.redo_button = QPushButton("Teardown")
         self.redo_button.setFont(QFont("Consolas", 10))
-        self.redo_button.setToolTip("Teardown and rebuild - select a script to redo")
+        self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
         input_layout.addWidget(input_label)
@@ -679,7 +679,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         return python_files
 
     def on_run_script(self):
-        """Handle Run Script button click."""
+        """Handle Build button click."""
         # Scan for Python files
         python_files = self.scan_python_files()
 
@@ -695,7 +695,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 self.run_python_file(selected_file)
 
     def on_redo_script(self):
-        """Handle Redo Script button click."""
+        """Handle Teardown button click."""
         # Scan for Python files
         python_files = self.scan_python_files()
 
@@ -712,15 +712,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
     def redo_python_file(self, file_path):
         """
-        Redo a Python file - teardown then rebuild.
-        First runs the script with TEARDOWN_MODE=True to remove objects,
-        then runs it again with TEARDOWN_MODE=False to recreate them.
+        Teardown a Python file - run the script in teardown mode to remove objects.
 
         Args:
-            file_path: Path to the Python file to redo
+            file_path: Path to the Python file to teardown
         """
-        self.append_message("[SYSTEM]", f"Redoing: {file_path}")
-        self.append_message("[SYSTEM]", "Phase 1: Tearing down...")
+        self.append_message("[SYSTEM]", f"Tearing down: {file_path}")
 
         # Get absolute path
         abs_path = os.path.abspath(file_path)
@@ -739,7 +736,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             with open(abs_path, 'r', encoding='utf-8') as f:
                 script_content = f.read()
 
-            # Phase 1: Teardown
+            # Teardown: Run script with TEARDOWN_MODE=True
+            # Set TEARDOWN_MODE as a builtin so it's accessible from all modules
+            import builtins
+            builtins.TEARDOWN_MODE = True
+
             # Capture stdout and stderr
             old_stdout = sys.stdout
             old_stderr = sys.stderr
@@ -751,7 +752,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 exec_globals = {
                     '__name__': '__main__',
                     '__file__': abs_path,
-                    'TEARDOWN_MODE': True
                 }
                 exec(script_content, exec_globals)
 
@@ -761,53 +761,27 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
                 # Display output if any
                 if stdout_output.strip():
-                    self.append_message("[TEARDOWN OUTPUT]", stdout_output.strip())
+                    self.append_message("[OUTPUT]", stdout_output.strip())
                 if stderr_output.strip():
-                    self.append_message("[TEARDOWN STDERR]", stderr_output.strip())
-
-            finally:
-                # Restore stdout and stderr
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
-
-            self.append_message("[SYSTEM]", "Phase 2: Rebuilding...")
-
-            # Phase 2: Rebuild
-            # Capture stdout and stderr again
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
-
-            try:
-                # Execute the script in normal mode
-                exec_globals = {
-                    '__name__': '__main__',
-                    '__file__': abs_path,
-                    'TEARDOWN_MODE': False
-                }
-                exec(script_content, exec_globals)
-
-                # Get captured output
-                stdout_output = sys.stdout.getvalue()
-                stderr_output = sys.stderr.getvalue()
-
-                # Display output if any
-                if stdout_output.strip():
-                    self.append_message("[BUILD OUTPUT]", stdout_output.strip())
-                if stderr_output.strip():
-                    self.append_message("[BUILD STDERR]", stderr_output.strip())
+                    self.append_message("[STDERR]", stderr_output.strip())
 
                 # Success message
-                self.append_message("[SYSTEM]", f"Redo completed successfully: {file_path}")
+                self.append_message("[SYSTEM]", f"Teardown completed successfully: {file_path}")
 
             finally:
                 # Restore stdout and stderr
                 sys.stdout = old_stdout
                 sys.stderr = old_stderr
+                # Reset TEARDOWN_MODE
+                builtins.TEARDOWN_MODE = False
 
         except Exception as e:
             # Restore stdout and stderr in case of error
             sys.stdout = old_stdout
             sys.stderr = old_stderr
+            # Reset TEARDOWN_MODE
+            import builtins
+            builtins.TEARDOWN_MODE = False
 
             # Format and display the error
             error_msg = f"Error during redo of {file_path}:\n{traceback.format_exc()}"

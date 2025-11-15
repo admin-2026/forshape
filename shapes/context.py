@@ -202,7 +202,7 @@ class Context:
     def remove_object(obj_or_label):
         obj = Context.get_object(obj_or_label)
         if obj is None:
-            print(f'object not found')
+            print(f'object not found: {obj_or_label}')
             return
         type_id = obj.TypeId
         print(f'Removing object: {obj.Label} (Type: {type_id})')

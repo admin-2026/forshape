@@ -82,6 +82,47 @@ class Context:
                 print(f'{prefix}  Attachment: {attachment}')
                 print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
             return
+        if type_id == 'PartDesign::AdditivePrism':
+            if verbose:
+                print(f'{prefix}{obj.Label}')
+                print(f'{prefix}  Type: AdditivePrism')
+                print(f'{prefix}  Dimensions: Polygon={obj.Polygon}, Circumradius={obj.Circumradius}, Height={obj.Height}')
+                attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
+                print(f'{prefix}  Attachment: {attachment}')
+                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+            return
+        if type_id == 'PartDesign::Fillet':
+            if verbose:
+                print(f'{prefix}{obj.Label}')
+                print(f'{prefix}  Type: Fillet')
+                print(f'{prefix}  Radius: {obj.Radius}')
+                if hasattr(obj, 'Base') and obj.Base:
+                    base_obj, edges = obj.Base
+                    print(f'{prefix}  Base: {base_obj.Label}')
+                    print(f'{prefix}  Edges: {edges}')
+            return
+        if type_id == 'PartDesign::Chamfer':
+            if verbose:
+                print(f'{prefix}{obj.Label}')
+                print(f'{prefix}  Type: Chamfer')
+                print(f'{prefix}  Size: {obj.Size}')
+                if hasattr(obj, 'Base') and obj.Base:
+                    base_obj, edges = obj.Base
+                    print(f'{prefix}  Base: {base_obj.Label}')
+                    print(f'{prefix}  Edges: {edges}')
+            return
+        if type_id == 'PartDesign::Draft':
+            if verbose:
+                print(f'{prefix}{obj.Label}')
+                print(f'{prefix}  Type: Draft')
+                print(f'{prefix}  Angle: {obj.Angle}')
+                if hasattr(obj, 'Base') and obj.Base:
+                    base_obj, faces = obj.Base
+                    print(f'{prefix}  Base: {base_obj.Label}')
+                    print(f'{prefix}  Faces: {faces}')
+                if hasattr(obj, 'NeutralPlane') and obj.NeutralPlane:
+                    print(f'{prefix}  Neutral Plane: {obj.NeutralPlane.Label}')
+            return
         if type_id == 'PartDesign::Body':
             print(f'{prefix}{obj.Label}')
             print(f'{prefix}  Type: Body')
@@ -175,7 +216,43 @@ class Context:
             App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
+        if type_id == 'PartDesign::AdditiveBox':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+        if type_id == 'PartDesign::AdditiveCylinder':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+        if type_id == 'PartDesign::AdditivePrism':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
         if type_id == 'PartDesign::Boolean':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+        if type_id == 'PartDesign::Fillet':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+        if type_id == 'PartDesign::Chamfer':
+            parent = obj.getParent()
+            parent.removeObject(obj)
+            App.ActiveDocument.removeObject(obj.Name)
+            App.ActiveDocument.recompute()
+            return
+        if type_id == 'PartDesign::Draft':
             parent = obj.getParent()
             parent.removeObject(obj)
             App.ActiveDocument.removeObject(obj.Name)

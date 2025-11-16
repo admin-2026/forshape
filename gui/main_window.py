@@ -556,7 +556,7 @@ class ForShapeMainWindow(QMainWindow):
         # Add Capture button
         self.capture_button = QPushButton("Capture")
         self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message")
+        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)")
         self.capture_button.clicked.connect(self.on_capture_screenshot)
 
         input_layout.addWidget(input_label)
@@ -1035,7 +1035,15 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 self.redo_python_file(selected_file)
 
     def on_capture_screenshot(self):
-        """Handle Capture button click - captures scene screenshot and stores it for next message."""
+        """Handle Capture button click - captures scene screenshot or cancels if already captured."""
+        # If an image is already captured, clicking again cancels it
+        if self.captured_image_data is not None:
+            self.captured_image_data = None
+            self.capture_button.setText("Capture")
+            self.capture_button.setStyleSheet("")
+            self.append_message("System", "Captured image discarded. No image will be attached.")
+            return
+
         if not self.image_context:
             self.append_message("[SYSTEM]", "ImageContext not configured")
             return

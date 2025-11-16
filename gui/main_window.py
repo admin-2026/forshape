@@ -113,21 +113,36 @@ class ForShapeMainWindow(QMainWindow):
         self.conversation_display.setFont(QFont("Consolas", 10))
         # Enable rich text (HTML) rendering for markdown support
         self.conversation_display.setAcceptRichText(True)
+        # Enable word wrapping at widget width
+        self.conversation_display.setLineWrapMode(QTextEdit.WidgetWidth)
 
         # Set default stylesheet for better markdown rendering
         self.conversation_display.document().setDefaultStyleSheet("""
-            p { margin: 5px 0; }
+            p {
+                margin: 5px 0;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
             pre {
                 background-color: #f5f5f5;
                 padding: 10px;
                 border-radius: 3px;
                 font-family: Consolas, monospace;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
             code {
                 background-color: #f0f0f0;
                 padding: 2px 4px;
                 border-radius: 3px;
                 font-family: Consolas, monospace;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            div {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
             strong { font-weight: bold; }
             em { font-style: italic; }

@@ -7,8 +7,8 @@ This module provides the interactive GUI interface using PySide2.
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
                                 QTextEdit, QLineEdit, QLabel, QPushButton,
                                 QAction, QDialog)
-from PySide2.QtCore import QCoreApplication, Qt
-from PySide2.QtGui import QFont, QTextCursor
+from PySide2.QtCore import QCoreApplication, Qt, QUrl
+from PySide2.QtGui import QFont, QTextCursor, QDragEnterEvent, QDropEvent
 
 import os
 import sys
@@ -74,6 +74,10 @@ class ForShapeMainWindow(QMainWindow):
 
         # Initialize message formatter
         self.message_formatter = MessageFormatter(self.logger)
+
+        # Enable drag and drop
+        self.setAcceptDrops(True)
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -166,7 +170,7 @@ class ForShapeMainWindow(QMainWindow):
         input_label = QLabel("You:")
         self.input_field = QLineEdit()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... (/help for commands)")
+        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images to attach")
         self.input_field.returnPressed.connect(self.on_user_input)
 
         # Add Build button
@@ -184,7 +188,7 @@ class ForShapeMainWindow(QMainWindow):
         # Add Capture button
         self.capture_button = QPushButton("Capture")
         self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)")
+        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
         self.capture_button.clicked.connect(self.on_capture_screenshot)
 
         input_layout.addWidget(input_label)
@@ -834,6 +838,131 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             # Format and display the error
             error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
             self.display_error(error_msg)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        """Handle drag enter event to accept file drops."""
+        if event.mimeData().hasUrls():
+            # Check if any of the URLs are files
+            urls = event.mimeData().urls()
+            has_files = any(url.isLocalFile() for url in urls)
+            if has_files:
+                event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dragMoveEvent(self, event):
+        """Handle drag move event for visual feedback."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event: QDropEvent):
+        """Handle file drop event."""
+        if not event.mimeData().hasUrls():
+            event.ignore()
+            return
+
+        # Get the list of dropped files
+        urls = event.mimeData().urls()
+        files = [url.toLocalFile() for url in urls if url.isLocalFile()]
+
+        if not files:
+            event.ignore()
+            return
+
+        # Process the first file (ignore multiple files for now)
+        file_path = files[0]
+
+        # Check if it's an image file
+        image_extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif']
+        file_ext = os.path.splitext(file_path)[1].lower()
+
+        if file_ext in image_extensions:
+            self.handle_dropped_image(file_path)
+        else:
+            # For non-image files, show a message
+            self.append_message("System", f"Dropped file: {os.path.basename(file_path)}\n(Currently only image files are supported)")
+
+        event.acceptProposedAction()
+
+    def handle_dropped_image(self, file_path: str):
+        """
+        Handle a dropped image file by converting it to base64 and storing it.
+
+        Args:
+            file_path: Path to the dropped image file
+        """
+        if self.is_ai_busy:
+            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            return
+
+        # If an image is already captured, warn the user
+        if self.captured_image_data is not None:
+            self.append_message("System", "An image is already captured. The new image will replace it.")
+
+        try:
+            import base64
+
+            # Read and encode the image
+            with open(file_path, 'rb') as image_file:
+                image_bytes = image_file.read()
+                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+            # Determine the image format from the file extension
+            file_ext = os.path.splitext(file_path)[1].lower()
+            format_map = {
+                '.png': 'png',
+                '.jpg': 'jpeg',
+                '.jpeg': 'jpeg',
+                '.bmp': 'bmp',
+                '.gif': 'gif'
+            }
+            image_format = format_map.get(file_ext, 'png')
+
+            # Create data URL
+            data_url = f"data:image/{image_format};base64,{image_base64}"
+
+            # Copy the image to the history folder (same as capture does)
+            if self.image_context:
+                history_dir = os.path.join(self.context_provider.working_dir, "history", "images")
+                os.makedirs(history_dir, exist_ok=True)
+
+                # Generate timestamped filename
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                new_filename = f"dropped_{timestamp}{file_ext}"
+                new_file_path = os.path.join(history_dir, new_filename)
+
+                # Copy the file
+                import shutil
+                shutil.copy2(file_path, new_file_path)
+                stored_path = new_file_path
+            else:
+                stored_path = file_path
+
+            # Store the image data (same format as captured images)
+            self.captured_image_data = {
+                "success": True,
+                "file": stored_path,
+                "image_base64": data_url
+            }
+
+            # Visual feedback - update button to show image is ready
+            self.capture_button.setText("Capture ✓")
+            self.capture_button.setStyleSheet("background-color: #90EE90;")
+
+            # Show success message
+            self.append_message("System",
+                f"Image dropped and ready to send!\n"
+                f"File: {os.path.basename(file_path)}\n"
+                f"Saved to: {stored_path}\n"
+                f"The image will be attached to your next message.")
+
+        except Exception as e:
+            import traceback
+            error_msg = f"Error processing dropped image:\n{traceback.format_exc()}"
+            self.append_message("[SYSTEM]", error_msg)
 
     def closeEvent(self, event):
         """Handle window close event."""

@@ -191,6 +191,83 @@ class ImageContext:
                 Gui.Selection.clearSelection()
             return None
 
+    def capture_encoded(self, target=None, perspective="isometric", perspectives=None):
+        """
+        Capture a screenshot and return both file path and base64-encoded image data.
+
+        This method combines screenshot capture with base64 encoding for easy transmission
+        to APIs (e.g., sending to LLMs with vision capabilities).
+
+        Args:
+            target: Optional object name/label to focus on. If None, captures entire scene
+            perspective: View angle - "front", "back", "top", "bottom", "left", "right", "isometric"
+                        Default: "isometric"
+            perspectives: Optional list of perspectives for multiple captures
+                         Example: ["front", "top", "isometric"]
+
+        Returns:
+            dict or None: For single capture, returns:
+                {
+                    "success": True,
+                    "file": "/path/to/file.png",
+                    "image_base64": "base64_encoded_string"
+                }
+                For multiple captures, returns:
+                {
+                    "success": True,
+                    "images": {
+                        "front": {"file": "...", "image_base64": "..."},
+                        "top": {"file": "...", "image_base64": "..."}
+                    },
+                    "count": 2
+                }
+                Returns None if capture fails.
+
+        Examples:
+            result = image_ctx.capture_encoded()
+            result = image_ctx.capture_encoded(target="MyBox", perspective="front")
+            result = image_ctx.capture_encoded(perspectives=["front", "top"])
+        """
+        import base64
+
+        # Capture screenshot(s)
+        result = self.capture(target=target, perspective=perspective, perspectives=perspectives)
+
+        if result is None:
+            return None
+
+        # Helper function to encode a single image file
+        def encode_image(file_path):
+            """Encode image file to base64 string."""
+            try:
+                with open(file_path, 'rb') as image_file:
+                    return base64.b64encode(image_file.read()).decode('utf-8')
+            except Exception as e:
+                return f"Error encoding image: {str(e)}"
+
+        # Handle single vs multiple captures
+        if isinstance(result, dict):
+            # Multiple perspectives
+            images_data = {}
+            for persp, file_path in result.items():
+                images_data[persp] = {
+                    "file": file_path,
+                    "image_base64": encode_image(file_path)
+                }
+
+            return {
+                "success": True,
+                "images": images_data,
+                "count": len(result)
+            }
+        else:
+            # Single perspective
+            return {
+                "success": True,
+                "file": result,
+                "image_base64": encode_image(result)
+            }
+
     @staticmethod
     def set_view(perspective="isometric"):
         """

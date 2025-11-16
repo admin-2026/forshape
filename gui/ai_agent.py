@@ -85,7 +85,7 @@ class AIAgent:
             return None
 
 
-    def process_request(self, user_input: str) -> str:
+    def process_request(self, user_input: str, image_data: Optional[Dict] = None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
@@ -94,6 +94,7 @@ class AIAgent:
 
         Args:
             user_input: The user's input string
+            image_data: Optional dict containing captured image data (from capture_screenshot tool)
 
         Returns:
             AI response string
@@ -116,20 +117,21 @@ class AIAgent:
                 augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{user_input}"
 
             # Use the run method with the context
-            response = self.run(augmented_input, system_message)
+            response = self.run(augmented_input, system_message, image_data)
             return response
 
         except Exception as e:
             error_msg = f"Error processing AI request: {str(e)}"
             return error_msg
 
-    def run(self, user_message: str, system_message: Optional[str] = None) -> str:
+    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
         Args:
             user_message: The user's message/request
             system_message: Optional system message to set context
+            image_data: Optional dict containing captured image data (from capture_screenshot tool)
 
         Returns:
             Final response from the agent
@@ -145,8 +147,18 @@ class AIAgent:
         # Add conversation history
         messages.extend(self.history)
 
-        # Add user message
-        messages.append({"role": "user", "content": user_message})
+        # Add user message with optional image
+        if image_data and image_data.get("success"):
+            # Create message with both text and image
+            base64_image = image_data.get("image_base64")
+            if base64_image and not base64_image.startswith("Error"):
+                messages.append(self._create_image_message(user_message, base64_image))
+            else:
+                # Image encoding failed, just send text
+                messages.append({"role": "user", "content": user_message})
+        else:
+            # No image, just send text
+            messages.append({"role": "user", "content": user_message})
 
         # Agent loop: keep calling tools until the agent gives a final response
         for iteration in range(self.max_iterations):
@@ -204,6 +216,48 @@ class AIAgent:
         # If we hit max iterations
         return "Agent reached maximum iterations without completing the task."
 
+    @staticmethod
+    def _create_image_url_content(base64_image: str) -> Dict:
+        """
+        Create an image_url content object for OpenAI messages.
+
+        Args:
+            base64_image: Base64-encoded image string
+
+        Returns:
+            Image URL content dict
+        """
+        return {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/png;base64,{base64_image}",
+                "detail": "high"
+            }
+        }
+
+    @staticmethod
+    def _create_image_message(text: str, base64_image: str) -> Dict:
+        """
+        Create an OpenAI message with both text and image content.
+
+        Args:
+            text: The text content to include with the image
+            base64_image: Base64-encoded image string
+
+        Returns:
+            Message dict with text and image_url content
+        """
+        return {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": text
+                },
+                AIAgent._create_image_url_content(base64_image)
+            ]
+        }
+
     def _add_screenshot_to_conversation(self, messages: List[Dict], tool_result: str):
         """
         Parse screenshot tool result and add images to conversation for LLM to see.
@@ -223,22 +277,10 @@ class AIAgent:
                 # Single image
                 base64_image = result_data["image_base64"]
                 if base64_image and not base64_image.startswith("Error"):
-                    messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": "Here is the screenshot that was just captured:"
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/png;base64,{base64_image}",
-                                    "detail": "high"
-                                }
-                            }
-                        ]
-                    })
+                    messages.append(self._create_image_message(
+                        "Here is the screenshot that was just captured:",
+                        base64_image
+                    ))
 
             elif "images" in result_data:
                 # Multiple images
@@ -248,13 +290,7 @@ class AIAgent:
                     base64_image = image_data.get("image_base64")
                     if base64_image and not base64_image.startswith("Error"):
                         content.append({"type": "text", "text": f"\n{perspective} view:"})
-                        content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/png;base64,{base64_image}",
-                                "detail": "high"
-                            }
-                        })
+                        content.append(self._create_image_url_content(base64_image))
 
                 if len(content) > 1:  # More than just the intro text
                     messages.append({

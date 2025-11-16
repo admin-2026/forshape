@@ -91,22 +91,24 @@ class AIWorker(QThread):
     # Signal emitted when AI processing is complete (response or error)
     finished = Signal(str, bool)  # (message, is_error)
 
-    def __init__(self, ai_client: 'AIAgent', user_input: str):
+    def __init__(self, ai_client: 'AIAgent', user_input: str, image_data=None):
         """
         Initialize the AI worker thread.
 
         Args:
             ai_client: The AIAgent instance
             user_input: The user's input to process
+            image_data: Optional captured image data to attach
         """
         super().__init__()
         self.ai_client = ai_client
         self.user_input = user_input
+        self.image_data = image_data
 
     def run(self):
         """Run the AI request in a separate thread."""
         try:
-            response = self.ai_client.process_request(self.user_input)
+            response = self.ai_client.process_request(self.user_input, self.image_data)
             self.finished.emit(response, False)  # False = not an error
         except Exception as e:
             error_msg = f"Error processing request: {str(e)}"
@@ -118,7 +120,7 @@ class ForShapeMainWindow(QMainWindow):
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
                  logger: 'Logger', context_provider, special_commands_handler, exit_handler,
-                 prestart_checker=None, completion_callback=None, window_close_callback=None):
+                 image_context=None, prestart_checker=None, completion_callback=None, window_close_callback=None):
         """
         Initialize the main window.
 
@@ -129,6 +131,7 @@ class ForShapeMainWindow(QMainWindow):
             context_provider: The ContextProvider instance for accessing working directory and project info
             special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
+            image_context: Optional ImageContext instance for capturing screenshots
             prestart_checker: Optional PrestartChecker instance for prestart validation
             completion_callback: Optional callback to complete initialization after checks pass
             window_close_callback: Optional callback to call when window is closed
@@ -138,11 +141,13 @@ class ForShapeMainWindow(QMainWindow):
         self.history_logger = history_logger
         self.logger = logger
         self.context_provider = context_provider
+        self.image_context = image_context
         self.handle_special_commands = special_commands_handler
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
         self.pending_input = ""  # Store pending user input when AI is busy
         self.worker = None  # Current worker thread
+        self.captured_image_data = None  # Store captured image to attach to next message
 
         # Prestart check mode
         self.prestart_checker = prestart_checker
@@ -261,10 +266,17 @@ class ForShapeMainWindow(QMainWindow):
         self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
+        # Add Capture button
+        self.capture_button = QPushButton("Capture")
+        self.capture_button.setFont(QFont("Consolas", 10))
+        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message")
+        self.capture_button.clicked.connect(self.on_capture_screenshot)
+
         input_layout.addWidget(input_label)
         input_layout.addWidget(self.input_field, stretch=1)
         input_layout.addWidget(self.run_button)
         input_layout.addWidget(self.redo_button)
+        input_layout.addWidget(self.capture_button)
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
@@ -320,7 +332,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
 
-    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None):
+    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None):
         """
         Set the AI client and history logger after initialization completes.
 
@@ -328,9 +340,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             ai_client: The AIAgent instance
             history_logger: The HistoryLogger instance
             logger: Optional Logger instance to update (if logger was recreated)
+            image_context: Optional ImageContext instance for capturing screenshots
         """
         self.ai_client = ai_client
         self.history_logger = history_logger
+
+        # Update image_context if provided
+        if image_context is not None:
+            self.image_context = image_context
 
         # Update logger if provided
         if logger is not None:
@@ -437,6 +454,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.handle_special_commands(user_input, self):
             return
 
+        # Check if there's a captured image to attach
+        has_image = self.captured_image_data is not None
+        if has_image:
+            self.append_message("System", "📷 Attaching captured screenshot to message...")
+
         # Show in-progress indicator
         self.append_message("AI", "⏳ Processing...")
 
@@ -446,10 +468,16 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Set busy state
         self.is_ai_busy = True
 
-        # Create and start worker thread for AI processing
-        self.worker = AIWorker(self.ai_client, user_input)
+        # Create and start worker thread for AI processing with optional image
+        self.worker = AIWorker(self.ai_client, user_input, self.captured_image_data)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.start()
+
+        # Clear captured image data and reset button after sending
+        if has_image:
+            self.captured_image_data = None
+            self.capture_button.setText("Capture")
+            self.capture_button.setStyleSheet("")
 
     def on_ai_response(self, message: str, is_error: bool):
         """
@@ -718,6 +746,49 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             selected_file = dialog.get_selected_file()
             if selected_file:
                 self.redo_python_file(selected_file)
+
+    def on_capture_screenshot(self):
+        """Handle Capture button click - captures scene screenshot and stores it for next message."""
+        if not self.image_context:
+            self.append_message("[SYSTEM]", "ImageContext not configured")
+            return
+
+        if self.is_ai_busy:
+            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            return
+
+        # Show capturing message
+        self.append_message("System", "Capturing screenshot...")
+
+        # Force UI to update
+        QCoreApplication.processEvents()
+
+        try:
+            # Capture screenshot with base64 encoding using image_context
+            result = self.image_context.capture_encoded(perspective="isometric")
+
+            if result is None or not result.get("success"):
+                self.append_message("[SYSTEM]", "Screenshot capture failed")
+                return
+
+            # Store the captured image data for next message
+            self.captured_image_data = result
+
+            # Visual feedback - update button to show image is ready
+            self.capture_button.setText("Capture ✓")
+            self.capture_button.setStyleSheet("background-color: #90EE90;")
+
+            # Show success message
+            file_path = result.get("file", "unknown")
+            self.append_message("System",
+                f"Screenshot captured successfully!\n"
+                f"Saved to: {file_path}\n"
+                f"The image will be attached to your next message.")
+
+        except Exception as e:
+            import traceback
+            error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
+            self.append_message("[SYSTEM]", error_msg)
 
     def redo_python_file(self, file_path):
         """

@@ -783,8 +783,6 @@ class ToolManager:
             JSON string with success or error message, including base64-encoded image(s)
         """
         try:
-            import base64
-
             # Check if image_context is available
             if self.image_context is None:
                 return json.dumps({
@@ -798,8 +796,8 @@ class ToolManager:
             captured_output = io.StringIO()
             sys.stdout = captured_output
 
-            # Call image_context.capture()
-            result = self.image_context.capture(
+            # Call image_context.capture_encoded() - handles both capture and base64 encoding
+            result = self.image_context.capture_encoded(
                 target=target,
                 perspective=perspective,
                 perspectives=perspectives
@@ -816,43 +814,17 @@ class ToolManager:
                     "message": output.strip() if output else "Screenshot capture failed"
                 }, indent=2)
 
-            # Helper function to encode image to base64
-            def encode_image(file_path: str) -> str:
-                """Encode image file to base64 string."""
-                try:
-                    with open(file_path, 'rb') as image_file:
-                        return base64.b64encode(image_file.read()).decode('utf-8')
-                except Exception as e:
-                    return f"Error encoding image: {str(e)}"
+            # Add captured output to the result
+            result["output"] = output.strip()
 
-            # Handle single vs multiple captures
-            if isinstance(result, dict):
-                # Multiple perspectives - encode all images
-                images_data = {}
-                for persp, file_path in result.items():
-                    images_data[persp] = {
-                        "file": file_path,
-                        "image_base64": encode_image(file_path)
-                    }
+            # Add success message if not present
+            if "message" not in result:
+                if "images" in result:
+                    result["message"] = "Screenshots captured successfully"
+                else:
+                    result["message"] = "Screenshot captured successfully"
 
-                return json.dumps({
-                    "success": True,
-                    "message": "Screenshots captured successfully",
-                    "images": images_data,
-                    "count": len(result),
-                    "output": output.strip()
-                }, indent=2)
-            else:
-                # Single perspective - encode single image
-                image_base64 = encode_image(result)
-
-                return json.dumps({
-                    "success": True,
-                    "message": "Screenshot captured successfully",
-                    "file": result,
-                    "image_base64": image_base64,
-                    "output": output.strip()
-                }, indent=2)
+            return json.dumps(result, indent=2)
 
         except Exception as e:
             sys.stdout = sys.__stdout__

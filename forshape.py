@@ -188,7 +188,7 @@ class ForShapeAI:
         # Initialize ImageContext for screenshot capture
         from shapes.image_context import ImageContext
         images_dir = self.config.get_history_dir() / "images"
-        image_context = ImageContext(str(images_dir))
+        self.image_context = ImageContext(str(images_dir))
 
         # Initialize AI agent with API key from prestart checker
         api_key = self.prestart_checker.get_api_key()
@@ -200,13 +200,13 @@ class ForShapeAI:
             model=agent_model,
             logger=self.logger,
             permission_manager=self.permission_manager,
-            image_context=image_context
+            image_context=self.image_context
         )
         self.logger.info(f"AI client initialized with model: {agent_model}")
 
         # Update the main window with the initialized components
         if self.main_window:
-            self.main_window.set_components(self.ai_client, self.history_logger, self.logger)
+            self.main_window.set_components(self.ai_client, self.history_logger, self.logger, self.image_context)
 
     def run(self):
         """Start the interactive GUI interface."""

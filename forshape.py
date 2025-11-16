@@ -206,7 +206,7 @@ class ForShapeAI:
 
         # Update the main window with the initialized components
         if self.main_window:
-            self.main_window.set_components(self.ai_client, self.history_logger)
+            self.main_window.set_components(self.ai_client, self.history_logger, self.logger)
 
     def run(self):
         """Start the interactive GUI interface."""

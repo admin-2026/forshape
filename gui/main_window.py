@@ -320,24 +320,33 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
 
-    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger'):
+    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None):
         """
         Set the AI client and history logger after initialization completes.
 
         Args:
             ai_client: The AIAgent instance
             history_logger: The HistoryLogger instance
+            logger: Optional Logger instance to update (if logger was recreated)
         """
         self.ai_client = ai_client
         self.history_logger = history_logger
 
-        # Reconnect logger signal if logger was updated
-        if self.logger and hasattr(self.logger, 'log_message'):
-            try:
-                self.logger.log_message.disconnect(self.on_log_message)
-            except:
-                pass
-            self.logger.log_message.connect(self.on_log_message)
+        # Update logger if provided
+        if logger is not None:
+            # Disconnect old logger
+            if self.logger and hasattr(self.logger, 'log_message'):
+                try:
+                    self.logger.log_message.disconnect(self.on_log_message)
+                except:
+                    pass
+
+            # Update to new logger
+            self.logger = logger
+
+            # Connect new logger
+            if self.logger and hasattr(self.logger, 'log_message'):
+                self.logger.log_message.connect(self.on_log_message)
 
     def handle_prestart_input(self, user_input: str):
         """

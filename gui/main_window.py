@@ -60,6 +60,7 @@ class ForShapeMainWindow(QMainWindow):
         self.pending_input = ""  # Store pending user input when AI is busy
         self.worker = None  # Current worker thread
         self.captured_images = []  # Store captured images to attach to next message
+        self.attached_files = []  # Store attached Python files to include in next message
 
         # Prestart check mode
         self.prestart_checker = prestart_checker
@@ -185,7 +186,7 @@ class ForShapeMainWindow(QMainWindow):
         input_label = QLabel("You:")
         self.input_field = QLineEdit()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images to attach")
+        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach")
         self.input_field.returnPressed.connect(self.on_user_input)
 
         # Add Build button
@@ -242,6 +243,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 <p style="margin: 5px 0;"><strong>Commands:</strong><br>
   /help - Show help<br>
   /clear - Clear conversation history</p>
+
+<p style="margin: 5px 0;"><strong>Tip:</strong> Drag & drop images or .py files to attach them to your messages</p>
 
 <p style="margin: 5px 0;">{start_message}</p>
 <pre style="margin: 0;">{'='*60}</pre>
@@ -388,6 +391,26 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.handle_special_commands(user_input, self):
             return
 
+        # Check if there are attached Python files to include in message
+        has_files = len(self.attached_files) > 0
+        augmented_input = user_input
+
+        if has_files:
+            # Prepend Python file content to the message
+            file_parts = []
+            for file_info in self.attached_files:
+                file_parts.append(
+                    f"[Attached Python file: {file_info['name']}]\n"
+                    f"```python\n{file_info['content']}\n```\n"
+                )
+
+            # Combine file content with user input
+            augmented_input = "\n".join(file_parts) + f"\n[User message]\n{user_input}"
+
+            file_count = len(self.attached_files)
+            file_word = "file" if file_count == 1 else "files"
+            self.append_message("System", f"📎 Attaching {file_count} Python {file_word} to message...")
+
         # Check if there are captured images to attach
         has_images = len(self.captured_images) > 0
         if has_images:
@@ -404,8 +427,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Set busy state
         self.is_ai_busy = True
 
-        # Create and start worker thread for AI processing with optional images
-        self.worker = AIWorker(self.ai_client, user_input, self.captured_images if has_images else None)
+        # Create and start worker thread for AI processing with augmented input and optional images
+        self.worker = AIWorker(self.ai_client, augmented_input, self.captured_images if has_images else None)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.start()
 
@@ -413,6 +436,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if has_images:
             self.captured_images = []
             self.update_capture_button_state()
+
+        # Clear attached files and reset placeholder after sending
+        if has_files:
+            self.attached_files = []
+            self.update_input_placeholder()
 
     def on_ai_response(self, message: str, is_error: bool):
         """
@@ -657,6 +685,17 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.capture_button.setStyleSheet("background-color: #90EE90;")
             self.capture_button.setToolTip(f"{image_count} images ready to send. Click to clear all images.")
 
+    def update_input_placeholder(self):
+        """Update the input field placeholder text based on attached files."""
+        file_count = len(self.attached_files)
+        if file_count == 0:
+            self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach")
+        elif file_count == 1:
+            file_name = self.attached_files[0]['name']
+            self.input_field.setPlaceholderText(f"1 Python file attached ({file_name}) - Type your message...")
+        else:
+            self.input_field.setPlaceholderText(f"{file_count} Python files attached - Type your message...")
+
     def on_capture_screenshot(self):
         """Handle Capture button click - captures scene screenshot or clears all if already captured."""
         # If images are already captured, clicking again clears all of them
@@ -892,7 +931,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             event.ignore()
 
     def dropEvent(self, event: QDropEvent):
-        """Handle file drop event."""
+        """Handle file drop event for images and Python files."""
         if not event.mimeData().hasUrls():
             event.ignore()
             return
@@ -905,27 +944,33 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             event.ignore()
             return
 
-        # Filter for image files only
-        image_extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif']
+        # Categorize files by type
+        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
         image_files = []
-        non_image_files = []
+        python_files = []
+        unsupported_files = []
 
         for file_path in files:
             file_ext = os.path.splitext(file_path)[1].lower()
             if file_ext in image_extensions:
                 image_files.append(file_path)
+            elif file_ext == '.py':
+                python_files.append(file_path)
             else:
-                non_image_files.append(file_path)
+                unsupported_files.append(file_path)
 
-        # Process all image files
-        if image_files:
-            for file_path in image_files:
-                self.handle_dropped_image(file_path)
+        # Process image files
+        for file_path in image_files:
+            self.handle_dropped_image(file_path)
 
-        # Show message for non-image files
-        if non_image_files:
-            file_names = ", ".join([os.path.basename(f) for f in non_image_files])
-            self.append_message("System", f"Skipped non-image file(s): {file_names}\n(Currently only image files are supported)")
+        # Process Python files
+        for file_path in python_files:
+            self.handle_dropped_python_file(file_path)
+
+        # Show message for unsupported files
+        if unsupported_files:
+            file_names = ", ".join([os.path.basename(f) for f in unsupported_files])
+            self.append_message("System", f"Skipped unsupported file(s): {file_names}\n(Supported: images and .py files)")
 
         event.acceptProposedAction()
 
@@ -953,7 +998,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
             # Copy the image to the history folder (same as capture does)
             if self.image_context:
-                history_dir = os.path.join(self.context_provider.working_dir, "history", "images")
+                history_dir = self.image_context.images_dir
                 os.makedirs(history_dir, exist_ok=True)
 
                 # Generate timestamped filename
@@ -991,6 +1036,46 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         except Exception as e:
             import traceback
             error_msg = f"Error processing dropped image:\n{traceback.format_exc()}"
+            self.append_message("[SYSTEM]", error_msg)
+
+    def handle_dropped_python_file(self, file_path: str):
+        """
+        Handle a dropped Python file by reading its content and adding it to the attached files list.
+
+        Args:
+            file_path: Path to the dropped Python file
+        """
+        if self.is_ai_busy:
+            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            return
+
+        try:
+            # Read the Python file content
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+
+            # Store the file info
+            file_info = {
+                "path": file_path,
+                "name": os.path.basename(file_path),
+                "content": file_content
+            }
+            self.attached_files.append(file_info)
+
+            # Update UI
+            self.update_input_placeholder()
+
+            # Show success message
+            file_count = len(self.attached_files)
+            file_word = "file" if file_count == 1 else "files"
+            self.append_message("System",
+                f"Python file attached!\n"
+                f"File: {os.path.basename(file_path)}\n"
+                f"{file_count} Python {file_word} ready to attach to your next message.")
+
+        except Exception as e:
+            import traceback
+            error_msg = f"Error processing dropped Python file:\n{traceback.format_exc()}"
             self.append_message("[SYSTEM]", error_msg)
 
     def closeEvent(self, event):

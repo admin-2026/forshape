@@ -7,9 +7,9 @@ This module provides the interactive GUI interface using PySide2.
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
                                 QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton,
                                 QMenuBar, QAction, QDialog, QListWidget, QListWidgetItem,
-                                QDialogButtonBox, QScrollArea)
-from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt, QProcess, QProcessEnvironment
-from PySide2.QtGui import QFont, QTextCursor, QColor, QPixmap
+                                QDialogButtonBox, QScrollArea, QComboBox, QColorDialog)
+from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt, QProcess, QProcessEnvironment, QPoint
+from PySide2.QtGui import QFont, QTextCursor, QColor, QPixmap, QPainter, QPen
 
 import os
 import sys
@@ -85,6 +85,89 @@ class PythonFileSelector(QDialog):
         return self.selected_file
 
 
+class DrawableImageLabel(QLabel):
+    """A QLabel that allows drawing on the displayed image."""
+
+    def __init__(self, parent=None):
+        """Initialize the drawable image label."""
+        super().__init__(parent)
+        self.drawing = False
+        self.last_point = QPoint()
+        self.pen_color = QColor(255, 0, 0)  # Red by default
+        self.pen_width = 3
+        self.image = None
+        self.drawing_layer = None
+        self.setMouseTracking(False)
+
+    def set_image(self, pixmap):
+        """Set the image to display and create a drawing layer."""
+        self.image = pixmap.copy()
+        self.drawing_layer = QPixmap(pixmap.size())
+        self.drawing_layer.fill(Qt.transparent)
+        self.update_display()
+
+    def update_display(self):
+        """Update the display by compositing the image and drawing layer."""
+        if self.image is None:
+            return
+
+        # Composite the original image with the drawing layer
+        result = self.image.copy()
+        painter = QPainter(result)
+        painter.drawPixmap(0, 0, self.drawing_layer)
+        painter.end()
+
+        self.setPixmap(result)
+
+    def set_pen_color(self, color):
+        """Set the pen color for drawing."""
+        self.pen_color = color
+
+    def set_pen_width(self, width):
+        """Set the pen width for drawing."""
+        self.pen_width = width
+
+    def clear_drawings(self):
+        """Clear all drawings."""
+        if self.drawing_layer:
+            self.drawing_layer.fill(Qt.transparent)
+            self.update_display()
+
+    def get_annotated_image(self):
+        """Get the final image with annotations."""
+        if self.image is None:
+            return None
+
+        result = self.image.copy()
+        painter = QPainter(result)
+        painter.drawPixmap(0, 0, self.drawing_layer)
+        painter.end()
+        return result
+
+    def mousePressEvent(self, event):
+        """Handle mouse press event."""
+        if event.button() == Qt.LeftButton and self.drawing_layer:
+            self.drawing = True
+            self.last_point = event.pos()
+
+    def mouseMoveEvent(self, event):
+        """Handle mouse move event - draw on the image."""
+        if self.drawing and event.buttons() & Qt.LeftButton and self.drawing_layer:
+            painter = QPainter(self.drawing_layer)
+            pen = QPen(self.pen_color, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            painter.setPen(pen)
+            painter.drawLine(self.last_point, event.pos())
+            painter.end()
+
+            self.last_point = event.pos()
+            self.update_display()
+
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release event."""
+        if event.button() == Qt.LeftButton:
+            self.drawing = False
+
+
 class ImagePreviewDialog(QDialog):
     """Dialog for previewing captured screenshot before attaching."""
 
@@ -101,17 +184,18 @@ class ImagePreviewDialog(QDialog):
         self.original_pixmap = None
         self.scroll_area = None
         self.image_label = None
+        self.image_path = image_path
         self.setup_ui(image_path)
 
     def setup_ui(self, image_path):
         """Setup the dialog UI."""
-        self.setWindowTitle("Preview Screenshot")
-        self.setMinimumSize(800, 600)
+        self.setWindowTitle("Preview & Annotate Screenshot")
+        self.setMinimumSize(900, 700)
 
         layout = QVBoxLayout(self)
 
         # Add title label
-        title_label = QLabel("Preview captured screenshot:")
+        title_label = QLabel("Preview and annotate screenshot:")
         title_label.setFont(QFont("Consolas", 10, QFont.Bold))
         layout.addWidget(title_label)
 
@@ -121,20 +205,76 @@ class ImagePreviewDialog(QDialog):
         file_label.setWordWrap(True)
         layout.addWidget(file_label)
 
+        # Create drawing tools toolbar
+        tools_layout = QHBoxLayout()
+
+        # Color selection
+        color_label = QLabel("Pen Color:")
+        color_label.setFont(QFont("Consolas", 9))
+        tools_layout.addWidget(color_label)
+
+        # Preset color buttons
+        self.color_buttons = []
+        preset_colors = [
+            ("Red", QColor(255, 0, 0)),
+            ("Green", QColor(0, 255, 0)),
+            ("Blue", QColor(0, 0, 255)),
+            ("Yellow", QColor(255, 255, 0)),
+            ("White", QColor(255, 255, 255)),
+            ("Black", QColor(0, 0, 0))
+        ]
+
+        for name, color in preset_colors:
+            btn = QPushButton(name)
+            btn.setFixedSize(60, 25)
+            btn.setStyleSheet(f"background-color: {color.name()}; color: {'white' if color.lightness() < 128 else 'black'};")
+            btn.clicked.connect(lambda checked, c=color: self.set_pen_color(c))
+            tools_layout.addWidget(btn)
+            self.color_buttons.append(btn)
+
+        # Custom color button
+        custom_color_btn = QPushButton("Custom...")
+        custom_color_btn.setFixedSize(70, 25)
+        custom_color_btn.clicked.connect(self.choose_custom_color)
+        tools_layout.addWidget(custom_color_btn)
+
+        tools_layout.addSpacing(20)
+
+        # Pen width selection
+        width_label = QLabel("Pen Width:")
+        width_label.setFont(QFont("Consolas", 9))
+        tools_layout.addWidget(width_label)
+
+        self.width_combo = QComboBox()
+        self.width_combo.addItems(["1", "2", "3", "5", "8", "10", "15"])
+        self.width_combo.setCurrentText("3")
+        self.width_combo.currentTextChanged.connect(self.on_width_changed)
+        tools_layout.addWidget(self.width_combo)
+
+        tools_layout.addStretch()
+
+        # Clear button
+        clear_btn = QPushButton("Clear Drawings")
+        clear_btn.clicked.connect(self.clear_drawings)
+        tools_layout.addWidget(clear_btn)
+
+        layout.addLayout(tools_layout)
+
         # Create scroll area for the image
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(False)
         self.scroll_area.setAlignment(Qt.AlignCenter)
 
-        # Create label to display the image
-        self.image_label = QLabel()
+        # Create drawable image label
+        self.image_label = DrawableImageLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
 
         # Load the original image
         self.original_pixmap = QPixmap(image_path)
         if self.original_pixmap.isNull():
-            self.image_label.setText("Error: Could not load image")
-            self.image_label.setStyleSheet("color: red;")
+            error_label = QLabel("Error: Could not load image")
+            error_label.setStyleSheet("color: red;")
+            self.scroll_area.setWidget(error_label)
         else:
             # Initial scaling will happen in showEvent
             pass
@@ -143,7 +283,10 @@ class ImagePreviewDialog(QDialog):
         layout.addWidget(self.scroll_area, stretch=1)
 
         # Add instruction label
-        instruction_label = QLabel("Confirm to attach this image to your next message, or cancel to discard.\n(Image is automatically scaled to fit the window)")
+        instruction_label = QLabel(
+            "Draw on the image to highlight areas or add annotations.\n"
+            "Use the tools above to change pen color and width. Click 'Confirm' to attach, or 'Cancel' to discard."
+        )
         instruction_label.setFont(QFont("Consolas", 9))
         instruction_label.setWordWrap(True)
         layout.addWidget(instruction_label)
@@ -164,7 +307,8 @@ class ImagePreviewDialog(QDialog):
     def resizeEvent(self, event):
         """Handle dialog resize event - rescale image to fit new size."""
         super().resizeEvent(event)
-        self.scale_image_to_fit()
+        # Note: Resizing disabled for drawable images to maintain drawing accuracy
+        # self.scale_image_to_fit()
 
     def scale_image_to_fit(self):
         """Scale the image to fit the available scroll area size."""
@@ -174,8 +318,8 @@ class ImagePreviewDialog(QDialog):
         # Get available size (scroll area size minus margins)
         available_size = self.scroll_area.size()
         # Account for scrollbar space and margins
-        target_width = available_size.width() - 20
-        target_height = available_size.height() - 20
+        target_width = available_size.width() - 40
+        target_height = available_size.height() - 40
 
         # Scale pixmap to fit while maintaining aspect ratio
         scaled_pixmap = self.original_pixmap.scaled(
@@ -184,12 +328,43 @@ class ImagePreviewDialog(QDialog):
             Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )
-        self.image_label.setPixmap(scaled_pixmap)
+
+        # Set the scaled image to the drawable label
+        self.image_label.set_image(scaled_pixmap)
         self.image_label.adjustSize()
 
+    def set_pen_color(self, color):
+        """Set the pen color for drawing."""
+        self.image_label.set_pen_color(color)
+
+    def choose_custom_color(self):
+        """Open color picker dialog."""
+        color = QColorDialog.getColor()
+        if color.isValid():
+            self.image_label.set_pen_color(color)
+
+    def on_width_changed(self, width_text):
+        """Handle pen width change."""
+        try:
+            width = int(width_text)
+            self.image_label.set_pen_width(width)
+        except ValueError:
+            pass
+
+    def clear_drawings(self):
+        """Clear all drawings from the image."""
+        self.image_label.clear_drawings()
+
     def on_confirm(self):
-        """Handle confirm button click."""
+        """Handle confirm button click - save annotated image."""
         self.confirmed = True
+
+        # Get the annotated image
+        annotated_pixmap = self.image_label.get_annotated_image()
+        if annotated_pixmap:
+            # Save the annotated image to the same path (overwrite)
+            annotated_pixmap.save(self.image_path)
+
         self.accept()
 
     def is_confirmed(self):
@@ -888,21 +1063,33 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
             file_path = result.get("file", "unknown")
 
-            # Show preview dialog for user to confirm or cancel
+            # Show preview dialog for user to confirm or cancel (and potentially annotate)
             preview_dialog = ImagePreviewDialog(file_path, self)
             if preview_dialog.exec_() == QDialog.Accepted and preview_dialog.is_confirmed():
-                # User confirmed - store the captured image data for next message
-                self.captured_image_data = result
+                # User confirmed - the annotated image has been saved to file_path
+                # Re-encode the potentially modified image
+                import base64
+                try:
+                    with open(file_path, 'rb') as image_file:
+                        image_base64 = base64.b64encode(image_file.read()).decode('utf-8')
 
-                # Visual feedback - update button to show image is ready
-                self.capture_button.setText("Capture ✓")
-                self.capture_button.setStyleSheet("background-color: #90EE90;")
+                    # Update the result with the new base64 encoding
+                    result["image_base64"] = image_base64
 
-                # Show success message
-                self.append_message("System",
-                    f"Screenshot confirmed!\n"
-                    f"Saved to: {file_path}\n"
-                    f"The image will be attached to your next message.")
+                    # Store the captured (and potentially annotated) image data
+                    self.captured_image_data = result
+
+                    # Visual feedback - update button to show image is ready
+                    self.capture_button.setText("Capture ✓")
+                    self.capture_button.setStyleSheet("background-color: #90EE90;")
+
+                    # Show success message
+                    self.append_message("System",
+                        f"Screenshot confirmed!\n"
+                        f"Saved to: {file_path}\n"
+                        f"The image will be attached to your next message.")
+                except Exception as e:
+                    self.append_message("[SYSTEM]", f"Error encoding annotated image: {str(e)}")
             else:
                 # User cancelled - discard the image
                 self.append_message("System", "Screenshot cancelled. Image will not be attached.")

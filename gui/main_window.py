@@ -5,11 +5,10 @@ This module provides the interactive GUI interface using PySide2.
 """
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-                                QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton,
-                                QMenuBar, QAction, QDialog, QListWidget, QListWidgetItem,
-                                QDialogButtonBox, QScrollArea, QComboBox, QColorDialog)
-from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt, QProcess, QProcessEnvironment, QPoint
-from PySide2.QtGui import QFont, QTextCursor, QColor, QPixmap, QPainter, QPen
+                                QTextEdit, QLineEdit, QLabel, QPushButton,
+                                QAction, QDialog)
+from PySide2.QtCore import QCoreApplication, Qt
+from PySide2.QtGui import QFont, QTextCursor
 
 import os
 import sys
@@ -18,388 +17,14 @@ import io
 import traceback
 from typing import TYPE_CHECKING
 
+from .dialogs import PythonFileSelector, ImagePreviewDialog
+from .workers import AIWorker
+from .formatters import MessageFormatter
+
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
     from .history_logger import HistoryLogger
     from .logger import Logger
-
-
-class PythonFileSelector(QDialog):
-    """Dialog for selecting a Python file to run."""
-
-    def __init__(self, python_files, parent=None):
-        """
-        Initialize the file selector dialog.
-
-        Args:
-            python_files: List of Python file paths
-            parent: Parent widget
-        """
-        super().__init__(parent)
-        self.selected_file = None
-        self.setup_ui(python_files)
-
-    def setup_ui(self, python_files):
-        """Setup the dialog UI."""
-        self.setWindowTitle("Select Python File to Run")
-        self.setMinimumSize(400, 300)
-
-        layout = QVBoxLayout(self)
-
-        # Add label
-        label = QLabel("Select a Python file to run:")
-        label.setFont(QFont("Consolas", 10))
-        layout.addWidget(label)
-
-        # Add list widget
-        self.file_list = QListWidget()
-        self.file_list.setFont(QFont("Consolas", 9))
-
-        for file_path in python_files:
-            item = QListWidgetItem(file_path)
-            self.file_list.addItem(item)
-
-        self.file_list.itemDoubleClicked.connect(self.on_item_double_clicked)
-        layout.addWidget(self.file_list)
-
-        # Add button box
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.accepted.connect(self.on_ok_clicked)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-    def on_item_double_clicked(self, item):
-        """Handle double-click on a list item."""
-        self.selected_file = item.text()
-        self.accept()
-
-    def on_ok_clicked(self):
-        """Handle OK button click."""
-        current_item = self.file_list.currentItem()
-        if current_item:
-            self.selected_file = current_item.text()
-            self.accept()
-
-    def get_selected_file(self):
-        """Return the selected file path."""
-        return self.selected_file
-
-
-class DrawableImageLabel(QLabel):
-    """A QLabel that allows drawing on the displayed image."""
-
-    def __init__(self, parent=None):
-        """Initialize the drawable image label."""
-        super().__init__(parent)
-        self.drawing = False
-        self.last_point = QPoint()
-        self.pen_color = QColor(255, 0, 0)  # Red by default
-        self.pen_width = 3
-        self.image = None
-        self.drawing_layer = None
-        self.setMouseTracking(False)
-
-    def set_image(self, pixmap):
-        """Set the image to display and create a drawing layer."""
-        self.image = pixmap.copy()
-        self.drawing_layer = QPixmap(pixmap.size())
-        self.drawing_layer.fill(Qt.transparent)
-        self.update_display()
-
-    def update_display(self):
-        """Update the display by compositing the image and drawing layer."""
-        if self.image is None:
-            return
-
-        # Composite the original image with the drawing layer
-        result = self.image.copy()
-        painter = QPainter(result)
-        painter.drawPixmap(0, 0, self.drawing_layer)
-        painter.end()
-
-        self.setPixmap(result)
-
-    def set_pen_color(self, color):
-        """Set the pen color for drawing."""
-        self.pen_color = color
-
-    def set_pen_width(self, width):
-        """Set the pen width for drawing."""
-        self.pen_width = width
-
-    def clear_drawings(self):
-        """Clear all drawings."""
-        if self.drawing_layer:
-            self.drawing_layer.fill(Qt.transparent)
-            self.update_display()
-
-    def get_annotated_image(self):
-        """Get the final image with annotations."""
-        if self.image is None:
-            return None
-
-        result = self.image.copy()
-        painter = QPainter(result)
-        painter.drawPixmap(0, 0, self.drawing_layer)
-        painter.end()
-        return result
-
-    def mousePressEvent(self, event):
-        """Handle mouse press event."""
-        if event.button() == Qt.LeftButton and self.drawing_layer:
-            self.drawing = True
-            self.last_point = event.pos()
-
-    def mouseMoveEvent(self, event):
-        """Handle mouse move event - draw on the image."""
-        if self.drawing and event.buttons() & Qt.LeftButton and self.drawing_layer:
-            painter = QPainter(self.drawing_layer)
-            pen = QPen(self.pen_color, self.pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-            painter.setPen(pen)
-            painter.drawLine(self.last_point, event.pos())
-            painter.end()
-
-            self.last_point = event.pos()
-            self.update_display()
-
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release event."""
-        if event.button() == Qt.LeftButton:
-            self.drawing = False
-
-
-class ImagePreviewDialog(QDialog):
-    """Dialog for previewing captured screenshot before attaching."""
-
-    def __init__(self, image_path, parent=None):
-        """
-        Initialize the image preview dialog.
-
-        Args:
-            image_path: Path to the image file to preview
-            parent: Parent widget
-        """
-        super().__init__(parent)
-        self.confirmed = False
-        self.original_pixmap = None
-        self.scroll_area = None
-        self.image_label = None
-        self.image_path = image_path
-        self.setup_ui(image_path)
-
-    def setup_ui(self, image_path):
-        """Setup the dialog UI."""
-        self.setWindowTitle("Preview & Annotate Screenshot")
-        self.setMinimumSize(900, 700)
-
-        layout = QVBoxLayout(self)
-
-        # Add title label
-        title_label = QLabel("Preview and annotate screenshot:")
-        title_label.setFont(QFont("Consolas", 10, QFont.Bold))
-        layout.addWidget(title_label)
-
-        # Add file path label
-        file_label = QLabel(f"File: {image_path}")
-        file_label.setFont(QFont("Consolas", 9))
-        file_label.setWordWrap(True)
-        layout.addWidget(file_label)
-
-        # Create drawing tools toolbar
-        tools_layout = QHBoxLayout()
-
-        # Color selection
-        color_label = QLabel("Pen Color:")
-        color_label.setFont(QFont("Consolas", 9))
-        tools_layout.addWidget(color_label)
-
-        # Preset color buttons
-        self.color_buttons = []
-        preset_colors = [
-            ("Red", QColor(255, 0, 0)),
-            ("Green", QColor(0, 255, 0)),
-            ("Blue", QColor(0, 0, 255)),
-            ("Yellow", QColor(255, 255, 0)),
-            ("White", QColor(255, 255, 255)),
-            ("Black", QColor(0, 0, 0))
-        ]
-
-        for name, color in preset_colors:
-            btn = QPushButton(name)
-            btn.setFixedSize(60, 25)
-            btn.setStyleSheet(f"background-color: {color.name()}; color: {'white' if color.lightness() < 128 else 'black'};")
-            btn.clicked.connect(lambda checked, c=color: self.set_pen_color(c))
-            tools_layout.addWidget(btn)
-            self.color_buttons.append(btn)
-
-        # Custom color button
-        custom_color_btn = QPushButton("Custom...")
-        custom_color_btn.setFixedSize(70, 25)
-        custom_color_btn.clicked.connect(self.choose_custom_color)
-        tools_layout.addWidget(custom_color_btn)
-
-        tools_layout.addSpacing(20)
-
-        # Pen width selection
-        width_label = QLabel("Pen Width:")
-        width_label.setFont(QFont("Consolas", 9))
-        tools_layout.addWidget(width_label)
-
-        self.width_combo = QComboBox()
-        self.width_combo.addItems(["1", "2", "3", "5", "8", "10", "15"])
-        self.width_combo.setCurrentText("3")
-        self.width_combo.currentTextChanged.connect(self.on_width_changed)
-        tools_layout.addWidget(self.width_combo)
-
-        tools_layout.addStretch()
-
-        # Clear button
-        clear_btn = QPushButton("Clear Drawings")
-        clear_btn.clicked.connect(self.clear_drawings)
-        tools_layout.addWidget(clear_btn)
-
-        layout.addLayout(tools_layout)
-
-        # Create scroll area for the image
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(False)
-        self.scroll_area.setAlignment(Qt.AlignCenter)
-
-        # Create drawable image label
-        self.image_label = DrawableImageLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
-
-        # Load the original image
-        self.original_pixmap = QPixmap(image_path)
-        if self.original_pixmap.isNull():
-            error_label = QLabel("Error: Could not load image")
-            error_label.setStyleSheet("color: red;")
-            self.scroll_area.setWidget(error_label)
-        else:
-            # Initial scaling will happen in showEvent
-            pass
-
-        self.scroll_area.setWidget(self.image_label)
-        layout.addWidget(self.scroll_area, stretch=1)
-
-        # Add instruction label
-        instruction_label = QLabel(
-            "Draw on the image to highlight areas or add annotations.\n"
-            "Use the tools above to change pen color and width. Click 'Confirm' to attach, or 'Cancel' to discard."
-        )
-        instruction_label.setFont(QFont("Consolas", 9))
-        instruction_label.setWordWrap(True)
-        layout.addWidget(instruction_label)
-
-        # Add button box
-        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        button_box.button(QDialogButtonBox.Ok).setText("Confirm")
-        button_box.button(QDialogButtonBox.Cancel).setText("Cancel")
-        button_box.accepted.connect(self.on_confirm)
-        button_box.rejected.connect(self.reject)
-        layout.addWidget(button_box)
-
-    def showEvent(self, event):
-        """Handle dialog show event - scale image to fit."""
-        super().showEvent(event)
-        self.scale_image_to_fit()
-
-    def resizeEvent(self, event):
-        """Handle dialog resize event - rescale image to fit new size."""
-        super().resizeEvent(event)
-        # Note: Resizing disabled for drawable images to maintain drawing accuracy
-        # self.scale_image_to_fit()
-
-    def scale_image_to_fit(self):
-        """Scale the image to fit the available scroll area size."""
-        if self.original_pixmap is None or self.original_pixmap.isNull():
-            return
-
-        # Get available size (scroll area size minus margins)
-        available_size = self.scroll_area.size()
-        # Account for scrollbar space and margins
-        target_width = available_size.width() - 40
-        target_height = available_size.height() - 40
-
-        # Scale pixmap to fit while maintaining aspect ratio
-        scaled_pixmap = self.original_pixmap.scaled(
-            target_width,
-            target_height,
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation
-        )
-
-        # Set the scaled image to the drawable label
-        self.image_label.set_image(scaled_pixmap)
-        self.image_label.adjustSize()
-
-    def set_pen_color(self, color):
-        """Set the pen color for drawing."""
-        self.image_label.set_pen_color(color)
-
-    def choose_custom_color(self):
-        """Open color picker dialog."""
-        color = QColorDialog.getColor()
-        if color.isValid():
-            self.image_label.set_pen_color(color)
-
-    def on_width_changed(self, width_text):
-        """Handle pen width change."""
-        try:
-            width = int(width_text)
-            self.image_label.set_pen_width(width)
-        except ValueError:
-            pass
-
-    def clear_drawings(self):
-        """Clear all drawings from the image."""
-        self.image_label.clear_drawings()
-
-    def on_confirm(self):
-        """Handle confirm button click - save annotated image."""
-        self.confirmed = True
-
-        # Get the annotated image
-        annotated_pixmap = self.image_label.get_annotated_image()
-        if annotated_pixmap:
-            # Save the annotated image to the same path (overwrite)
-            annotated_pixmap.save(self.image_path)
-
-        self.accept()
-
-    def is_confirmed(self):
-        """Return whether the user confirmed the image."""
-        return self.confirmed
-
-
-class AIWorker(QThread):
-    """Worker thread for handling AI API calls asynchronously."""
-
-    # Signal emitted when AI processing is complete (response or error)
-    finished = Signal(str, bool)  # (message, is_error)
-
-    def __init__(self, ai_client: 'AIAgent', user_input: str, image_data=None):
-        """
-        Initialize the AI worker thread.
-
-        Args:
-            ai_client: The AIAgent instance
-            user_input: The user's input to process
-            image_data: Optional captured image data to attach
-        """
-        super().__init__()
-        self.ai_client = ai_client
-        self.user_input = user_input
-        self.image_data = image_data
-
-    def run(self):
-        """Run the AI request in a separate thread."""
-        try:
-            response = self.ai_client.process_request(self.user_input, self.image_data)
-            self.finished.emit(response, False)  # False = not an error
-        except Exception as e:
-            error_msg = f"Error processing request: {str(e)}"
-            self.finished.emit(error_msg, True)  # True = is an error
 
 
 class ForShapeMainWindow(QMainWindow):
@@ -446,6 +71,9 @@ class ForShapeMainWindow(QMainWindow):
         if self.logger:
             self.logger.log_message.connect(self.on_log_message)
 
+
+        # Initialize message formatter
+        self.message_formatter = MessageFormatter(self.logger)
         self.setup_ui()
 
     def setup_ui(self):
@@ -797,7 +425,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
     def markdown_to_html(self, text: str) -> str:
         """
-        Convert markdown text to HTML.
+        Convert markdown text to HTML using MessageFormatter.
 
         Args:
             text: Markdown text to convert
@@ -805,41 +433,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         Returns:
             HTML string
         """
-        # Try to import markdown library (lazy import to allow dependency manager to install it first)
-        try:
-            import markdown as md
-
-            # Configure markdown extensions for better rendering
-            extensions = [
-                'markdown.extensions.fenced_code',  # Code blocks with ```
-                'markdown.extensions.tables',        # Tables
-                'markdown.extensions.nl2br',         # Newline to <br>
-                'markdown.extensions.codehilite',    # Syntax highlighting
-            ]
-
-            try:
-                html_output = md.markdown(text, extensions=extensions)
-                # Debug: Log that markdown conversion succeeded
-                if self.logger:
-                    self.logger.debug(f"Markdown converted to HTML: {html_output[:100]}...")
-                return html_output
-            except Exception as e:
-                # Fallback if conversion fails
-                if self.logger:
-                    self.logger.warn(f"Markdown conversion failed: {e}, using fallback")
-                import html
-                text = html.escape(text)
-                text = text.replace('\n', '<br>')
-                return text
-
-        except ImportError:
-            # Fallback: basic HTML escaping and line break conversion if markdown not available
-            if self.logger:
-                self.logger.warn("Markdown library not available, using fallback rendering")
-            import html
-            text = html.escape(text)
-            text = text.replace('\n', '<br>')
-            return text
+        return self.message_formatter.markdown_to_html(text)
 
     def append_message(self, role: str, message: str):
         """
@@ -854,15 +448,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         cursor.movePosition(QTextCursor.End)
         self.conversation_display.setTextCursor(cursor)
 
-        # Convert markdown to HTML for AI messages
-        if role == "AI":
-            message_html = self.markdown_to_html(message)
-            formatted_message = f'<div style="margin: 15px 0; padding: 8px; background-color: #f9f9f9; border-left: 3px solid #0066CC;"><strong style="color: #0066CC;">{role}:</strong><br>{message_html}</div>'
-        else:
-            # For user messages and system messages, use simpler formatting
-            import html
-            escaped_message = html.escape(message).replace('\n', '<br>')
-            formatted_message = f'<div style="margin: 15px 0; padding: 8px;"><strong style="color: #333;">{role}:</strong><br>{escaped_message}</div>'
+        # Use MessageFormatter to format the message
+        formatted_message = self.message_formatter.format_message(role, message)
 
         # Use insertHtml instead of append for proper HTML rendering
         self.conversation_display.insertHtml(formatted_message)

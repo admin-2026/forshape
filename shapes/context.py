@@ -164,6 +164,44 @@ class Context:
         return None
 
     @staticmethod
+    def get_first_body_parent(obj_or_label):
+        """
+        Iteratively traverse up the parent chain to find the first parent of type "PartDesign::Body".
+
+        Args:
+            obj_or_label: The object or label/name to identify the object
+
+        Returns:
+            The first Body parent found, or None if no Body parent exists
+        """
+        obj = Context.get_object(obj_or_label)
+        if obj is None:
+            return None
+
+        current = obj
+        visited = set()
+
+        while current is not None:
+            # Check if current object is a Body
+            if current.TypeId == 'PartDesign::Body':
+                return current
+
+            # Check for cycles
+            obj_id = id(current)
+            if obj_id in visited:
+                # Cycle detected, break out
+                break
+            visited.add(obj_id)
+
+            # Move to parent
+            parent = current.getParent()
+            if parent is None:
+                break
+            current = parent
+
+        return None
+
+    @staticmethod
     def find_objects_by_regex(pattern):
         """
         Scans all objects in the active document to find objects whose label, name, or label2 matches the regex pattern.

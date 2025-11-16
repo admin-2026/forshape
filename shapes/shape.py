@@ -125,8 +125,8 @@ class Shape:
                 child = Context.get_object(child_label)
 
                 # Check for parent conflicts first
-                if child is not None and child.getParent() != existing_obj:
-                    other_parent = child.getParent()
+                if child is not None and Context.get_first_body_parent(child) != existing_obj:
+                    other_parent = Context.get_first_body_parent(child)
                     other_parent_label = other_parent.Label if other_parent else "None"
                     raise ValueError(f"Creating object with conflicting label: '{child_label}' already exists with different parent '{other_parent_label}'")
 

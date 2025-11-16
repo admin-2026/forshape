@@ -24,32 +24,15 @@ class Boolean:
 
         # Traverse up the parent chain to find a PartDesign::Body
         if primary is not None:
-            visited = set()  # Track visited objects to detect cycles
-            current = primary
-
-            while current is not None and current.TypeId != 'PartDesign::Body':
-                # Check for cycles
-                obj_id = id(current)
-                if obj_id in visited:
-                    # Cycle detected, break out
-                    break
-                visited.add(obj_id)
-
-                # Move to parent
-                parent = current.getParent()
-                if parent is None:
-                    break
-                current = parent
-
-            # Use the found Body if we found one, otherwise keep original
-            if current is not None and current.TypeId == 'PartDesign::Body':
-                primary = current
+            body_parent = Context.get_first_body_parent(primary)
+            if body_parent is not None:
+                primary = body_parent
 
         # Handle secondary as either a list or a single object
         if isinstance(secondary, list):
-            secondary_objects = [Context.get_object(obj) for obj in secondary]
+            secondary_objects = [Context.get_first_body_parent(obj) for obj in secondary]
         else:
-            secondary_objects = [Context.get_object(secondary)]
+            secondary_objects = [Context.get_first_body_parent(secondary)]
 
         # Try to get existing boolean object with the same label
         existing_boolean = Context.get_object(label)

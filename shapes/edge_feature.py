@@ -40,7 +40,7 @@ class EdgeFeature(Shape):
             base_feature = body.Group[-1]
         else:
             # Object is a feature, get its parent body
-            body = parent_obj.getParent()
+            body = Context.get_first_body_parent(parent_obj)
             if body is None or body.TypeId != 'PartDesign::Body':
                 raise ValueError(f"Object '{object_label}' is not part of a Body")
             base_feature = parent_obj
@@ -50,8 +50,8 @@ class EdgeFeature(Shape):
 
         if existing_fillet is not None:
             # Check parent
-            if existing_fillet.getParent() != body:
-                other_parent = existing_fillet.getParent()
+            if Context.get_first_body_parent(existing_fillet) != body:
+                other_parent = Context.get_first_body_parent(existing_fillet)
                 other_parent_label = other_parent.Label if other_parent else "None"
                 raise ValueError(f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'")
 
@@ -118,7 +118,7 @@ class EdgeFeature(Shape):
             base_feature = body.Group[-1]
         else:
             # Object is a feature, get its parent body
-            body = parent_obj.getParent()
+            body = Context.get_first_body_parent(parent_obj)
             if body is None or body.TypeId != 'PartDesign::Body':
                 raise ValueError(f"Object '{object_label}' is not part of a Body")
             base_feature = parent_obj
@@ -128,8 +128,8 @@ class EdgeFeature(Shape):
 
         if existing_chamfer is not None:
             # Check parent
-            if existing_chamfer.getParent() != body:
-                other_parent = existing_chamfer.getParent()
+            if Context.get_first_body_parent(existing_chamfer) != body:
+                other_parent = Context.get_first_body_parent(existing_chamfer)
                 other_parent_label = other_parent.Label if other_parent else "None"
                 raise ValueError(f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'")
 
@@ -197,7 +197,7 @@ class EdgeFeature(Shape):
             base_feature = body.Group[-1]
         else:
             # Object is a feature, get its parent body
-            body = parent_obj.getParent()
+            body = Context.get_first_body_parent(parent_obj)
             if body is None or body.TypeId != 'PartDesign::Body':
                 raise ValueError(f"Object '{object_label}' is not part of a Body")
             base_feature = parent_obj
@@ -212,8 +212,8 @@ class EdgeFeature(Shape):
 
         if existing_draft is not None:
             # Check parent
-            if existing_draft.getParent() != body:
-                other_parent = existing_draft.getParent()
+            if Context.get_first_body_parent(existing_draft) != body:
+                other_parent = Context.get_first_body_parent(existing_draft)
                 other_parent_label = other_parent.Label if other_parent else "None"
                 raise ValueError(f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'")
 

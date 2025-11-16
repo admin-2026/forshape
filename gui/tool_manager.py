@@ -324,6 +324,113 @@ class ToolManager:
             path_obj = working_dir / path_obj
         return path_obj.resolve()
 
+    def _check_permission(self, path: str, action: str, is_directory: bool = False) -> Optional[str]:
+        """
+        Check permission for a file/directory operation.
+
+        Args:
+            path: Path to check permission for
+            action: Action type (e.g., "read", "write", "list", "execute")
+            is_directory: Whether the path is a directory
+
+        Returns:
+            JSON error string if permission denied, None if allowed
+        """
+        if self.permission_manager:
+            if not self.permission_manager.request_permission(path, action, is_directory=is_directory):
+                return json.dumps({
+                    "error": f"Permission denied: {path}",
+                    "permission_denied": True
+                })
+        return None
+
+    def _validate_file_exists(self, path: Path) -> Optional[str]:
+        """
+        Validate that a file exists and is a file.
+
+        Args:
+            path: Path to validate
+
+        Returns:
+            JSON error string if validation fails, None if valid
+        """
+        if not path.exists():
+            return json.dumps({"error": f"File does not exist: {path}"})
+        if not path.is_file():
+            return json.dumps({"error": f"Path is not a file: {path}"})
+        return None
+
+    def _validate_directory_exists(self, path: Path) -> Optional[str]:
+        """
+        Validate that a directory exists and is a directory.
+
+        Args:
+            path: Path to validate
+
+        Returns:
+            JSON error string if validation fails, None if valid
+        """
+        if not path.exists():
+            return json.dumps({"error": f"Folder does not exist: {path}"})
+        if not path.is_dir():
+            return json.dumps({"error": f"Path is not a directory: {path}"})
+        return None
+
+    def _json_error(self, message: str, **kwargs) -> str:
+        """
+        Create a JSON error response.
+
+        Args:
+            message: Error message
+            **kwargs: Additional fields to include in the response
+
+        Returns:
+            JSON string with error
+        """
+        response = {"error": message}
+        response.update(kwargs)
+        return json.dumps(response, indent=2)
+
+    def _json_success(self, **kwargs) -> str:
+        """
+        Create a JSON success response.
+
+        Args:
+            **kwargs: Fields to include in the response
+
+        Returns:
+            JSON string with success=True and provided fields
+        """
+        response = {"success": True}
+        response.update(kwargs)
+        return json.dumps(response, indent=2)
+
+    def _capture_output(self):
+        """
+        Context manager for capturing stdout and stderr.
+
+        Yields:
+            A function that returns the captured output as a string
+        """
+        import io
+        import sys
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _capture():
+            captured = io.StringIO()
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            try:
+                sys.stdout = captured
+                sys.stderr = captured
+                yield lambda: captured.getvalue()
+            finally:
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+        return _capture()
+
     def _tool_list_files(self, folder_path: str) -> str:
         """
         Implementation of the list_files tool.
@@ -338,24 +445,14 @@ class ToolManager:
             resolved_path = self._resolve_path(folder_path)
 
             # Check permission
-            if self.permission_manager:
-                if not self.permission_manager.request_permission(
-                    str(resolved_path), "list", is_directory=True
-                ):
-                    return json.dumps({
-                        "error": f"Permission denied: {resolved_path}",
-                        "permission_denied": True
-                    })
+            perm_error = self._check_permission(str(resolved_path), "list", is_directory=True)
+            if perm_error:
+                return perm_error
 
-            if not resolved_path.exists():
-                return json.dumps({
-                    "error": f"Folder does not exist: {resolved_path}"
-                })
-
-            if not resolved_path.is_dir():
-                return json.dumps({
-                    "error": f"Path is not a directory: {resolved_path}"
-                })
+            # Validate directory
+            dir_error = self._validate_directory_exists(resolved_path)
+            if dir_error:
+                return dir_error
 
             items = []
             working_dir = Path(self.working_dir)
@@ -377,7 +474,7 @@ class ToolManager:
             }, indent=2)
 
         except Exception as e:
-            return json.dumps({"error": f"Error listing files: {str(e)}"})
+            return self._json_error(f"Error listing files: {str(e)}")
 
     def _tool_read_file(self, file_path: str) -> str:
         """
@@ -393,24 +490,14 @@ class ToolManager:
             resolved_path = self._resolve_path(file_path)
 
             # Check permission
-            if self.permission_manager:
-                if not self.permission_manager.request_permission(
-                    str(resolved_path), "read", is_directory=False
-                ):
-                    return json.dumps({
-                        "error": f"Permission denied: {resolved_path}",
-                        "permission_denied": True
-                    })
+            perm_error = self._check_permission(str(resolved_path), "read", is_directory=False)
+            if perm_error:
+                return perm_error
 
-            if not resolved_path.exists():
-                return json.dumps({
-                    "error": f"File does not exist: {resolved_path}"
-                })
-
-            if not resolved_path.is_file():
-                return json.dumps({
-                    "error": f"Path is not a file: {resolved_path}"
-                })
+            # Validate file
+            file_error = self._validate_file_exists(resolved_path)
+            if file_error:
+                return file_error
 
             with open(resolved_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -422,11 +509,9 @@ class ToolManager:
             }, indent=2)
 
         except UnicodeDecodeError:
-            return json.dumps({
-                "error": f"Cannot read file (not a text file or encoding issue): {file_path}"
-            })
+            return self._json_error(f"Cannot read file (not a text file or encoding issue): {file_path}")
         except Exception as e:
-            return json.dumps({"error": f"Error reading file: {str(e)}"})
+            return self._json_error(f"Error reading file: {str(e)}")
 
     def _tool_edit_file(self, file_path: str, old_content: str, new_content: str) -> str:
         """
@@ -444,14 +529,9 @@ class ToolManager:
             resolved_path = self._resolve_path(file_path)
 
             # Check permission
-            if self.permission_manager:
-                if not self.permission_manager.request_permission(
-                    str(resolved_path), "write", is_directory=False
-                ):
-                    return json.dumps({
-                        "error": f"Permission denied: {resolved_path}",
-                        "permission_denied": True
-                    })
+            perm_error = self._check_permission(str(resolved_path), "write", is_directory=False)
+            if perm_error:
+                return perm_error
 
             # Handle file creation if it doesn't exist
             if not resolved_path.exists():
@@ -462,16 +542,13 @@ class ToolManager:
                 with open(resolved_path, 'w', encoding='utf-8') as f:
                     f.write(new_content)
 
-                return json.dumps({
-                    "success": True,
-                    "file": str(resolved_path),
-                    "message": "File created successfully"
-                }, indent=2)
+                return self._json_success(
+                    file=str(resolved_path),
+                    message="File created successfully"
+                )
 
             if not resolved_path.is_file():
-                return json.dumps({
-                    "error": f"Path is not a file: {resolved_path}"
-                })
+                return self._json_error(f"Path is not a file: {resolved_path}")
 
             # Read current content
             with open(resolved_path, 'r', encoding='utf-8') as f:
@@ -479,10 +556,10 @@ class ToolManager:
 
             # Check if old_content exists in the file
             if old_content not in current_content:
-                return json.dumps({
-                    "error": f"Content to replace not found in file",
-                    "file": str(resolved_path)
-                })
+                return self._json_error(
+                    "Content to replace not found in file",
+                    file=str(resolved_path)
+                )
 
             # Replace content
             updated_content = current_content.replace(old_content, new_content)
@@ -491,14 +568,13 @@ class ToolManager:
             with open(resolved_path, 'w', encoding='utf-8') as f:
                 f.write(updated_content)
 
-            return json.dumps({
-                "success": True,
-                "file": str(resolved_path),
-                "message": "File edited successfully"
-            }, indent=2)
+            return self._json_success(
+                file=str(resolved_path),
+                message="File edited successfully"
+            )
 
         except Exception as e:
-            return json.dumps({"error": f"Error editing file: {str(e)}"})
+            return self._json_error(f"Error editing file: {str(e)}")
 
     def _tool_print_object(self, obj_or_label: str, indent: int = 0, verbose: bool = False) -> str:
         """
@@ -513,28 +589,14 @@ class ToolManager:
             JSON string with success or error message
         """
         try:
-            import io
-            import sys
+            with self._capture_output() as get_output:
+                Context.print_object(obj_or_label, indent=indent, verbose=verbose)
+                output = get_output()
 
-            # Capture print output
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
-            Context.print_object(obj_or_label, indent=indent, verbose=verbose)
-
-            # Restore stdout
-            sys.stdout = sys.__stdout__
-
-            output = captured_output.getvalue()
-
-            return json.dumps({
-                "success": True,
-                "output": output
-            }, indent=2)
+            return self._json_success(output=output)
 
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            return json.dumps({"error": f"Error printing object: {str(e)}"})
+            return self._json_error(f"Error printing object: {str(e)}")
 
     def _tool_find_objects_by_regex(self, pattern: str) -> str:
         """
@@ -555,14 +617,13 @@ class ToolManager:
                 for matched_str, field_name in matches
             ]
 
-            return json.dumps({
-                "success": True,
-                "matches": matches_list,
-                "count": len(matches_list)
-            }, indent=2)
+            return self._json_success(
+                matches=matches_list,
+                count=len(matches_list)
+            )
 
         except Exception as e:
-            return json.dumps({"error": f"Error finding objects by regex: {str(e)}"})
+            return self._json_error(f"Error finding objects by regex: {str(e)}")
 
     def _tool_print_document(self, verbose: bool = False) -> str:
         """
@@ -575,28 +636,14 @@ class ToolManager:
             JSON string with success or error message
         """
         try:
-            import io
-            import sys
+            with self._capture_output() as get_output:
+                Context.print_document(verbose=verbose)
+                output = get_output()
 
-            # Capture print output
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
-            Context.print_document(verbose=verbose)
-
-            # Restore stdout
-            sys.stdout = sys.__stdout__
-
-            output = captured_output.getvalue()
-
-            return json.dumps({
-                "success": True,
-                "output": output
-            }, indent=2)
+            return self._json_success(output=output)
 
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            return json.dumps({"error": f"Error printing document: {str(e)}"})
+            return self._json_error(f"Error printing document: {str(e)}")
 
     def _tool_rename_object(self, obj_or_label: str, new_label: str) -> str:
         """
@@ -610,19 +657,9 @@ class ToolManager:
             JSON string with success or error message
         """
         try:
-            import io
-            import sys
-
-            # Capture print output
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
-            Context.rename_object(obj_or_label, new_label)
-
-            # Restore stdout
-            sys.stdout = sys.__stdout__
-
-            output = captured_output.getvalue()
+            with self._capture_output() as get_output:
+                Context.rename_object(obj_or_label, new_label)
+                output = get_output()
 
             # Check if there was an error message in the output
             if "not found" in output or "cannot rename" in output:
@@ -631,14 +668,10 @@ class ToolManager:
                     "message": output.strip()
                 }, indent=2)
 
-            return json.dumps({
-                "success": True,
-                "message": output.strip()
-            }, indent=2)
+            return self._json_success(message=output.strip())
 
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            return json.dumps({"error": f"Error renaming object: {str(e)}"})
+            return self._json_error(f"Error renaming object: {str(e)}")
 
     def _tool_remove_object(self, obj_or_label: str) -> str:
         """
@@ -651,7 +684,7 @@ class ToolManager:
             JSON string with success or error message
         """
         try:
-            # Check permission
+            # Check permission (using special deletion permission)
             if self.permission_manager:
                 if not self.permission_manager.request_object_deletion_permission(obj_or_label):
                     return json.dumps({
@@ -659,19 +692,9 @@ class ToolManager:
                         "permission_denied": True
                     })
 
-            import io
-            import sys
-
-            # Capture print output
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
-            Context.remove_object(obj_or_label)
-
-            # Restore stdout
-            sys.stdout = sys.__stdout__
-
-            output = captured_output.getvalue()
+            with self._capture_output() as get_output:
+                Context.remove_object(obj_or_label)
+                output = get_output()
 
             # Check if there was an error message in the output
             if "not found" in output or "cannot remove" in output or "Unsupported" in output:
@@ -680,14 +703,10 @@ class ToolManager:
                     "message": output.strip()
                 }, indent=2)
 
-            return json.dumps({
-                "success": True,
-                "message": output.strip()
-            }, indent=2)
+            return self._json_success(message=output.strip())
 
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            return json.dumps({"error": f"Error removing object: {str(e)}"})
+            return self._json_error(f"Error removing object: {str(e)}")
 
     def _tool_search_python_files(
         self,
@@ -711,33 +730,21 @@ class ToolManager:
             search_path = Path(self.working_dir)
 
             # Check permission
-            if self.permission_manager:
-                if not self.permission_manager.request_permission(
-                    str(search_path), "list", is_directory=True
-                ):
-                    return json.dumps({
-                        "error": f"Permission denied: {search_path}",
-                        "permission_denied": True
-                    })
+            perm_error = self._check_permission(str(search_path), "list", is_directory=True)
+            if perm_error:
+                return perm_error
 
-            if not search_path.exists():
-                return json.dumps({
-                    "error": f"Folder does not exist: {search_path}"
-                })
-
-            if not search_path.is_dir():
-                return json.dumps({
-                    "error": f"Path is not a directory: {search_path}"
-                })
+            # Validate directory
+            dir_error = self._validate_directory_exists(search_path)
+            if dir_error:
+                return dir_error
 
             # Compile regex pattern
             try:
                 flags = 0 if case_sensitive else re.IGNORECASE
                 regex = re.compile(pattern, flags)
             except re.error as e:
-                return json.dumps({
-                    "error": f"Invalid regex pattern: {str(e)}"
-                })
+                return self._json_error(f"Invalid regex pattern: {str(e)}")
 
             # Find all Python files
             if recursive:
@@ -773,17 +780,16 @@ class ToolManager:
                     # Skip files that can't be read
                     continue
 
-            return json.dumps({
-                "success": True,
-                "pattern": pattern,
-                "search_path": str(search_path),
-                "matches": matches,
-                "total_matches": len(matches),
-                "files_searched": len(python_files)
-            }, indent=2)
+            return self._json_success(
+                pattern=pattern,
+                search_path=str(search_path),
+                matches=matches,
+                total_matches=len(matches),
+                files_searched=len(python_files)
+            )
 
         except Exception as e:
-            return json.dumps({"error": f"Error searching Python files: {str(e)}"})
+            return self._json_error(f"Error searching Python files: {str(e)}")
 
     def _tool_capture_screenshot(
         self,
@@ -812,22 +818,14 @@ class ToolManager:
                     "message": "ImageContext not configured"
                 })
 
-            # Capture output
-            import io
-            import sys
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-
-            # Call image_context.capture_encoded() - handles both capture and base64 encoding
-            result = self.image_context.capture_encoded(
-                target=target,
-                perspective=perspective,
-                perspectives=perspectives
-            )
-
-            # Restore stdout
-            sys.stdout = sys.__stdout__
-            output = captured_output.getvalue()
+            with self._capture_output() as get_output:
+                # Call image_context.capture_encoded() - handles both capture and base64 encoding
+                result = self.image_context.capture_encoded(
+                    target=target,
+                    perspective=perspective,
+                    perspectives=perspectives
+                )
+                output = get_output()
 
             # Check if capture was successful
             if result is None:
@@ -849,8 +847,7 @@ class ToolManager:
             return json.dumps(result, indent=2)
 
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            return json.dumps({"error": f"Error capturing screenshot: {str(e)}"})
+            return self._json_error(f"Error capturing screenshot: {str(e)}")
 
     def _tool_run_python_script(self, script_path: str, description: str) -> str:
         """
@@ -869,44 +866,24 @@ class ToolManager:
 
             # Validate that it's a Python file
             if not str(resolved_path).endswith('.py'):
-                return json.dumps({
-                    "error": f"File must be a Python script (.py): {resolved_path}"
-                })
+                return self._json_error(f"File must be a Python script (.py): {resolved_path}")
 
-            # Check if file exists
-            if not resolved_path.exists():
-                return json.dumps({
-                    "error": f"Script file does not exist: {resolved_path}"
-                })
+            # Validate file exists
+            file_error = self._validate_file_exists(resolved_path)
+            if file_error:
+                return file_error
 
-            if not resolved_path.is_file():
-                return json.dumps({
-                    "error": f"Path is not a file: {resolved_path}"
-                })
-
-            # Check permission - use read permission as a proxy for execute
-            # The permission_manager should show the description to the user
-            if self.permission_manager:
-                # Request permission with a custom message including the description
-                if not self.permission_manager.request_permission(
-                    str(resolved_path), "execute", is_directory=False
-                ):
-                    return json.dumps({
-                        "error": f"Permission denied to execute script: {resolved_path}",
-                        "permission_denied": True,
-                        "description": description
-                    })
+            # Check permission
+            perm_error = self._check_permission(str(resolved_path), "execute", is_directory=False)
+            if perm_error:
+                # Add description to permission error
+                error_dict = json.loads(perm_error)
+                error_dict["description"] = description
+                return json.dumps(error_dict)
 
             # Read the script content
             with open(resolved_path, 'r', encoding='utf-8') as f:
                 script_content = f.read()
-
-            # Capture output during execution
-            import io
-            import sys
-            captured_output = io.StringIO()
-            sys.stdout = captured_output
-            sys.stderr = captured_output
 
             # Execute the script in the current global namespace
             # This gives it access to FreeCAD, Context, and other imported modules
@@ -932,19 +909,16 @@ class ToolManager:
             success = True
             error_msg = None
 
-            try:
-                exec(script_content, exec_globals)
-            except Exception as e:
-                success = False
-                error_msg = f"{type(e).__name__}: {str(e)}"
-                import traceback
-                error_msg += f"\n\nTraceback:\n{traceback.format_exc()}"
+            with self._capture_output() as get_output:
+                try:
+                    exec(script_content, exec_globals)
+                except Exception as e:
+                    success = False
+                    error_msg = f"{type(e).__name__}: {str(e)}"
+                    import traceback
+                    error_msg += f"\n\nTraceback:\n{traceback.format_exc()}"
 
-            # Restore stdout/stderr
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-
-            output = captured_output.getvalue()
+                output = get_output()
 
             if success:
                 return json.dumps({
@@ -964,13 +938,9 @@ class ToolManager:
                 }, indent=2)
 
         except UnicodeDecodeError:
-            return json.dumps({
-                "error": f"Cannot read script file (encoding issue): {script_path}"
-            })
+            return self._json_error(f"Cannot read script file (encoding issue): {script_path}")
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-            return json.dumps({"error": f"Error executing script: {str(e)}"})
+            return self._json_error(f"Error executing script: {str(e)}")
 
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """

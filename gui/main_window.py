@@ -59,7 +59,7 @@ class ForShapeMainWindow(QMainWindow):
         self.is_ai_busy = False  # Track if AI is currently processing
         self.pending_input = ""  # Store pending user input when AI is busy
         self.worker = None  # Current worker thread
-        self.captured_image_data = None  # Store captured image to attach to next message
+        self.captured_images = []  # Store captured images to attach to next message
 
         # Prestart check mode
         self.prestart_checker = prestart_checker
@@ -373,10 +373,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.handle_special_commands(user_input, self):
             return
 
-        # Check if there's a captured image to attach
-        has_image = self.captured_image_data is not None
-        if has_image:
-            self.append_message("System", "📷 Attaching captured screenshot to message...")
+        # Check if there are captured images to attach
+        has_images = len(self.captured_images) > 0
+        if has_images:
+            image_count = len(self.captured_images)
+            image_word = "image" if image_count == 1 else "images"
+            self.append_message("System", f"📷 Attaching {image_count} {image_word} to message...")
 
         # Show in-progress indicator
         self.append_message("AI", "⏳ Processing...")
@@ -387,16 +389,15 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Set busy state
         self.is_ai_busy = True
 
-        # Create and start worker thread for AI processing with optional image
-        self.worker = AIWorker(self.ai_client, user_input, self.captured_image_data)
+        # Create and start worker thread for AI processing with optional images
+        self.worker = AIWorker(self.ai_client, user_input, self.captured_images if has_images else None)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.start()
 
-        # Clear captured image data and reset button after sending
-        if has_image:
-            self.captured_image_data = None
-            self.capture_button.setText("Capture")
-            self.capture_button.setStyleSheet("")
+        # Clear captured images and reset button after sending
+        if has_images:
+            self.captured_images = []
+            self.update_capture_button_state()
 
     def on_ai_response(self, message: str, is_error: bool):
         """
@@ -625,14 +626,31 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if selected_file:
                 self.redo_python_file(selected_file)
 
-    def on_capture_screenshot(self):
-        """Handle Capture button click - captures scene screenshot or cancels if already captured."""
-        # If an image is already captured, clicking again cancels it
-        if self.captured_image_data is not None:
-            self.captured_image_data = None
+    def update_capture_button_state(self):
+        """Update the capture button text and styling based on number of captured images."""
+        image_count = len(self.captured_images)
+        if image_count == 0:
             self.capture_button.setText("Capture")
             self.capture_button.setStyleSheet("")
-            self.append_message("System", "Captured image discarded. No image will be attached.")
+            self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to clear all if already captured)\n\nTip: You can also drag & drop image files onto the window!")
+        elif image_count == 1:
+            self.capture_button.setText("Capture ✓ (1)")
+            self.capture_button.setStyleSheet("background-color: #90EE90;")
+            self.capture_button.setToolTip("1 image ready to send. Click to clear all images.")
+        else:
+            self.capture_button.setText(f"Capture ✓ ({image_count})")
+            self.capture_button.setStyleSheet("background-color: #90EE90;")
+            self.capture_button.setToolTip(f"{image_count} images ready to send. Click to clear all images.")
+
+    def on_capture_screenshot(self):
+        """Handle Capture button click - captures scene screenshot or clears all if already captured."""
+        # If images are already captured, clicking again clears all of them
+        if len(self.captured_images) > 0:
+            image_count = len(self.captured_images)
+            self.captured_images = []
+            self.update_capture_button_state()
+            image_word = "image" if image_count == 1 else "images"
+            self.append_message("System", f"All {image_count} captured {image_word} discarded. No images will be attached.")
             return
 
         if not self.image_context:
@@ -675,18 +693,19 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                     # Update the result with the new base64 encoding
                     result["image_base64"] = image_base64
 
-                    # Store the captured (and potentially annotated) image data
-                    self.captured_image_data = result
+                    # Add the captured (and potentially annotated) image data to the list
+                    self.captured_images.append(result)
 
-                    # Visual feedback - update button to show image is ready
-                    self.capture_button.setText("Capture ✓")
-                    self.capture_button.setStyleSheet("background-color: #90EE90;")
+                    # Visual feedback - update button to show images are ready
+                    self.update_capture_button_state()
 
                     # Show success message
+                    image_count = len(self.captured_images)
+                    image_word = "image" if image_count == 1 else "images"
                     self.append_message("System",
                         f"Screenshot confirmed!\n"
                         f"Saved to: {file_path}\n"
-                        f"The image will be attached to your next message.")
+                        f"{image_count} {image_word} ready to attach to your next message.")
                 except Exception as e:
                     self.append_message("[SYSTEM]", f"Error encoding annotated image: {str(e)}")
             else:
@@ -871,24 +890,33 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             event.ignore()
             return
 
-        # Process the first file (ignore multiple files for now)
-        file_path = files[0]
-
-        # Check if it's an image file
+        # Filter for image files only
         image_extensions = ['.png', '.jpg', '.jpeg', '.bmp', '.gif']
-        file_ext = os.path.splitext(file_path)[1].lower()
+        image_files = []
+        non_image_files = []
 
-        if file_ext in image_extensions:
-            self.handle_dropped_image(file_path)
-        else:
-            # For non-image files, show a message
-            self.append_message("System", f"Dropped file: {os.path.basename(file_path)}\n(Currently only image files are supported)")
+        for file_path in files:
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext in image_extensions:
+                image_files.append(file_path)
+            else:
+                non_image_files.append(file_path)
+
+        # Process all image files
+        if image_files:
+            for file_path in image_files:
+                self.handle_dropped_image(file_path)
+
+        # Show message for non-image files
+        if non_image_files:
+            file_names = ", ".join([os.path.basename(f) for f in non_image_files])
+            self.append_message("System", f"Skipped non-image file(s): {file_names}\n(Currently only image files are supported)")
 
         event.acceptProposedAction()
 
     def handle_dropped_image(self, file_path: str):
         """
-        Handle a dropped image file by converting it to base64 and storing it.
+        Handle a dropped image file by converting it to base64 and adding it to the list.
 
         Args:
             file_path: Path to the dropped image file
@@ -896,10 +924,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.is_ai_busy:
             self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
             return
-
-        # If an image is already captured, warn the user
-        if self.captured_image_data is not None:
-            self.append_message("System", "An image is already captured. The new image will replace it.")
 
         try:
             import base64
@@ -909,19 +933,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 image_bytes = image_file.read()
                 image_base64 = base64.b64encode(image_bytes).decode('utf-8')
 
-            # Determine the image format from the file extension
+            # Determine the file extension for saving
             file_ext = os.path.splitext(file_path)[1].lower()
-            format_map = {
-                '.png': 'png',
-                '.jpg': 'jpeg',
-                '.jpeg': 'jpeg',
-                '.bmp': 'bmp',
-                '.gif': 'gif'
-            }
-            image_format = format_map.get(file_ext, 'png')
-
-            # Create data URL
-            data_url = f"data:image/{image_format};base64,{image_base64}"
 
             # Copy the image to the history folder (same as capture does)
             if self.image_context:
@@ -941,23 +954,24 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             else:
                 stored_path = file_path
 
-            # Store the image data (same format as captured images)
-            self.captured_image_data = {
+            # Add the image data to the list (same format as captured images)
+            self.captured_images.append({
                 "success": True,
                 "file": stored_path,
-                "image_base64": data_url
-            }
+                "image_base64": image_base64  # Just the base64 string, not the data URL
+            })
 
-            # Visual feedback - update button to show image is ready
-            self.capture_button.setText("Capture ✓")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
+            # Visual feedback - update button to show images are ready
+            self.update_capture_button_state()
 
             # Show success message
+            image_count = len(self.captured_images)
+            image_word = "image" if image_count == 1 else "images"
             self.append_message("System",
-                f"Image dropped and ready to send!\n"
+                f"Image added!\n"
                 f"File: {os.path.basename(file_path)}\n"
                 f"Saved to: {stored_path}\n"
-                f"The image will be attached to your next message.")
+                f"{image_count} {image_word} ready to attach to your next message.")
 
         except Exception as e:
             import traceback

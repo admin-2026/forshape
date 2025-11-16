@@ -131,7 +131,7 @@ class AIAgent:
         Args:
             user_message: The user's message/request
             system_message: Optional system message to set context
-            image_data: Optional dict containing captured image data (from capture_screenshot tool)
+            image_data: Optional dict or list of dicts containing captured image data (from capture_screenshot tool or dropped images)
 
         Returns:
             Final response from the agent
@@ -147,14 +147,24 @@ class AIAgent:
         # Add conversation history
         messages.extend(self.history)
 
-        # Add user message with optional image
-        if image_data and image_data.get("success"):
-            # Create message with both text and image
-            base64_image = image_data.get("image_base64")
-            if base64_image and not base64_image.startswith("Error"):
-                messages.append(self._create_image_message(user_message, base64_image))
+        # Add user message with optional image(s)
+        if image_data:
+            # Handle both single image (dict) and multiple images (list)
+            images_list = image_data if isinstance(image_data, list) else [image_data]
+
+            # Filter valid images
+            valid_images = []
+            for img in images_list:
+                if img and img.get("success"):
+                    base64_image = img.get("image_base64")
+                    if base64_image and not base64_image.startswith("Error"):
+                        valid_images.append(base64_image)
+
+            # Create message with text and image(s)
+            if valid_images:
+                messages.append(self._create_multi_image_message(user_message, valid_images))
             else:
-                # Image encoding failed, just send text
+                # No valid images, just send text
                 messages.append({"role": "user", "content": user_message})
         else:
             # No image, just send text
@@ -256,6 +266,34 @@ class AIAgent:
                 },
                 AIAgent._create_image_url_content(base64_image)
             ]
+        }
+
+    @staticmethod
+    def _create_multi_image_message(text: str, base64_images: list) -> Dict:
+        """
+        Create an OpenAI message with text and multiple image content.
+
+        Args:
+            text: The text content to include with the images
+            base64_images: List of base64-encoded image strings
+
+        Returns:
+            Message dict with text and multiple image_url content
+        """
+        content = [
+            {
+                "type": "text",
+                "text": text
+            }
+        ]
+
+        # Add all images to the content array
+        for base64_image in base64_images:
+            content.append(AIAgent._create_image_url_content(base64_image))
+
+        return {
+            "role": "user",
+            "content": content
         }
 
     def _add_screenshot_to_conversation(self, messages: List[Dict], tool_result: str):

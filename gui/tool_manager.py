@@ -263,6 +263,27 @@ class ToolManager:
                         "required": []
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "run_python_script",
+                    "description": "Load and execute a Python script from the working directory. The script will be executed in the FreeCAD Python environment with access to FreeCAD modules and the Context class. Requires user permission before execution.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "script_path": {
+                                "type": "string",
+                                "description": "The path to the Python script to execute. Can be relative to the working directory or absolute."
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "A brief description of what the script does (shown to user in permission request)."
+                            }
+                        },
+                        "required": ["script_path", "description"]
+                    }
+                }
             }
         ]
 
@@ -283,7 +304,8 @@ class ToolManager:
             "rename_object": self._tool_rename_object,
             "remove_object": self._tool_remove_object,
             "search_python_files": self._tool_search_python_files,
-            "capture_screenshot": self._tool_capture_screenshot
+            "capture_screenshot": self._tool_capture_screenshot,
+            "run_python_script": self._tool_run_python_script
         }
 
     def _resolve_path(self, path: str) -> Path:
@@ -830,6 +852,126 @@ class ToolManager:
             sys.stdout = sys.__stdout__
             return json.dumps({"error": f"Error capturing screenshot: {str(e)}"})
 
+    def _tool_run_python_script(self, script_path: str, description: str) -> str:
+        """
+        Implementation of the run_python_script tool.
+        Executes a Python script from the working directory with user permission.
+
+        Args:
+            script_path: Path to the Python script to execute
+            description: Description of what the script does (for permission request)
+
+        Returns:
+            JSON string with execution results or error message
+        """
+        try:
+            resolved_path = self._resolve_path(script_path)
+
+            # Validate that it's a Python file
+            if not str(resolved_path).endswith('.py'):
+                return json.dumps({
+                    "error": f"File must be a Python script (.py): {resolved_path}"
+                })
+
+            # Check if file exists
+            if not resolved_path.exists():
+                return json.dumps({
+                    "error": f"Script file does not exist: {resolved_path}"
+                })
+
+            if not resolved_path.is_file():
+                return json.dumps({
+                    "error": f"Path is not a file: {resolved_path}"
+                })
+
+            # Check permission - use read permission as a proxy for execute
+            # The permission_manager should show the description to the user
+            if self.permission_manager:
+                # Request permission with a custom message including the description
+                if not self.permission_manager.request_permission(
+                    str(resolved_path), "execute", is_directory=False
+                ):
+                    return json.dumps({
+                        "error": f"Permission denied to execute script: {resolved_path}",
+                        "permission_denied": True,
+                        "description": description
+                    })
+
+            # Read the script content
+            with open(resolved_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
+
+            # Capture output during execution
+            import io
+            import sys
+            captured_output = io.StringIO()
+            sys.stdout = captured_output
+            sys.stderr = captured_output
+
+            # Execute the script in the current global namespace
+            # This gives it access to FreeCAD, Context, and other imported modules
+            exec_globals = {
+                '__name__': '__main__',
+                '__file__': str(resolved_path),
+            }
+
+            # Import commonly used modules for convenience
+            try:
+                import FreeCAD
+                import FreeCADGui
+                from shapes.context import Context
+                exec_globals['FreeCAD'] = FreeCAD
+                exec_globals['FreeCADGui'] = FreeCADGui
+                exec_globals['Context'] = Context
+                exec_globals['App'] = FreeCAD
+                exec_globals['Gui'] = FreeCADGui
+            except ImportError as ie:
+                # FreeCAD modules might not be available in all environments
+                pass
+
+            success = True
+            error_msg = None
+
+            try:
+                exec(script_content, exec_globals)
+            except Exception as e:
+                success = False
+                error_msg = f"{type(e).__name__}: {str(e)}"
+                import traceback
+                error_msg += f"\n\nTraceback:\n{traceback.format_exc()}"
+
+            # Restore stdout/stderr
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+
+            output = captured_output.getvalue()
+
+            if success:
+                return json.dumps({
+                    "success": True,
+                    "script": str(resolved_path),
+                    "description": description,
+                    "output": output.strip() if output else "(no output)",
+                    "message": "Script executed successfully"
+                }, indent=2)
+            else:
+                return json.dumps({
+                    "success": False,
+                    "script": str(resolved_path),
+                    "description": description,
+                    "error": error_msg,
+                    "output": output.strip() if output else "(no output)"
+                }, indent=2)
+
+        except UnicodeDecodeError:
+            return json.dumps({
+                "error": f"Cannot read script file (encoding issue): {script_path}"
+            })
+        except Exception as e:
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+            return json.dumps({"error": f"Error executing script: {str(e)}"})
+
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.
@@ -901,15 +1043,18 @@ You have access to the following tools:
 3. **edit_file** - Edit files by replacing content
 4. **search_python_files** - Search for regex patterns in Python files within the working directory
 
+### Script Execution Tools
+5. **run_python_script** - Load and execute a Python script from the working directory (requires user permission)
+
 ### FreeCAD Object Tools
-5. **print_object** - Print information about a FreeCAD object by label or name
-6. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
-7. **print_document** - Print information about all objects in the active document
-8. **rename_object** - Rename a FreeCAD object by changing its Label property
-9. **remove_object** - Remove a FreeCAD object from the document
+6. **print_object** - Print information about a FreeCAD object by label or name
+7. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
+8. **print_document** - Print information about all objects in the active document
+9. **rename_object** - Rename a FreeCAD object by changing its Label property
+10. **remove_object** - Remove a FreeCAD object from the document
 
 ### FreeCAD Visualization Tools
-10. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
+11. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
 
 ### Working with Generated Scripts
 
@@ -977,5 +1122,14 @@ When users ask about objects in their FreeCAD document:
 
 **User says: "Show me what the object looks like"**
 → Use capture_screenshot to capture an image of the object and return the image
+
+**User says: "Run the generate_box.py script"**
+→ Use run_python_script with script_path="generate_box.py" and description="Generate a box shape in FreeCAD"
+
+**User says: "Execute the script I just created"**
+→ First list_files to find the script, then use run_python_script with an appropriate description
+
+**User says: "Test the shape generation script"**
+→ Use run_python_script to execute the script and return the results
 
 Use these tools proactively to provide a better user experience!"""

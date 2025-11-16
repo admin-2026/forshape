@@ -7,9 +7,9 @@ This module provides the interactive GUI interface using PySide2.
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
                                 QTextEdit, QLineEdit, QLabel, QGroupBox, QPushButton,
                                 QMenuBar, QAction, QDialog, QListWidget, QListWidgetItem,
-                                QDialogButtonBox)
+                                QDialogButtonBox, QScrollArea)
 from PySide2.QtCore import QCoreApplication, QThread, Signal, Qt, QProcess, QProcessEnvironment
-from PySide2.QtGui import QFont, QTextCursor, QColor
+from PySide2.QtGui import QFont, QTextCursor, QColor, QPixmap
 
 import os
 import sys
@@ -83,6 +83,118 @@ class PythonFileSelector(QDialog):
     def get_selected_file(self):
         """Return the selected file path."""
         return self.selected_file
+
+
+class ImagePreviewDialog(QDialog):
+    """Dialog for previewing captured screenshot before attaching."""
+
+    def __init__(self, image_path, parent=None):
+        """
+        Initialize the image preview dialog.
+
+        Args:
+            image_path: Path to the image file to preview
+            parent: Parent widget
+        """
+        super().__init__(parent)
+        self.confirmed = False
+        self.original_pixmap = None
+        self.scroll_area = None
+        self.image_label = None
+        self.setup_ui(image_path)
+
+    def setup_ui(self, image_path):
+        """Setup the dialog UI."""
+        self.setWindowTitle("Preview Screenshot")
+        self.setMinimumSize(800, 600)
+
+        layout = QVBoxLayout(self)
+
+        # Add title label
+        title_label = QLabel("Preview captured screenshot:")
+        title_label.setFont(QFont("Consolas", 10, QFont.Bold))
+        layout.addWidget(title_label)
+
+        # Add file path label
+        file_label = QLabel(f"File: {image_path}")
+        file_label.setFont(QFont("Consolas", 9))
+        file_label.setWordWrap(True)
+        layout.addWidget(file_label)
+
+        # Create scroll area for the image
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(False)
+        self.scroll_area.setAlignment(Qt.AlignCenter)
+
+        # Create label to display the image
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+
+        # Load the original image
+        self.original_pixmap = QPixmap(image_path)
+        if self.original_pixmap.isNull():
+            self.image_label.setText("Error: Could not load image")
+            self.image_label.setStyleSheet("color: red;")
+        else:
+            # Initial scaling will happen in showEvent
+            pass
+
+        self.scroll_area.setWidget(self.image_label)
+        layout.addWidget(self.scroll_area, stretch=1)
+
+        # Add instruction label
+        instruction_label = QLabel("Confirm to attach this image to your next message, or cancel to discard.\n(Image is automatically scaled to fit the window)")
+        instruction_label.setFont(QFont("Consolas", 9))
+        instruction_label.setWordWrap(True)
+        layout.addWidget(instruction_label)
+
+        # Add button box
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.button(QDialogButtonBox.Ok).setText("Confirm")
+        button_box.button(QDialogButtonBox.Cancel).setText("Cancel")
+        button_box.accepted.connect(self.on_confirm)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+    def showEvent(self, event):
+        """Handle dialog show event - scale image to fit."""
+        super().showEvent(event)
+        self.scale_image_to_fit()
+
+    def resizeEvent(self, event):
+        """Handle dialog resize event - rescale image to fit new size."""
+        super().resizeEvent(event)
+        self.scale_image_to_fit()
+
+    def scale_image_to_fit(self):
+        """Scale the image to fit the available scroll area size."""
+        if self.original_pixmap is None or self.original_pixmap.isNull():
+            return
+
+        # Get available size (scroll area size minus margins)
+        available_size = self.scroll_area.size()
+        # Account for scrollbar space and margins
+        target_width = available_size.width() - 20
+        target_height = available_size.height() - 20
+
+        # Scale pixmap to fit while maintaining aspect ratio
+        scaled_pixmap = self.original_pixmap.scaled(
+            target_width,
+            target_height,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        )
+        self.image_label.setPixmap(scaled_pixmap)
+        self.image_label.adjustSize()
+
+    def on_confirm(self):
+        """Handle confirm button click."""
+        self.confirmed = True
+        self.accept()
+
+    def is_confirmed(self):
+        """Return whether the user confirmed the image."""
+        return self.confirmed
 
 
 class AIWorker(QThread):
@@ -764,6 +876,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         QCoreApplication.processEvents()
 
         try:
+            # Fit all objects in view before capturing (so user can see what will be captured)
+            self.image_context.fit()
+
             # Capture screenshot with base64 encoding using image_context
             result = self.image_context.capture_encoded(perspective="isometric")
 
@@ -771,19 +886,26 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 self.append_message("[SYSTEM]", "Screenshot capture failed")
                 return
 
-            # Store the captured image data for next message
-            self.captured_image_data = result
-
-            # Visual feedback - update button to show image is ready
-            self.capture_button.setText("Capture ✓")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
-
-            # Show success message
             file_path = result.get("file", "unknown")
-            self.append_message("System",
-                f"Screenshot captured successfully!\n"
-                f"Saved to: {file_path}\n"
-                f"The image will be attached to your next message.")
+
+            # Show preview dialog for user to confirm or cancel
+            preview_dialog = ImagePreviewDialog(file_path, self)
+            if preview_dialog.exec_() == QDialog.Accepted and preview_dialog.is_confirmed():
+                # User confirmed - store the captured image data for next message
+                self.captured_image_data = result
+
+                # Visual feedback - update button to show image is ready
+                self.capture_button.setText("Capture ✓")
+                self.capture_button.setStyleSheet("background-color: #90EE90;")
+
+                # Show success message
+                self.append_message("System",
+                    f"Screenshot confirmed!\n"
+                    f"Saved to: {file_path}\n"
+                    f"The image will be attached to your next message.")
+            else:
+                # User cancelled - discard the image
+                self.append_message("System", "Screenshot cancelled. Image will not be attached.")
 
         except Exception as e:
             import traceback

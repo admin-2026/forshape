@@ -6,7 +6,7 @@ This module provides the interactive GUI interface using PySide2.
 
 from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
                                 QTextEdit, QLineEdit, QLabel, QPushButton,
-                                QAction, QDialog)
+                                QAction, QDialog, QComboBox, QWidgetAction)
 from PySide2.QtCore import QCoreApplication, Qt, QUrl
 from PySide2.QtGui import QFont, QTextCursor, QDragEnterEvent, QDropEvent
 
@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from .dialogs import PythonFileSelector, ImagePreviewDialog
 from .workers import AIWorker
 from .formatters import MessageFormatter
+from .logger import LogLevel
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
@@ -95,6 +96,65 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_logs_action.setCheckable(True)
         self.toggle_logs_action.triggered.connect(self.toggle_log_panel)
         view_menu.addAction(self.toggle_logs_action)
+
+        # Add log level dropdown
+        view_menu.addSeparator()
+        log_level_label = QLabel("  Log Level: ")
+        log_level_label.setFont(QFont("Consolas", 9))
+
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.setFont(QFont("Consolas", 9))
+        self.log_level_combo.addItem("DEBUG", LogLevel.DEBUG)
+        self.log_level_combo.addItem("INFO", LogLevel.INFO)
+        self.log_level_combo.addItem("WARN", LogLevel.WARN)
+        self.log_level_combo.addItem("ERROR", LogLevel.ERROR)
+        self.log_level_combo.setCurrentIndex(1)  # Default to INFO
+        self.log_level_combo.currentIndexChanged.connect(self.on_log_level_changed)
+
+        # Create a widget container for label and combo
+        log_level_widget = QWidget()
+        log_level_layout = QHBoxLayout(log_level_widget)
+        log_level_layout.setContentsMargins(5, 2, 5, 2)
+        log_level_layout.addWidget(log_level_label)
+        log_level_layout.addWidget(self.log_level_combo)
+        log_level_layout.addStretch()
+
+        # Add the widget to the menu using QWidgetAction
+        log_level_action = QWidgetAction(self)
+        log_level_action.setDefaultWidget(log_level_widget)
+        view_menu.addAction(log_level_action)
+
+        # Create Model menu
+        model_menu = menubar.addMenu("Model")
+
+        # Add model selection dropdown
+        model_label = QLabel("  Select Model: ")
+        model_label.setFont(QFont("Consolas", 9))
+
+        self.model_combo = QComboBox()
+        self.model_combo.setFont(QFont("Consolas", 9))
+        # Add common OpenAI models
+        self.model_combo.addItem("GPT-5", "gpt-5")
+        self.model_combo.addItem("GPT-4o", "gpt-4o")
+        self.model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
+        self.model_combo.addItem("GPT-4 Turbo", "gpt-4-turbo")
+        self.model_combo.addItem("GPT-4", "gpt-4")
+        self.model_combo.addItem("GPT-3.5 Turbo", "gpt-3.5-turbo")
+        self.model_combo.setCurrentIndex(0)  # Default to GPT-5
+        self.model_combo.currentIndexChanged.connect(self.on_model_changed)
+
+        # Create a widget container for label and combo
+        model_widget = QWidget()
+        model_layout = QHBoxLayout(model_widget)
+        model_layout.setContentsMargins(5, 2, 5, 2)
+        model_layout.addWidget(model_label)
+        model_layout.addWidget(self.model_combo)
+        model_layout.addStretch()
+
+        # Add the widget to the menu using QWidgetAction
+        model_action = QWidgetAction(self)
+        model_action.setDefaultWidget(model_widget)
+        model_menu.addAction(model_action)
 
         # Create central widget and layout
         central_widget = QWidget()
@@ -337,6 +397,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             # Connect new logger
             if self.logger and hasattr(self.logger, 'log_message'):
                 self.logger.log_message.connect(self.on_log_message)
+
+        # Sync model dropdown with AI client's current model
+        if self.ai_client:
+            self._sync_model_dropdown()
 
     def handle_prestart_input(self, user_input: str):
         """
@@ -723,6 +787,65 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.log_widget.show()
             self.toggle_logs_action.setText("Hide Logs")
             self.toggle_logs_action.setChecked(True)
+
+    def on_log_level_changed(self, index: int):
+        """
+        Handle log level dropdown selection change.
+
+        Args:
+            index: The index of the selected item in the combo box
+        """
+        if not self.logger:
+            return
+
+        # Get the LogLevel enum value from the combo box data
+        log_level = self.log_level_combo.itemData(index)
+
+        # Update the logger's minimum level
+        self.logger.set_min_level(log_level)
+
+        # Show a brief message in the log display
+        level_name = log_level.name
+        self.logger.info(f"Log level changed to {level_name}")
+
+    def on_model_changed(self, index: int):
+        """
+        Handle model dropdown selection change.
+
+        Args:
+            index: The index of the selected item in the combo box
+        """
+        if not self.ai_client:
+            return
+
+        # Get the model identifier from the combo box data
+        model = self.model_combo.itemData(index)
+
+        # Update the AI client's model
+        self.ai_client.set_model(model)
+
+        # Show a confirmation message
+        model_name = self.model_combo.itemText(index)
+        self.append_message("System", f"Model changed to: {model_name} ({model})")
+
+    def _sync_model_dropdown(self):
+        """Sync the model dropdown selection with the AI client's current model."""
+        if not self.ai_client:
+            return
+
+        current_model = self.ai_client.get_model()
+
+        # Find and select the matching model in the dropdown
+        for i in range(self.model_combo.count()):
+            if self.model_combo.itemData(i) == current_model:
+                # Temporarily disconnect signal to avoid triggering on_model_changed
+                self.model_combo.currentIndexChanged.disconnect(self.on_model_changed)
+                self.model_combo.setCurrentIndex(i)
+                self.model_combo.currentIndexChanged.connect(self.on_model_changed)
+                return
+
+        # If model not found in dropdown, it might be a custom model
+        # Keep current dropdown selection as is
 
     def scan_python_files(self):
         """

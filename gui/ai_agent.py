@@ -431,6 +431,17 @@ class AIAgent:
         """
         return self.model
 
+    def set_model(self, model: str):
+        """
+        Set the model identifier to use for future requests.
+
+        Args:
+            model: Model identifier string
+        """
+        self.model = model
+        if self.logger:
+            self.logger.info(f"Model changed to: {model}")
+
     def get_last_token_usage(self) -> Optional[Dict]:
         """
         Get the token usage data from the most recent request.

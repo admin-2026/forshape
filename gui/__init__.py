@@ -11,7 +11,7 @@ from .ai_agent import AIAgent
 from .main_window import ForShapeMainWindow
 from .context_provider import ContextProvider
 from .logger import Logger, LogLevel
-from .permission_manager import PermissionManager
+from .permission_manager import PermissionManager, PermissionResponse
 from .prestart_checker import PrestartChecker
 
 __all__ = [
@@ -24,5 +24,6 @@ __all__ = [
     'Logger',
     'LogLevel',
     'PermissionManager',
+    'PermissionResponse',
     'PrestartChecker',
 ]

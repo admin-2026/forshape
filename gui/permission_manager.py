@@ -5,8 +5,16 @@ This module provides a permission manager that requests and tracks user permissi
 for file, directory access, and object deletion during an AI agent session.
 """
 
+from enum import Enum
 from typing import Set, Optional, Callable
 from pathlib import Path
+
+
+class PermissionResponse(Enum):
+    """Response types for permission requests."""
+    DENY = 0           # Deny the operation
+    ALLOW_ONCE = 1     # Allow this operation only (don't store)
+    ALLOW_SESSION = 2  # Allow and store for the entire session
 
 
 class PermissionManager:
@@ -17,20 +25,23 @@ class PermissionManager:
     requests user approval before allowing file/directory operations and object deletion.
     """
 
-    def __init__(self, permission_callback: Optional[Callable[[str, str], bool]] = None):
+    def __init__(self, permission_callback: Optional[Callable[[str, str], PermissionResponse]] = None):
         """
         Initialize the permission manager.
 
         Args:
             permission_callback: Optional callback function that asks the user for permission.
-                                Should accept (resource, operation) and return True if granted.
+                                Should accept (resource, operation) and return a PermissionResponse:
+                                - PermissionResponse.DENY: deny the operation
+                                - PermissionResponse.ALLOW_ONCE: allow once (don't store)
+                                - PermissionResponse.ALLOW_SESSION: allow and store for session
                                 If None, a default console-based prompt will be used.
         """
         self.granted_paths: Set[str] = set()
         self.granted_directories: Set[str] = set()  # Directories with recursive access
         self.permission_callback = permission_callback or self._default_permission_callback
 
-    def _default_permission_callback(self, resource: str, operation: str) -> bool:
+    def _default_permission_callback(self, resource: str, operation: str) -> PermissionResponse:
         """
         Default permission callback that prompts via console.
 
@@ -39,13 +50,19 @@ class PermissionManager:
             operation: The operation being performed (read, write, list, delete_object)
 
         Returns:
-            True if permission is granted, False otherwise
+            PermissionResponse indicating the user's choice
         """
         print(f"\n[Permission Request]")
         print(f"Operation: {operation}")
         print(f"Resource: {resource}")
         response = input("Grant permission? (y/n/session): ").strip().lower()
-        return response in ['y', 'yes', 'session']
+
+        if response == 'session':
+            return PermissionResponse.ALLOW_SESSION
+        elif response in ['y', 'yes']:
+            return PermissionResponse.ALLOW_ONCE
+        else:
+            return PermissionResponse.DENY
 
     def _normalize_path(self, path: str) -> str:
         """
@@ -109,17 +126,22 @@ class PermissionManager:
 
         # Request permission from user
         normalized_path = self._normalize_path(path)
-        granted = self.permission_callback(normalized_path, operation)
+        result = self.permission_callback(normalized_path, operation)
 
-        if granted:
+        # Handle the permission response
+        if result == PermissionResponse.ALLOW_SESSION:
+            # User selected "Allow for Session" - store the permission
             if is_directory:
-                # For directories, grant recursive access
                 self.granted_directories.add(normalized_path)
             else:
-                # For files, grant specific access
                 self.granted_paths.add(normalized_path)
-
-        return granted
+            return True
+        elif result == PermissionResponse.ALLOW_ONCE:
+            # User selected "Allow Once" - grant permission but don't store
+            return True
+        else:  # PermissionResponse.DENY
+            # User denied permission
+            return False
 
     def grant_permission(self, path: str, recursive: bool = False):
         """

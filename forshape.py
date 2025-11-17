@@ -29,6 +29,7 @@ from gui import (
     Logger,
     LogLevel,
     PermissionManager,
+    PermissionResponse,
     PrestartChecker
 )
 
@@ -49,7 +50,7 @@ class PermissionDialogHelper(QObject):
         self.logger = logger
         self.mutex = QMutex()
         self.wait_condition = QWaitCondition()
-        self.permission_result = False
+        self.permission_choice = None  # PermissionResponse enum value
 
         # Connect signal to slot
         self.request_permission.connect(self._show_dialog_slot)
@@ -78,13 +79,16 @@ class PermissionDialogHelper(QObject):
             msg.exec_()
             clicked = msg.clickedButton()
 
-            # Store result
+            # Store the user's choice as a PermissionResponse enum
             self.mutex.lock()
-            if clicked == allow_once or clicked == allow_session:
-                self.permission_result = True
-                self.logger.info(f"Permission granted: {operation} on {path}")
+            if clicked == allow_once:
+                self.permission_choice = PermissionResponse.ALLOW_ONCE
+                self.logger.info(f"Permission granted (once): {operation} on {path}")
+            elif clicked == allow_session:
+                self.permission_choice = PermissionResponse.ALLOW_SESSION
+                self.logger.info(f"Permission granted (session): {operation} on {path}")
             else:
-                self.permission_result = False
+                self.permission_choice = PermissionResponse.DENY
                 self.logger.info(f"Permission denied: {operation} on {path}")
 
             # Wake up the waiting thread
@@ -94,7 +98,7 @@ class PermissionDialogHelper(QObject):
         except Exception as e:
             self.logger.error(f"Error showing permission dialog: {e}")
             self.mutex.lock()
-            self.permission_result = False
+            self.permission_choice = PermissionResponse.DENY
             self.wait_condition.wakeAll()
             self.mutex.unlock()
 
@@ -265,7 +269,7 @@ class ForShapeAI:
         # Start Qt event loop
         return app.exec_()
 
-    def _permission_callback(self, path: str, operation: str) -> bool:
+    def _permission_callback(self, path: str, operation: str) -> PermissionResponse:
         """
         GUI-based permission callback for file access.
 
@@ -277,7 +281,7 @@ class ForShapeAI:
             operation: The operation being performed (read, write, list)
 
         Returns:
-            True if permission is granted, False otherwise
+            PermissionResponse indicating the user's choice
         """
         # Lock the mutex before emitting signal
         helper = self.permission_dialog_helper
@@ -292,13 +296,14 @@ class ForShapeAI:
         if not wait_result:
             self.logger.error(f"Timeout waiting for permission response")
             helper.mutex.unlock()
-            return False
+            return PermissionResponse.DENY
 
-        # Get the result
-        result = helper.permission_result
+        # Get the permission choice (already a PermissionResponse enum)
+        choice = helper.permission_choice
         helper.mutex.unlock()
 
-        return result
+        # Return the PermissionResponse directly
+        return choice
 
     def handle_special_commands(self, user_input: str, window: ForShapeMainWindow) -> bool:
         """

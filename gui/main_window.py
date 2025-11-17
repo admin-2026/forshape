@@ -120,9 +120,12 @@ class ForShapeMainWindow(QMainWindow):
         # Set default stylesheet for better markdown rendering
         self.conversation_display.document().setDefaultStyleSheet("""
             p {
-                margin: 5px 0;
+                margin: 0 0 5px 0;
                 word-wrap: break-word;
                 overflow-wrap: break-word;
+            }
+            p:first-of-type {
+                margin-top: 0;
             }
             pre {
                 background-color: #f5f5f5;
@@ -178,16 +181,37 @@ class ForShapeMainWindow(QMainWindow):
 
         main_layout.addWidget(splitter, stretch=1)
 
-        # Create input area with button
+        # Create input area with buttons
         input_container = QWidget()
-        input_layout = QHBoxLayout(input_container)
-        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_container_layout = QVBoxLayout(input_container)
+        input_container_layout.setContentsMargins(0, 0, 0, 0)
+        input_container_layout.setSpacing(5)
+
+        # First row: input field and capture button
+        first_row = QWidget()
+        first_row_layout = QHBoxLayout(first_row)
+        first_row_layout.setContentsMargins(0, 0, 0, 0)
 
         input_label = QLabel("You:")
         self.input_field = QLineEdit()
         self.input_field.setFont(QFont("Consolas", 10))
         self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach")
         self.input_field.returnPressed.connect(self.on_user_input)
+
+        # Add Capture button
+        self.capture_button = QPushButton("Capture")
+        self.capture_button.setFont(QFont("Consolas", 10))
+        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
+        self.capture_button.clicked.connect(self.on_capture_screenshot)
+
+        first_row_layout.addWidget(input_label)
+        first_row_layout.addWidget(self.input_field, stretch=1)
+        first_row_layout.addWidget(self.capture_button)
+
+        # Second row: Build and Teardown buttons
+        second_row = QWidget()
+        second_row_layout = QHBoxLayout(second_row)
+        second_row_layout.setContentsMargins(0, 0, 0, 0)
 
         # Add Build button
         self.run_button = QPushButton("Build")
@@ -201,17 +225,13 @@ class ForShapeMainWindow(QMainWindow):
         self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
-        # Add Capture button
-        self.capture_button = QPushButton("Capture")
-        self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
-        self.capture_button.clicked.connect(self.on_capture_screenshot)
+        second_row_layout.addWidget(self.run_button)
+        second_row_layout.addWidget(self.redo_button)
+        second_row_layout.addStretch()  # Push buttons to the left
 
-        input_layout.addWidget(input_label)
-        input_layout.addWidget(self.input_field, stretch=1)
-        input_layout.addWidget(self.run_button)
-        input_layout.addWidget(self.redo_button)
-        input_layout.addWidget(self.capture_button)
+        # Add both rows to the input container
+        input_container_layout.addWidget(first_row)
+        input_container_layout.addWidget(second_row)
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
@@ -442,6 +462,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.attached_files = []
             self.update_input_placeholder()
 
+    def play_notification_sound(self):
+        """Play a notification sound when AI finishes processing."""
+        try:
+            # Play system beep sound
+            # On Windows, this will play the system default beep
+            # On other platforms, it will attempt to play a system sound
+            import platform
+            if platform.system() == 'Windows':
+                # Use winsound for a simple beep on Windows
+                import winsound
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            else:
+                # On other platforms, try to use system bell
+                print('\a')  # ASCII bell character
+        except Exception as e:
+            # If sound fails, just log it and continue
+            if self.logger:
+                self.logger.debug(f"Could not play notification sound: {e}")
+
     def on_ai_response(self, message: str, is_error: bool, token_data: dict = None):
         """
         Handle AI response from worker thread.
@@ -463,6 +502,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if self.history_logger:
                 self.history_logger.log_conversation("assistant", message)
             self.append_message("AI", message, token_data)
+
+        # Play notification sound when AI finishes
+        self.play_notification_sound()
 
         # Reset busy state
         self.is_ai_busy = False

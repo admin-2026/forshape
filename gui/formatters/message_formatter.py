@@ -113,9 +113,16 @@ class MessageFormatter:
         else:
             # For user messages and system messages, use simpler formatting
             escaped_message = html_module.escape(message).replace('\n', '<br>')
+
+            # Use different colors for different roles
+            if role == "You":
+                role_color = "#009900"  # Green for user messages
+            else:
+                role_color = "#333"  # Default gray for system messages
+
             formatted_message = (
                 f'<div style="margin: 15px 0; padding: 8px;">'
-                f'<strong style="color: #333;">{role}:</strong><br>{escaped_message}</div>'
+                f'<strong style="color: {role_color};">{role}:</strong><br>{escaped_message}</div>'
             )
 
         return formatted_message

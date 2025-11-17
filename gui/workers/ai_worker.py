@@ -12,8 +12,8 @@ if TYPE_CHECKING:
 class AIWorker(QThread):
     """Worker thread for handling AI API calls asynchronously."""
 
-    # Signal emitted when AI processing is complete (response or error)
-    finished = Signal(str, bool)  # (message, is_error)
+    # Signal emitted when AI processing is complete (response, is_error, token_data)
+    finished = Signal(str, bool, object)  # (message, is_error, token_data)
 
     def __init__(self, ai_client: 'AIAgent', user_input: str, image_data=None):
         """
@@ -33,7 +33,9 @@ class AIWorker(QThread):
         """Run the AI request in a separate thread."""
         try:
             response = self.ai_client.process_request(self.user_input, self.image_data)
-            self.finished.emit(response, False)  # False = not an error
+            # Get token usage data from the AI agent
+            token_data = self.ai_client.get_last_token_usage()
+            self.finished.emit(response, False, token_data)  # False = not an error
         except Exception as e:
             error_msg = f"Error processing request: {str(e)}"
-            self.finished.emit(error_msg, True)  # True = is an error
+            self.finished.emit(error_msg, True, None)  # True = is an error, None = no token data

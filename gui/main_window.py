@@ -442,13 +442,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.attached_files = []
             self.update_input_placeholder()
 
-    def on_ai_response(self, message: str, is_error: bool):
+    def on_ai_response(self, message: str, is_error: bool, token_data: dict = None):
         """
         Handle AI response from worker thread.
 
         Args:
             message: The response message or error message
             is_error: True if this is an error message, False otherwise
+            token_data: Optional dict with token usage information
         """
         # Remove the "Processing..." message
         self.remove_last_message()
@@ -461,7 +462,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         else:
             if self.history_logger:
                 self.history_logger.log_conversation("assistant", message)
-            self.append_message("AI", message)
+            self.append_message("AI", message, token_data)
 
         # Reset busy state
         self.is_ai_busy = False
@@ -483,13 +484,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """
         return self.message_formatter.markdown_to_html(text)
 
-    def append_message(self, role: str, message: str):
+    def append_message(self, role: str, message: str, token_data: dict = None):
         """
         Append a message to the conversation display with markdown support.
 
         Args:
             role: The role (You, AI, Error, etc.)
             message: The message content (supports markdown)
+            token_data: Optional dict with token usage information
         """
         # Move cursor to end before inserting
         cursor = self.conversation_display.textCursor()
@@ -497,7 +499,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.conversation_display.setTextCursor(cursor)
 
         # Use MessageFormatter to format the message
-        formatted_message = self.message_formatter.format_message(role, message)
+        formatted_message = self.message_formatter.format_message(role, message, token_data)
 
         # Use insertHtml instead of append for proper HTML rendering
         self.conversation_display.insertHtml(formatted_message)

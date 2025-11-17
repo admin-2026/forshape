@@ -71,13 +71,14 @@ class MessageFormatter:
         text = text.replace('\n', '<br>')
         return text
 
-    def format_message(self, role: str, message: str) -> str:
+    def format_message(self, role: str, message: str, token_data: dict = None) -> str:
         """
         Format a message for display with appropriate styling.
 
         Args:
             role: The role (You, AI, Error, etc.)
             message: The message content (supports markdown for AI messages)
+            token_data: Optional dict with token usage information
 
         Returns:
             Formatted HTML string
@@ -85,10 +86,29 @@ class MessageFormatter:
         # Convert markdown to HTML for AI messages
         if role == "AI":
             message_html = self.markdown_to_html(message)
+
+            # Add token information if available
+            token_info_html = ""
+            if token_data:
+                prompt_tokens = token_data.get("prompt_tokens", 0)
+                completion_tokens = token_data.get("completion_tokens", 0)
+                total_tokens = token_data.get("total_tokens", 0)
+
+                token_info_html = (
+                    f'<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; '
+                    f'font-size: 11px; color: #666;">'
+                    f'<strong>Token Usage:</strong> '
+                    f'Request: {prompt_tokens:,} | '
+                    f'Response: {completion_tokens:,} | '
+                    f'Total: {total_tokens:,}'
+                    f'</div>'
+                )
+
             formatted_message = (
                 f'<div style="margin: 15px 0; padding: 8px; background-color: #f9f9f9; '
                 f'border-left: 3px solid #0066CC;">'
-                f'<strong style="color: #0066CC;">{role}:</strong><br>{message_html}</div>'
+                f'<strong style="color: #0066CC;">{role}:</strong><br>{message_html}'
+                f'{token_info_html}</div>'
             )
         else:
             # For user messages and system messages, use simpler formatting

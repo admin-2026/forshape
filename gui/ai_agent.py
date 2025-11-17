@@ -58,6 +58,7 @@ class AIAgent:
         )
         self._system_message_cache = None
         self.logger = logger
+        self.last_token_usage = None  # Store the most recent token usage data
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -170,6 +171,11 @@ class AIAgent:
             # No image, just send text
             messages.append({"role": "user", "content": user_message})
 
+        # Initialize token usage tracking
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+
         # Agent loop: keep calling tools until the agent gives a final response
         for iteration in range(self.max_iterations):
             try:
@@ -180,6 +186,12 @@ class AIAgent:
                     tools=self.tool_manager.get_tools(),
                     tool_choice="auto"
                 )
+
+                # Track token usage from this API call
+                if hasattr(response, 'usage') and response.usage:
+                    total_prompt_tokens += response.usage.prompt_tokens
+                    total_completion_tokens += response.usage.completion_tokens
+                    total_tokens += response.usage.total_tokens
 
                 response_message = response.choices[0].message
 
@@ -213,6 +225,13 @@ class AIAgent:
 
                 # No tool calls, we have a final response
                 final_response = response_message.content
+
+                # Store token usage data
+                self.last_token_usage = {
+                    "prompt_tokens": total_prompt_tokens,
+                    "completion_tokens": total_completion_tokens,
+                    "total_tokens": total_tokens
+                }
 
                 # Update history
                 self.history.append({"role": "user", "content": user_message})
@@ -379,3 +398,13 @@ class AIAgent:
             Model identifier string
         """
         return self.model
+
+    def get_last_token_usage(self) -> Optional[Dict]:
+        """
+        Get the token usage data from the most recent request.
+
+        Returns:
+            Dict with 'prompt_tokens', 'completion_tokens', and 'total_tokens' keys,
+            or None if no request has been made yet
+        """
+        return self.last_token_usage

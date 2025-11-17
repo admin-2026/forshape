@@ -86,7 +86,7 @@ class AIAgent:
             return None
 
 
-    def process_request(self, user_input: str, image_data: Optional[Dict] = None) -> str:
+    def process_request(self, user_input: str, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
@@ -96,6 +96,7 @@ class AIAgent:
         Args:
             user_input: The user's input string
             image_data: Optional dict containing captured image data (from capture_screenshot tool)
+            token_callback: Optional callback function to receive token usage updates after each iteration
 
         Returns:
             AI response string
@@ -118,14 +119,14 @@ class AIAgent:
                 augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{user_input}"
 
             # Use the run method with the context
-            response = self.run(augmented_input, system_message, image_data)
+            response = self.run(augmented_input, system_message, image_data, token_callback)
             return response
 
         except Exception as e:
             error_msg = f"Error processing AI request: {str(e)}"
             return error_msg
 
-    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None) -> str:
+    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
@@ -133,6 +134,7 @@ class AIAgent:
             user_message: The user's message/request
             system_message: Optional system message to set context
             image_data: Optional dict or list of dicts containing captured image data (from capture_screenshot tool or dropped images)
+            token_callback: Optional callback function to receive token usage updates after each iteration
 
         Returns:
             Final response from the agent
@@ -192,6 +194,16 @@ class AIAgent:
                     total_prompt_tokens += response.usage.prompt_tokens
                     total_completion_tokens += response.usage.completion_tokens
                     total_tokens += response.usage.total_tokens
+
+                    # Send token usage update via callback if provided
+                    if token_callback:
+                        token_data = {
+                            "prompt_tokens": total_prompt_tokens,
+                            "completion_tokens": total_completion_tokens,
+                            "total_tokens": total_tokens,
+                            "iteration": iteration + 1
+                        }
+                        token_callback(token_data)
 
                 response_message = response.choices[0].message
 

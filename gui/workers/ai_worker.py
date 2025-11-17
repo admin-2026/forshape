@@ -15,6 +15,9 @@ class AIWorker(QThread):
     # Signal emitted when AI processing is complete (response, is_error, token_data)
     finished = Signal(str, bool, object)  # (message, is_error, token_data)
 
+    # Signal emitted during processing to update token usage
+    token_update = Signal(object)  # (token_data)
+
     def __init__(self, ai_client: 'AIAgent', user_input: str, image_data=None):
         """
         Initialize the AI worker thread.
@@ -32,7 +35,12 @@ class AIWorker(QThread):
     def run(self):
         """Run the AI request in a separate thread."""
         try:
-            response = self.ai_client.process_request(self.user_input, self.image_data)
+            # Create a callback to emit token updates during processing
+            def token_callback(token_data):
+                self.token_update.emit(token_data)
+
+            # Process request with token callback
+            response = self.ai_client.process_request(self.user_input, self.image_data, token_callback)
             # Get token usage data from the AI agent
             token_data = self.ai_client.get_last_token_usage()
             self.finished.emit(response, False, token_data)  # False = not an error

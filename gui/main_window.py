@@ -233,6 +233,13 @@ class ForShapeMainWindow(QMainWindow):
         input_container_layout.addWidget(first_row)
         input_container_layout.addWidget(second_row)
 
+        # Third row: Token usage status label
+        self.token_status_label = QLabel("")
+        self.token_status_label.setFont(QFont("Consolas", 9))
+        self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
+        self.token_status_label.setVisible(False)  # Initially hidden
+        input_container_layout.addWidget(self.token_status_label)
+
         # Add input container to main layout
         main_layout.addWidget(input_container)
 
@@ -450,7 +457,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Create and start worker thread for AI processing with augmented input and optional images
         self.worker = AIWorker(self.ai_client, augmented_input, self.captured_images if has_images else None)
         self.worker.finished.connect(self.on_ai_response)
+        self.worker.token_update.connect(self.on_token_update)
         self.worker.start()
+
+        # Reset and show token status label for new request
+        self.token_status_label.setVisible(True)
+        self.token_status_label.setText("Token Usage: Calculating...")
+        self.token_status_label.setStyleSheet("color: #666; padding: 2px;")  # Reset to default style
 
         # Clear captured images and reset button after sending
         if has_images:
@@ -481,6 +494,24 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if self.logger:
                 self.logger.debug(f"Could not play notification sound: {e}")
 
+    def on_token_update(self, token_data: dict):
+        """
+        Handle token usage updates during AI processing.
+
+        Args:
+            token_data: Dict with token usage information including iteration number
+        """
+        if token_data:
+            # Use MessageFormatter to format token data consistently
+            token_str = self.message_formatter.format_token_data(token_data, include_iteration=True)
+
+            # Update the status label with current token usage (in-progress style)
+            self.token_status_label.setText(f"Token Usage ({token_str})")
+            self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
+
+            # Force UI update
+            QCoreApplication.processEvents()
+
     def on_ai_response(self, message: str, is_error: bool, token_data: dict = None):
         """
         Handle AI response from worker thread.
@@ -492,6 +523,15 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """
         # Remove the "Processing..." message
         self.remove_last_message()
+
+        # Update the token status label to show final count instead of hiding it
+        if token_data:
+            token_str = self.message_formatter.format_token_data(token_data, include_iteration=False)
+            self.token_status_label.setText(f"Token Usage (Final: {token_str})")
+            self.token_status_label.setStyleSheet("color: #0066CC; padding: 2px; font-weight: bold;")
+        else:
+            # If no token data, hide the label
+            self.token_status_label.setVisible(False)
 
         # Display the response or error
         if is_error:

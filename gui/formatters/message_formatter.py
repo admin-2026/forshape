@@ -71,6 +71,39 @@ class MessageFormatter:
         text = text.replace('\n', '<br>')
         return text
 
+    @staticmethod
+    def format_token_data(token_data: dict, include_iteration: bool = False) -> str:
+        """
+        Format token usage data into a readable string.
+
+        Args:
+            token_data: Dict with token usage information (prompt_tokens, completion_tokens, total_tokens, iteration)
+            include_iteration: Whether to include iteration number in the output
+
+        Returns:
+            Formatted token usage string
+        """
+        if not token_data:
+            return ""
+
+        prompt_tokens = token_data.get("prompt_tokens", 0)
+        completion_tokens = token_data.get("completion_tokens", 0)
+        total_tokens = token_data.get("total_tokens", 0)
+
+        # Base format
+        token_str = (
+            f"Request: {prompt_tokens:,} | "
+            f"Response: {completion_tokens:,} | "
+            f"Total: {total_tokens:,}"
+        )
+
+        # Add iteration if requested
+        if include_iteration and "iteration" in token_data:
+            iteration = token_data.get("iteration", "?")
+            token_str = f"Iteration {iteration}: {token_str}"
+
+        return token_str
+
     def format_message(self, role: str, message: str, token_data: dict = None) -> str:
         """
         Format a message for display with appropriate styling.
@@ -90,17 +123,11 @@ class MessageFormatter:
             # Add token information if available
             token_info_html = ""
             if token_data:
-                prompt_tokens = token_data.get("prompt_tokens", 0)
-                completion_tokens = token_data.get("completion_tokens", 0)
-                total_tokens = token_data.get("total_tokens", 0)
-
+                token_str = self.format_token_data(token_data, include_iteration=False)
                 token_info_html = (
                     f'<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; '
                     f'font-size: 11px; color: #666;">'
-                    f'<strong>Token Usage:</strong> '
-                    f'Request: {prompt_tokens:,} | '
-                    f'Response: {completion_tokens:,} | '
-                    f'Total: {total_tokens:,}'
+                    f'<strong>Token Usage:</strong> {token_str}'
                     f'</div>'
                 )
 

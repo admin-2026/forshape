@@ -204,9 +204,18 @@ class ForShapeMainWindow(QMainWindow):
         self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
         self.capture_button.clicked.connect(self.on_capture_screenshot)
 
+        # Add Cancel button
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setFont(QFont("Consolas", 10))
+        self.cancel_button.setToolTip("Cancel - stop the current AI processing")
+        self.cancel_button.clicked.connect(self.on_cancel_ai)
+        self.cancel_button.setVisible(False)  # Initially hidden
+        self.cancel_button.setStyleSheet("background-color: #FF6B6B; color: white; font-weight: bold;")
+
         first_row_layout.addWidget(input_label)
         first_row_layout.addWidget(self.input_field, stretch=1)
         first_row_layout.addWidget(self.capture_button)
+        first_row_layout.addWidget(self.cancel_button)
 
         # Second row: Build and Teardown buttons
         second_row = QWidget()
@@ -454,6 +463,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Set busy state
         self.is_ai_busy = True
 
+        # Show cancel button when AI starts processing
+        self.cancel_button.setVisible(True)
+
         # Create and start worker thread for AI processing with augmented input and optional images
         self.worker = AIWorker(self.ai_client, augmented_input, self.captured_images if has_images else None)
         self.worker.finished.connect(self.on_ai_response)
@@ -474,6 +486,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if has_files:
             self.attached_files = []
             self.update_input_placeholder()
+
+    def on_cancel_ai(self):
+        """Handle cancel button click - cancel the current AI processing."""
+        if not self.is_ai_busy or not self.worker:
+            return
+
+        # Request cancellation from the worker
+        self.worker.cancel()
+
+        # Show cancellation message
+        self.append_message("System", "Cancellation requested. Waiting for AI to stop...")
+
+        # Force UI to update
+        QCoreApplication.processEvents()
 
     def play_notification_sound(self):
         """Play a notification sound when AI finishes processing."""
@@ -548,6 +574,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Reset busy state
         self.is_ai_busy = False
+
+        # Hide cancel button when AI finishes
+        self.cancel_button.setVisible(False)
 
         # Clean up worker thread
         if self.worker:

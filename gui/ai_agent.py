@@ -59,6 +59,7 @@ class AIAgent:
         self._system_message_cache = None
         self.logger = logger
         self.last_token_usage = None  # Store the most recent token usage data
+        self._cancellation_requested = False  # Flag to track cancellation requests
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -126,6 +127,14 @@ class AIAgent:
             error_msg = f"Error processing AI request: {str(e)}"
             return error_msg
 
+    def request_cancellation(self):
+        """Request cancellation of the current AI processing."""
+        self._cancellation_requested = True
+
+    def reset_cancellation(self):
+        """Reset the cancellation flag for new requests."""
+        self._cancellation_requested = False
+
     def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
@@ -141,6 +150,9 @@ class AIAgent:
         """
         if self.client is None:
             return "Error: OpenAI client not initialized. Please check your API key."
+
+        # Reset cancellation flag at the start of each run
+        self.reset_cancellation()
 
         # Initialize messages
         messages = []
@@ -180,6 +192,10 @@ class AIAgent:
 
         # Agent loop: keep calling tools until the agent gives a final response
         for iteration in range(self.max_iterations):
+            # Check for cancellation before each iteration
+            if self._cancellation_requested:
+                return "Operation cancelled by user."
+
             try:
                 # Call OpenAI API with tools
                 response = self.client.chat.completions.create(
@@ -214,6 +230,10 @@ class AIAgent:
 
                     # Process each tool call
                     for tool_call in response_message.tool_calls:
+                        # Check for cancellation during tool execution
+                        if self._cancellation_requested:
+                            return "Operation cancelled by user."
+
                         tool_name = tool_call.function.name
                         tool_args = json.loads(tool_call.function.arguments)
 

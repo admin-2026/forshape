@@ -31,6 +31,16 @@ class AIWorker(QThread):
         self.ai_client = ai_client
         self.user_input = user_input
         self.image_data = image_data
+        self._is_cancelled = False
+
+    def cancel(self):
+        """Request cancellation of the AI processing."""
+        self._is_cancelled = True
+        self.ai_client.request_cancellation()
+
+    def is_cancelled(self):
+        """Check if cancellation has been requested."""
+        return self._is_cancelled
 
     def run(self):
         """Run the AI request in a separate thread."""
@@ -41,6 +51,12 @@ class AIWorker(QThread):
 
             # Process request with token callback
             response = self.ai_client.process_request(self.user_input, self.image_data, token_callback)
+
+            # Check if cancelled
+            if self._is_cancelled:
+                self.finished.emit("Operation cancelled by user.", True, None)
+                return
+
             # Get token usage data from the AI agent
             token_data = self.ai_client.get_last_token_usage()
             self.finished.emit(response, False, token_data)  # False = not an error

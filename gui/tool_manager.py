@@ -11,9 +11,13 @@ from typing import List, Dict, Callable, Any, Optional
 from pathlib import Path
 
 from .logger import Logger
-from .permission_manager import PermissionManager
+from .permission_manager import PermissionManager, PermissionResponse
 from shapes.context import Context
 from shapes.image_context import ImageContext
+
+
+# Large file read protection threshold (in bytes)
+LARGE_FILE_SIZE_THRESHOLD = 50000  # 50KB
 
 
 class ToolManager:
@@ -498,6 +502,22 @@ class ToolManager:
             file_error = self._validate_file_exists(resolved_path)
             if file_error:
                 return file_error
+
+            # Check file size before reading
+            file_size = resolved_path.stat().st_size
+            if file_size > LARGE_FILE_SIZE_THRESHOLD:
+                # Request permission for large file read
+                if self.permission_manager:
+                    result = self.permission_manager.permission_callback(
+                        str(resolved_path),
+                        f"read_large_file ({file_size:,} bytes, exceeds 50KB limit)"
+                    )
+                    if result == PermissionResponse.DENY:
+                        return json.dumps({
+                            "error": f"Permission denied: File is too large ({file_size:,} bytes)",
+                            "file_size": file_size,
+                            "permission_denied": True
+                        })
 
             with open(resolved_path, 'r', encoding='utf-8') as f:
                 content = f.read()

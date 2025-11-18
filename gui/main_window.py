@@ -636,6 +636,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Play notification sound when AI finishes
         self.play_notification_sound()
 
+        # Bring main window to front when AI finishes
+        self.raise_()
+        self.activateWindow()
+        # Restore window if minimized
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+
         # Reset busy state
         self.is_ai_busy = False
 

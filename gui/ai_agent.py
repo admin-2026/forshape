@@ -27,7 +27,7 @@ class AIAgent:
         api_key: Optional[str],
         context_provider: ContextProvider,
         model: str,
-        max_iterations: int = 10,
+        max_iterations: int = 50,
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
         image_context = None

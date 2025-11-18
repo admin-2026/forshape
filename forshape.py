@@ -63,10 +63,12 @@ class PermissionDialogHelper(QObject):
             operation: The operation being performed
         """
         from PySide2.QtWidgets import QMessageBox
+        from PySide2.QtCore import Qt
 
         try:
             msg = QMessageBox()
             msg.setWindowTitle("Permission Request")
+            msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
             msg.setText(f"The AI agent is requesting permission to {operation} a file/directory.")
             msg.setInformativeText(f"Path: {path}")
             msg.setIcon(QMessageBox.Question)

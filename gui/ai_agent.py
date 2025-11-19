@@ -13,6 +13,7 @@ from .logger import Logger
 from .tool_manager import ToolManager
 from .permission_manager import PermissionManager
 from .api_debugger import APIDebugger
+from .chat_history_manager import ChatHistoryManager
 
 
 class AIAgent:
@@ -49,7 +50,7 @@ class AIAgent:
         """
         self.model = model
         self.max_iterations = max_iterations
-        self.history: List[Dict] = []
+        self.history_manager = ChatHistoryManager(max_messages=None)
         self.client = self._initialize_client(api_key)
         self.context_provider = context_provider
         self.permission_manager = permission_manager
@@ -158,13 +159,9 @@ class AIAgent:
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
-        # Initialize messages
-        messages = []
-        if system_message:
-            messages.append({"role": "system", "content": system_message})
-
-        # Add conversation history
-        messages.extend(self.history)
+        # Get messages for API call (system message + history)
+        # System message is NOT stored in history, just prepended for the API call
+        messages = self.history_manager.get_context_for_api(system_message=system_message)
 
         # Add user message with optional image(s)
         if image_data:
@@ -300,9 +297,9 @@ class AIAgent:
                     "total_tokens": total_tokens
                 }
 
-                # Update history
-                self.history.append({"role": "user", "content": user_message})
-                self.history.append({"role": "assistant", "content": final_response})
+                # Update history through history manager
+                self.history_manager.add_user_message(user_message)
+                self.history_manager.add_assistant_message(final_response)
 
                 return final_response
 
@@ -433,11 +430,20 @@ class AIAgent:
         Returns:
             List of message dictionaries
         """
-        return self.history
+        return self.history_manager.get_history()
 
     def clear_history(self):
         """Clear the conversation history."""
-        self.history = []
+        self.history_manager.clear_history()
+
+    def get_history_manager(self) -> ChatHistoryManager:
+        """
+        Get the ChatHistoryManager instance for advanced history operations.
+
+        Returns:
+            ChatHistoryManager instance
+        """
+        return self.history_manager
 
     def is_available(self) -> bool:
         """

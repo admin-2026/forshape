@@ -28,6 +28,28 @@ if TYPE_CHECKING:
     from .logger import Logger
 
 
+class MultiLineInputField(QTextEdit):
+    """Custom QTextEdit for multi-line user input with Enter to submit."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.submit_callback = None
+
+    def keyPressEvent(self, event):
+        """Handle key press events. Enter submits, Shift+Enter adds new line."""
+        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+            if event.modifiers() == Qt.ShiftModifier:
+                # Shift+Enter: insert new line
+                super().keyPressEvent(event)
+            else:
+                # Plain Enter: submit
+                if self.submit_callback:
+                    self.submit_callback()
+                event.accept()
+        else:
+            super().keyPressEvent(event)
+
+
 class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
@@ -62,6 +84,7 @@ class ForShapeMainWindow(QMainWindow):
         self.worker = None  # Current worker thread
         self.captured_images = []  # Store captured images to attach to next message
         self.attached_files = []  # Store attached Python files to include in next message
+        self.api_debugger = None  # API debugger instance (will be set later)
 
         # Prestart check mode
         self.prestart_checker = prestart_checker
@@ -96,6 +119,12 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_logs_action.setCheckable(True)
         self.toggle_logs_action.triggered.connect(self.toggle_log_panel)
         view_menu.addAction(self.toggle_logs_action)
+
+        # Add toggle API dump action
+        self.toggle_api_dump_action = QAction("Dump API Data", self)
+        self.toggle_api_dump_action.setCheckable(True)
+        self.toggle_api_dump_action.triggered.connect(self.toggle_api_dump)
+        view_menu.addAction(self.toggle_api_dump_action)
 
         # Add log level dropdown
         view_menu.addSeparator()
@@ -253,10 +282,20 @@ class ForShapeMainWindow(QMainWindow):
         first_row_layout.setContentsMargins(0, 0, 0, 0)
 
         input_label = QLabel("You:")
-        self.input_field = QLineEdit()
+        self.input_field = MultiLineInputField()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach")
-        self.input_field.returnPressed.connect(self.on_user_input)
+        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
+        self.input_field.submit_callback = self.on_user_input
+
+        # Configure for 5 lines high with word wrap and scrolling
+        self.input_field.setLineWrapMode(QTextEdit.WidgetWidth)
+        self.input_field.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.input_field.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        # Set height to approximately 5 lines
+        font_metrics = self.input_field.fontMetrics()
+        line_height = font_metrics.lineSpacing()
+        self.input_field.setFixedHeight(line_height * 5 + 10)  # 5 lines + padding
 
         # Add Capture button
         self.capture_button = QPushButton("Capture")
@@ -365,7 +404,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
 
-    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None):
+    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None, api_debugger=None):
         """
         Set the AI client and history logger after initialization completes.
 
@@ -374,6 +413,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             history_logger: The HistoryLogger instance
             logger: Optional Logger instance to update (if logger was recreated)
             image_context: Optional ImageContext instance for capturing screenshots
+            api_debugger: Optional APIDebugger instance for API data dumping
         """
         self.ai_client = ai_client
         self.history_logger = history_logger
@@ -381,6 +421,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Update image_context if provided
         if image_context is not None:
             self.image_context = image_context
+
+        # Update api_debugger if provided
+        if api_debugger is not None:
+            self.api_debugger = api_debugger
 
         # Update logger if provided
         if logger is not None:
@@ -453,7 +497,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
-        user_input = self.input_field.text().strip()
+        user_input = self.input_field.toPlainText().strip()
 
         if not user_input:
             return
@@ -795,6 +839,27 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.toggle_logs_action.setText("Hide Logs")
             self.toggle_logs_action.setChecked(True)
 
+    def toggle_api_dump(self):
+        """Toggle API data dumping."""
+        if self.api_debugger is None:
+            self.append_message("System", "API debugger not initialized yet.")
+            self.toggle_api_dump_action.setChecked(False)
+            return
+
+        # Toggle the enabled state
+        new_state = not self.api_debugger.enabled
+        self.api_debugger.set_enabled(new_state)
+
+        if new_state:
+            dump_dir = self.api_debugger.output_dir
+            self.append_message("System", f"API data dumping enabled. Data will be saved to: {dump_dir}")
+            if self.logger:
+                self.logger.info(f"API data dumping enabled - output: {dump_dir}")
+        else:
+            self.append_message("System", "API data dumping disabled.")
+            if self.logger:
+                self.logger.info("API data dumping disabled")
+
     def on_log_level_changed(self, index: int):
         """
         Handle log level dropdown selection change.
@@ -932,12 +997,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """Update the input field placeholder text based on attached files."""
         file_count = len(self.attached_files)
         if file_count == 0:
-            self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach")
+            self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
         elif file_count == 1:
             file_name = self.attached_files[0]['name']
-            self.input_field.setPlaceholderText(f"1 Python file attached ({file_name}) - Type your message...")
+            self.input_field.setPlaceholderText(f"1 Python file attached ({file_name}) - Type your message...\nPress Enter to send, Shift+Enter for new line")
         else:
-            self.input_field.setPlaceholderText(f"{file_count} Python files attached - Type your message...")
+            self.input_field.setPlaceholderText(f"{file_count} Python files attached - Type your message...\nPress Enter to send, Shift+Enter for new line")
 
     def on_capture_screenshot(self):
         """Handle Capture button click - captures scene screenshot or clears all if already captured."""

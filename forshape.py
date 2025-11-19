@@ -30,7 +30,8 @@ from gui import (
     LogLevel,
     PermissionManager,
     PermissionResponse,
-    PrestartChecker
+    PrestartChecker,
+    APIDebugger
 )
 
 
@@ -196,6 +197,9 @@ class ForShapeAI:
         images_dir = self.config.get_history_dir() / "images"
         self.image_context = ImageContext(str(images_dir))
 
+        # Initialize API debugger (disabled by default)
+        self.api_debugger = APIDebugger(enabled=False)
+
         # Initialize AI agent with API key from prestart checker
         api_key = self.prestart_checker.get_api_key()
         # Use gpt-5 for tool calling support, fallback to user's model choice
@@ -206,13 +210,14 @@ class ForShapeAI:
             model=agent_model,
             logger=self.logger,
             permission_manager=self.permission_manager,
-            image_context=self.image_context
+            image_context=self.image_context,
+            api_debugger=self.api_debugger
         )
         self.logger.info(f"AI client initialized with model: {agent_model}")
 
         # Update the main window with the initialized components
         if self.main_window:
-            self.main_window.set_components(self.ai_client, self.history_logger, self.logger, self.image_context)
+            self.main_window.set_components(self.ai_client, self.history_logger, self.logger, self.image_context, self.api_debugger)
 
     def run(self):
         """Start the interactive GUI interface."""

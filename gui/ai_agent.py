@@ -12,6 +12,7 @@ from .context_provider import ContextProvider
 from .logger import Logger
 from .tool_manager import ToolManager
 from .permission_manager import PermissionManager
+from .api_debugger import APIDebugger
 
 
 class AIAgent:
@@ -30,7 +31,8 @@ class AIAgent:
         max_iterations: int = 50,
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
-        image_context = None
+        image_context = None,
+        api_debugger: Optional[APIDebugger] = None
     ):
         """
         Initialize the AI agent.
@@ -43,6 +45,7 @@ class AIAgent:
             logger: Optional logger for tool call logging
             permission_manager: Optional PermissionManager instance for access control
             image_context: Optional ImageContext instance for screenshot capture
+            api_debugger: Optional APIDebugger instance for dumping API data
         """
         self.model = model
         self.max_iterations = max_iterations
@@ -60,6 +63,7 @@ class AIAgent:
         self.logger = logger
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
+        self.api_debugger = api_debugger if api_debugger else APIDebugger(enabled=False)
 
     def _initialize_client(self, api_key: Optional[str]):
         """
@@ -197,6 +201,16 @@ class AIAgent:
                 return "Operation cancelled by user."
 
             try:
+                # Dump request data if debugger is enabled
+                if self.api_debugger:
+                    self.api_debugger.dump_request(
+                        model=self.model,
+                        messages=messages,
+                        tools=self.tool_manager.get_tools(),
+                        tool_choice="auto",
+                        additional_data={"iteration": iteration + 1}
+                    )
+
                 # Call OpenAI API with tools
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -221,6 +235,18 @@ class AIAgent:
                         }
                         token_callback(token_data)
 
+                # Dump response data if debugger is enabled
+                if self.api_debugger:
+                    self.api_debugger.dump_response(
+                        response=response,
+                        token_usage={
+                            "prompt_tokens": total_prompt_tokens,
+                            "completion_tokens": total_completion_tokens,
+                            "total_tokens": total_tokens
+                        },
+                        additional_data={"iteration": iteration + 1}
+                    )
+
                 response_message = response.choices[0].message
 
                 # Check if the agent wants to call tools
@@ -239,6 +265,15 @@ class AIAgent:
 
                         # Execute the tool
                         tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
+
+                        # Dump tool execution data if debugger is enabled
+                        if self.api_debugger:
+                            self.api_debugger.dump_tool_execution(
+                                tool_name=tool_name,
+                                tool_arguments=tool_call.function.arguments,
+                                tool_result=tool_result,
+                                tool_call_id=tool_call.id
+                            )
 
                         # Add tool result to messages
                         messages.append({

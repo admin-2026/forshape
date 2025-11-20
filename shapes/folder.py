@@ -76,13 +76,17 @@ class Folder(Shape):
             print(f'Object not found: {obj_or_label_or_list}')
             return False
 
+        # Get the root parent if it exists, otherwise use the object itself
+        root_parent = Context.get_root_parent(obj)
+        obj_to_add = root_parent if root_parent is not None else obj
+
         # Check if object is already in the folder
-        if obj in folder.Group:
-            print(f'Object "{obj.Label}" is already in folder "{folder_label}"')
+        if obj_to_add in folder.Group:
+            print(f'Object "{obj_to_add.Label}" is already in folder "{folder_label}"')
             return True
 
         # Add object to folder
-        folder.addObject(obj)
-        print(f'Added "{obj.Label}" to folder "{folder_label}"')
+        folder.addObject(obj_to_add)
+        print(f'Added "{obj_to_add.Label}" to folder "{folder_label}"')
 
         return True

@@ -202,6 +202,29 @@ class Context:
         return None
 
     @staticmethod
+    def get_root_parent(obj_or_label):
+        """
+        Get the root parent of an object by accessing Parents[0][0].
+
+        Args:
+            obj_or_label: The object or label/name to identify the object
+
+        Returns:
+            The root parent (Parents[0][0]) if it exists, otherwise None
+        """
+        obj = Context.get_object(obj_or_label)
+        if obj is None:
+            return None
+
+        # Check if the object has a Parents attribute
+        if hasattr(obj, 'Parents') and obj.Parents:
+            # Return Parents[0][0] if it exists
+            if len(obj.Parents) > 0 and len(obj.Parents[0]) > 0:
+                return obj.Parents[0][0]
+
+        return None
+
+    @staticmethod
     def find_objects_by_regex(pattern):
         """
         Scans all objects in the active document to find objects whose label, name, or label2 matches the regex pattern.

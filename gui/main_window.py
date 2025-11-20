@@ -21,6 +21,7 @@ from .dialogs import PythonFileSelector, ImagePreviewDialog
 from .workers import AIWorker
 from .formatters import MessageFormatter
 from .logger import LogLevel
+from .script_executor import ScriptExecutor
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
@@ -1108,53 +1109,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             with open(abs_path, 'r', encoding='utf-8') as f:
                 script_content = f.read()
 
-            # Teardown: Run script with TEARDOWN_MODE=True
-            # Set TEARDOWN_MODE as a builtin so it's accessible from all modules
-            import builtins
-            builtins.TEARDOWN_MODE = True
+            # Execute the script in teardown mode using ScriptExecutor
+            from pathlib import Path
+            result = ScriptExecutor.execute(
+                script_content, Path(abs_path), teardown_mode=True, import_freecad=False
+            )
 
-            # Capture stdout and stderr
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
+            # Display output if any
+            if result.output.strip():
+                self.append_message("[OUTPUT]", result.output.strip())
 
-            try:
-                # Execute the script in teardown mode
-                exec_globals = {
-                    '__name__': '__main__',
-                    '__file__': abs_path,
-                }
-                exec(script_content, exec_globals)
-
-                # Get captured output
-                stdout_output = sys.stdout.getvalue()
-                stderr_output = sys.stderr.getvalue()
-
-                # Display output if any
-                if stdout_output.strip():
-                    self.append_message("[OUTPUT]", stdout_output.strip())
-                if stderr_output.strip():
-                    self.append_message("[STDERR]", stderr_output.strip())
-
+            if result.success:
                 # Success message
                 self.append_message("[SYSTEM]", f"Teardown completed successfully: {file_path}")
-
-            finally:
-                # Restore stdout and stderr
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
-                # Reset TEARDOWN_MODE
-                builtins.TEARDOWN_MODE = False
+            else:
+                # Display error
+                error_msg = f"Error during teardown of {file_path}:\n{result.error}"
+                self.display_error(error_msg)
 
         except Exception as e:
-            # Restore stdout and stderr in case of error
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-            # Reset TEARDOWN_MODE
-            import builtins
-            builtins.TEARDOWN_MODE = False
-
             # Format and display the error
             error_msg = f"Error during redo of {file_path}:\n{traceback.format_exc()}"
             self.display_error(error_msg)
@@ -1185,40 +1158,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             with open(abs_path, 'r', encoding='utf-8') as f:
                 script_content = f.read()
 
-            # Capture stdout and stderr
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = io.StringIO()
-            sys.stderr = io.StringIO()
+            # Execute the script using ScriptExecutor
+            from pathlib import Path
+            result = ScriptExecutor.execute(
+                script_content, Path(abs_path), teardown_mode=False, import_freecad=False
+            )
 
-            try:
-                # Execute the script in the current context
-                # This allows it to access FreeCAD's App.activeDocument()
-                exec(script_content, {'__name__': '__main__', '__file__': abs_path})
+            # Display output if any
+            if result.output.strip():
+                self.append_message("[OUTPUT]", result.output.strip())
 
-                # Get captured output
-                stdout_output = sys.stdout.getvalue()
-                stderr_output = sys.stderr.getvalue()
-
-                # Display output if any
-                if stdout_output.strip():
-                    self.append_message("[OUTPUT]", stdout_output.strip())
-                if stderr_output.strip():
-                    self.append_message("[STDERR]", stderr_output.strip())
-
+            if result.success:
                 # Success message
                 self.append_message("[SYSTEM]", f"Finished running: {file_path}")
-
-            finally:
-                # Restore stdout and stderr
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
+            else:
+                # Display error
+                error_msg = f"Error running {file_path}:\n{result.error}"
+                self.display_error(error_msg)
 
         except Exception as e:
-            # Restore stdout and stderr in case of error
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
-
             # Format and display the error
             error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
             self.display_error(error_msg)

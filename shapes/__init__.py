@@ -17,6 +17,7 @@ from .transform import Transform
 from .export import Export
 from .import_geometry import ImportGeometry
 from .image_context import ImageContext, Perspective
+from .folder import Folder
 
 __all__ = [
     'Shape',
@@ -32,4 +33,5 @@ __all__ = [
     'ImportGeometry',
     'ImageContext',
     'Perspective',
+    'Folder',
 ]

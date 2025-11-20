@@ -301,12 +301,47 @@ Exports FreeCAD objects to various file formats.
   Export.export('cylinder1', 'C:/output/cylinder.stl', 'stl')
   ```
 
+### 10. Folder
+Location: `folder.py:9`
+
+Manages folder organization in FreeCAD documents. Creates folders (DocumentObjectGroup) and adds objects to them for better organization.
+
+**Public Methods:**
+
+`Folder.create_folder(label)`
+- **Description:** Creates a DocumentObjectGroup (folder) in the active document
+- **Parameters:**
+  - `label` (str): Name/label for the folder
+- **Returns:** The folder object, or None if in teardown mode
+- **Example:**
+  ```python
+  from shapes.folder import Folder
+  # Create a folder
+  Folder.create_folder('my_parts')
+  ```
+
+`Folder.add_to_folder(folder_label, obj_or_label_or_list)`
+- **Description:** Adds one or more objects to a folder for organization
+- **Parameters:**
+  - `folder_label` (str): Label of the folder to add objects to
+  - `obj_or_label_or_list` (str, object, or list): Single object/label or list of objects/labels to add
+- **Returns:** True if all operations successful, False if any failed
+- **Example:**
+  ```python
+  # Add a single object
+  Folder.add_to_folder('my_parts', 'box1')
+
+  # Add multiple objects at once
+  Folder.add_to_folder('my_parts', ['box1', 'box2', 'cylinder1', 'prism1'])
+  ```
+
 ## Complete Usage Example
 
 ```python
 from shapes.additive_box import AdditiveBox
 from shapes.additive_cylinder import AdditiveCylinder
 from shapes.boolean import Boolean
+from shapes.folder import Folder
 from shapes.export import Export
 
 # Create a box with offset
@@ -320,6 +355,10 @@ AdditiveBox.create_slot('slot', 'XY_Plane', 15, 6, 15, 3, x_offset=25)
 
 # Cut the cylinder and slot from the box
 Boolean.cut('box_with_holes', 'main_box', ['hole', 'slot'])
+
+# Organize objects into a folder
+Folder.create_folder('my_project')
+Folder.add_to_folder('my_project', ['box_with_holes', 'hole', 'slot'])
 
 # Export the result
 Export.export('box_with_holes', 'box_with_holes.step')

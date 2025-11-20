@@ -163,13 +163,15 @@ class ForShapeMainWindow(QMainWindow):
         self.model_combo = QComboBox()
         self.model_combo.setFont(QFont("Consolas", 9))
         # Add common OpenAI models
+        self.model_combo.addItem("GPT-5.1", "gpt-5.1")
+        self.model_combo.addItem("GPT-5.1 Codex", "gpt-5.1-codex")
         self.model_combo.addItem("GPT-5", "gpt-5")
         self.model_combo.addItem("GPT-4o", "gpt-4o")
         self.model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
         self.model_combo.addItem("GPT-4 Turbo", "gpt-4-turbo")
         self.model_combo.addItem("GPT-4", "gpt-4")
         self.model_combo.addItem("GPT-3.5 Turbo", "gpt-3.5-turbo")
-        self.model_combo.setCurrentIndex(0)  # Default to GPT-5
+        self.model_combo.setCurrentIndex(0)  # Default to GPT-5.1
         self.model_combo.currentIndexChanged.connect(self.on_model_changed)
 
         # Create a widget container for label and combo
@@ -664,8 +666,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.token_status_label.setText(f"Token Usage (Final: {token_str})")
             self.token_status_label.setStyleSheet("color: #0066CC; padding: 2px; font-weight: bold;")
         else:
-            # If no token data, hide the label
-            self.token_status_label.setVisible(False)
+            # If no token data, keep the label visible with a default message
+            self.token_status_label.setText("Token Usage: N/A")
+            self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
 
         # Display the response or error
         if is_error:

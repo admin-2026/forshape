@@ -15,7 +15,7 @@ class Export:
             file_type: Optional file type ('step', 'stl', 'iges', 'obj', etc.)
                       If not specified, it will be inferred from file_path extension
         """
-        obj = Context.get_object(object_or_label)
+        obj = Context.get_first_body_parent(object_or_label)
         if obj is None:
             print(f'Object not found')
             return

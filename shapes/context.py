@@ -123,6 +123,15 @@ class Context:
                 if hasattr(obj, 'NeutralPlane') and obj.NeutralPlane:
                     print(f'{prefix}  Neutral Plane: {obj.NeutralPlane.Label}')
             return
+        if type_id == 'PartDesign::FeatureBase':
+            if verbose:
+                print(f'{prefix}{obj.Label}')
+                print(f'{prefix}  Type: FeatureBase (Clone)')
+                if hasattr(obj, 'BaseFeature') and obj.BaseFeature:
+                    print(f'{prefix}  BaseFeature: {obj.BaseFeature.Label}')
+                if hasattr(obj, 'Placement') and obj.Placement:
+                    print(f'{prefix}  Placement: {obj.Placement}')
+            return
         if type_id == 'PartDesign::Body':
             print(f'{prefix}{obj.Label}')
             print(f'{prefix}  Type: Body')
@@ -277,7 +286,8 @@ class Context:
             'PartDesign::Boolean',
             'PartDesign::Fillet',
             'PartDesign::Chamfer',
-            'PartDesign::Draft'
+            'PartDesign::Draft',
+            'PartDesign::FeatureBase'
         }
 
         if type_id in partdesign_child_types:

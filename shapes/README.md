@@ -335,6 +335,40 @@ Manages folder organization in FreeCAD documents. Creates folders (DocumentObjec
   Folder.add_to_folder('my_parts', ['box1', 'box2', 'cylinder1', 'prism1'])
   ```
 
+### 11. Clone
+Location: `clone.py:9`
+
+Creates a Body object with a Clone feature that references another object. Clones are useful for creating instances of existing objects that maintain a reference to the original, allowing for efficient reuse of geometry with different placements.
+
+**Public Methods:**
+
+`Clone.create_clone(label, base_obj_or_label, placement=None)`
+- **Description:** Creates a new Body containing a Clone feature that references an existing object
+- **Parameters:**
+  - `label` (str): Name/label for the Body containing the clone
+  - `base_obj_or_label` (str or object): The object or label to clone
+  - `placement` (App.Placement, optional): Custom placement for the clone. If None, uses the base object's placement
+- **Returns:** The Body object containing the clone, or None if in teardown mode
+- **Example:**
+  ```python
+  from shapes.clone import Clone
+  from shapes.additive_box import AdditiveBox
+  import FreeCAD as App
+
+  # Create original object
+  AdditiveBox.create_box('original', 'XY_Plane', 10, 10, 10)
+
+  # Create a clone with the same placement
+  Clone.create_clone('clone1', 'original')
+
+  # Create a clone with custom placement (translated)
+  custom_placement = App.Placement(App.Vector(20, 0, 0), App.Rotation(0, 0, 0))
+  Clone.create_clone('clone2', 'original', custom_placement)
+
+  # Update existing clone (idempotent)
+  Clone.create_clone('clone1', 'original')
+  ```
+
 ## Complete Usage Example
 
 ```python
@@ -379,7 +413,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, and `create_pad` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, `create_pad`, and `create_clone` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 

@@ -10,6 +10,38 @@ from .context import Context
 
 class AdditiveBox(Shape):
     @staticmethod
+    def _calculate_center_based_rotation_offset(length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll):
+        """
+        Calculate adjusted offset for center-based rotation.
+
+        By default, FreeCAD rotates boxes around their origin (left-bottom corner).
+        This function calculates the offset adjustment needed to rotate around the center instead.
+
+        Args:
+            length, width, height: Box dimensions
+            x_offset, y_offset, z_offset: User-specified position offsets
+            yaw, pitch, roll: Rotation angles
+
+        Returns:
+            tuple: (adjusted_x_offset, adjusted_y_offset, adjusted_z_offset)
+        """
+        # Box center is at (length/2, width/2, height/2) from its origin
+        center = App.Vector(length / 2, width / 2, height / 2)
+        rotation = App.Rotation(yaw, pitch, roll)
+
+        # Calculate displacement needed to rotate around center instead of corner
+        # When rotating around center: rotate the center point and find how much it moved
+        rotated_center = rotation.multVec(center)
+        displacement = center - rotated_center
+
+        # Adjust the offset to account for center-based rotation
+        return (
+            x_offset + displacement.x,
+            y_offset + displacement.y,
+            z_offset + displacement.z
+        )
+
+    @staticmethod
     def _calculate_fillet_radius_with_epsilon(radius, width, length):
         """
         Calculate fillet radius with epsilon adjustment when needed.
@@ -37,6 +69,11 @@ class AdditiveBox(Shape):
         if Shape._teardown_if_needed(label, created_children=[label + '_box']):
             return None
 
+        # Calculate center-based rotation offset
+        adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
+            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
+        )
+
         # Check for existing object and get children if they exist
         box_label = label + '_box'
         existing_obj, children = Shape._get_or_recreate_body(label, [
@@ -63,8 +100,8 @@ class AdditiveBox(Shape):
                 existing_box.Height = new_height
                 needs_recompute = True
 
-            # Update attachment, offset, and rotation
-            if Shape._update_attachment_and_offset(existing_box, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll):
+            # Update attachment, offset, and rotation with adjusted offset
+            if Shape._update_attachment_and_offset(existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
                 needs_recompute = True
 
             if needs_recompute:
@@ -83,29 +120,44 @@ class AdditiveBox(Shape):
         box.Width=f'{width} mm'
         box.Height=f'{height} mm'
 
-        Shape._update_attachment_and_offset(box, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
         App.ActiveDocument.recompute()
 
         return obj
 
     @staticmethod
     def create_slot(label, plane_label, length, width, height, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
-        # Handle teardown mode
-        if Shape._teardown_if_needed(label, created_children=[label + '_slot', label + '_fillet']):
-            return None
-
-        # Check for existing object and get children if they exist
+        # Determine expected children based on radius
         slot_label = label + '_slot'
         fillet_label = label + '_fillet'
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (slot_label, 'PartDesign::AdditiveBox'),
-            (fillet_label, 'PartDesign::Fillet')
-        ])
+
+        if radius == 0:
+            # No fillet needed, just create a box
+            created_children = [slot_label]
+            expected_children = [(slot_label, 'PartDesign::AdditiveBox')]
+        else:
+            # Need both slot and fillet
+            created_children = [slot_label, fillet_label]
+            expected_children = [
+                (slot_label, 'PartDesign::AdditiveBox'),
+                (fillet_label, 'PartDesign::Fillet')
+            ]
+
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=created_children):
+            return None
+
+        # Calculate center-based rotation offset
+        adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
+            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
+        )
+
+        # Check for existing object and get children if they exist
+        existing_obj, children = Shape._get_or_recreate_body(label, expected_children)
 
         if existing_obj is not None:
-            # Both children exist, update their properties
+            # Children exist, update their properties
             existing_slot = children[slot_label]
-            existing_fillet = children[fillet_label]
             needs_recompute = False
 
             # Update slot dimensions
@@ -123,21 +175,28 @@ class AdditiveBox(Shape):
                 existing_slot.Height = new_height
                 needs_recompute = True
 
-            # Update attachment, offset, and rotation
-            if Shape._update_attachment_and_offset(existing_slot, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll):
+            # Update attachment, offset, and rotation with adjusted offset
+            if Shape._update_attachment_and_offset(existing_slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
                 needs_recompute = True
 
-            # Update fillet radius with epsilon logic
-            new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+            # Update fillet if it exists (radius > 0)
+            if radius > 0:
+                existing_fillet = children[fillet_label]
+                new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
 
-            if existing_fillet.Radius != new_radius:
-                existing_fillet.Radius = new_radius
-                needs_recompute = True
+                if existing_fillet.Radius != new_radius:
+                    existing_fillet.Radius = new_radius
+                    needs_recompute = True
 
-            # Ensure slot is hidden
-            if existing_slot.Visibility != False:
-                existing_slot.Visibility = False
-                needs_recompute = True
+                # Ensure slot is hidden when fillet exists
+                if existing_slot.Visibility != False:
+                    existing_slot.Visibility = False
+                    needs_recompute = True
+            else:
+                # No fillet, ensure slot is visible
+                if existing_slot.Visibility != True:
+                    existing_slot.Visibility = True
+                    needs_recompute = True
 
             if needs_recompute:
                 App.ActiveDocument.recompute()
@@ -147,7 +206,6 @@ class AdditiveBox(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        slot_label = label+'_slot'
         App.ActiveDocument.addObject('PartDesign::AdditiveBox', slot_label)
         slot = Context.get_object(slot_label)
         obj.addObject(slot)
@@ -155,17 +213,21 @@ class AdditiveBox(Shape):
         slot.Width=f'{width} mm'
         slot.Height=f'{height} mm'
 
-        Shape._update_attachment_and_offset(slot, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
         App.ActiveDocument.recompute()
 
-        fillet_label = label+'_fillet'
-        obj.newObject('PartDesign::Fillet', fillet_label)
-        fillet = Context.get_object(fillet_label)
-        fillet.Base = (slot,['Edge7','Edge5','Edge1','Edge3',])
-        # Subtract epsilon only when diameter equals width or length to prevent adjacent fillets from touching
-        fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+        # Only create fillet if radius > 0
+        if radius > 0:
+            obj.newObject('PartDesign::Fillet', fillet_label)
+            fillet = Context.get_object(fillet_label)
+            fillet.Base = (slot,['Edge7','Edge5','Edge1','Edge3',])
+            # Subtract epsilon only when diameter equals width or length to prevent adjacent fillets from touching
+            fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
 
-        slot.Visibility = False
-        App.ActiveDocument.recompute()
+            slot.Visibility = False
+            App.ActiveDocument.recompute()
+        else:
+            # No fillet, keep slot visible
+            slot.Visibility = True
 
         return obj

@@ -9,14 +9,15 @@ from .context import Context
 
 class Clone(Shape):
     @staticmethod
-    def create_clone(label, base_obj_or_label, placement=None):
+    def create_clone(label, base_obj_or_label, offset=(0, 0, 0), rotation=(0, 0, 0)):
         """
         Create a Body object with a Clone feature that references another object.
 
         Args:
             label: The label for the new Body containing the clone
             base_obj_or_label: The object or label to clone
-            placement: Optional placement for the clone. If None, uses the base object's placement.
+            offset: Tuple of (x, y, z) offset values. Defaults to (0, 0, 0).
+            rotation: Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0).
 
         Returns:
             The Body object containing the clone, or None if in teardown mode
@@ -47,8 +48,11 @@ class Clone(Shape):
                 existing_clone.BaseFeature = base_obj
                 needs_recompute = True
 
-            # Update Placement if provided, or sync with base object's placement
-            target_placement = placement if placement is not None else base_obj.Placement
+            # Create placement from offset and rotation
+            target_placement = App.Placement(
+                App.Vector(offset[0], offset[1], offset[2]),
+                App.Rotation(rotation[0], rotation[1], rotation[2])
+            )
             if existing_clone.Placement != target_placement:
                 existing_clone.Placement = target_placement
                 needs_recompute = True
@@ -84,11 +88,11 @@ class Clone(Shape):
         # Set Clone's BaseFeature to the original object
         clone.BaseFeature = base_obj
 
-        # Set Placement
-        if placement is not None:
-            clone.Placement = placement
-        else:
-            clone.Placement = base_obj.Placement
+        # Set Placement from offset and rotation
+        clone.Placement = App.Placement(
+            App.Vector(offset[0], offset[1], offset[2]),
+            App.Rotation(rotation[0], rotation[1], rotation[2])
+        )
 
         App.ActiveDocument.recompute()
 

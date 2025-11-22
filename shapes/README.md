@@ -342,31 +342,33 @@ Creates a Body object with a Clone feature that references another object. Clone
 
 **Public Methods:**
 
-`Clone.create_clone(label, base_obj_or_label, placement=None)`
+`Clone.create_clone(label, base_obj_or_label, offset=(0, 0, 0), rotation=(0, 0, 0))`
 - **Description:** Creates a new Body containing a Clone feature that references an existing object
 - **Parameters:**
   - `label` (str): Name/label for the Body containing the clone
   - `base_obj_or_label` (str or object): The object or label to clone
-  - `placement` (App.Placement, optional): Custom placement for the clone. If None, uses the base object's placement
+  - `offset` (tuple, optional): Tuple of (x, y, z) offset values. Defaults to (0, 0, 0)
+  - `rotation` (tuple, optional): Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0)
 - **Returns:** The Body object containing the clone, or None if in teardown mode
 - **Example:**
   ```python
   from shapes.clone import Clone
   from shapes.additive_box import AdditiveBox
-  import FreeCAD as App
 
   # Create original object
   AdditiveBox.create_box('original', 'XY_Plane', 10, 10, 10)
 
-  # Create a clone with the same placement
+  # Create a clone at the origin (default offset and rotation)
   Clone.create_clone('clone1', 'original')
 
-  # Create a clone with custom placement (translated)
-  custom_placement = App.Placement(App.Vector(20, 0, 0), App.Rotation(0, 0, 0))
-  Clone.create_clone('clone2', 'original', custom_placement)
+  # Create a clone with custom offset (translated 20mm in X direction)
+  Clone.create_clone('clone2', 'original', offset=(20, 0, 0))
+
+  # Create a clone with offset and rotation (rotated 45 degrees around Z axis)
+  Clone.create_clone('clone3', 'original', offset=(40, 0, 0), rotation=(0, 0, 45))
 
   # Update existing clone (idempotent)
-  Clone.create_clone('clone1', 'original')
+  Clone.create_clone('clone1', 'original', offset=(10, 10, 0))
   ```
 
 ## Complete Usage Example

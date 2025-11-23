@@ -1,8 +1,9 @@
 """
-Script executor for running Python scripts in normal or teardown mode.
+Script executor for running Python scripts in normal, teardown, or quick rebuild mode.
 
 This module provides a unified interface for executing Python scripts with support for:
-- Teardown mode (TEARDOWN_MODE flag)
+- Teardown mode (TEARDOWN_MODE flag) - removes objects before recreation
+- Quick rebuild mode (QUICK_REBUILD_MODE flag) - skips construction if objects match
 - Output capture (stdout/stderr)
 - FreeCAD module imports
 - Proper cleanup and error handling
@@ -15,6 +16,14 @@ import traceback
 from pathlib import Path
 from typing import Tuple, Optional
 from contextlib import contextmanager
+from enum import Enum
+
+
+class ExecutionMode(Enum):
+    """Execution mode for running scripts."""
+    NORMAL = "normal"
+    TEARDOWN = "teardown"
+    QUICK_REBUILD = "quick_rebuild"
 
 
 class ScriptExecutionResult:
@@ -35,7 +44,7 @@ class ScriptExecutionResult:
 
 
 class ScriptExecutor:
-    """Executes Python scripts with support for teardown mode and output capture."""
+    """Executes Python scripts with support for teardown mode, quick rebuild mode, and output capture."""
 
     @staticmethod
     @contextmanager
@@ -61,24 +70,26 @@ class ScriptExecutor:
     def execute(
         script_content: str,
         script_path: Path,
-        teardown_mode: bool = False,
+        mode: ExecutionMode = ExecutionMode.NORMAL,
         import_freecad: bool = True
     ) -> ScriptExecutionResult:
         """
-        Execute a Python script in either normal or teardown mode.
+        Execute a Python script in the specified execution mode.
 
         Args:
             script_content: The script content to execute
             script_path: Path to the script file (for __file__ variable)
-            teardown_mode: If True, set TEARDOWN_MODE before execution
+            mode: Execution mode (NORMAL, TEARDOWN, or QUICK_REBUILD)
             import_freecad: If True, import FreeCAD modules into execution namespace
 
         Returns:
             ScriptExecutionResult with success status, output, and error (if any)
         """
-        # Set teardown mode if requested
-        if teardown_mode:
+        # Set execution mode flags
+        if mode == ExecutionMode.TEARDOWN:
             builtins.TEARDOWN_MODE = True
+        elif mode == ExecutionMode.QUICK_REBUILD:
+            builtins.QUICK_REBUILD_MODE = True
 
         try:
             # Create execution namespace
@@ -119,9 +130,11 @@ class ScriptExecutor:
             return ScriptExecutionResult(success, output, error_msg)
 
         finally:
-            # Always reset TEARDOWN_MODE if it was set
-            if teardown_mode:
+            # Always reset mode flags
+            if mode == ExecutionMode.TEARDOWN:
                 builtins.TEARDOWN_MODE = False
+            elif mode == ExecutionMode.QUICK_REBUILD:
+                builtins.QUICK_REBUILD_MODE = False
 
     @staticmethod
     def execute_with_teardown(
@@ -142,12 +155,37 @@ class ScriptExecutor:
         """
         # Run in teardown mode first
         teardown_result = ScriptExecutor.execute(
-            script_content, script_path, teardown_mode=True, import_freecad=import_freecad
+            script_content, script_path, mode=ExecutionMode.TEARDOWN, import_freecad=import_freecad
         )
 
         # Run in normal mode
         normal_result = ScriptExecutor.execute(
-            script_content, script_path, teardown_mode=False, import_freecad=import_freecad
+            script_content, script_path, mode=ExecutionMode.NORMAL, import_freecad=import_freecad
         )
 
         return teardown_result, normal_result
+
+    @staticmethod
+    def execute_with_quick_rebuild(
+        script_content: str,
+        script_path: Path,
+        import_freecad: bool = True
+    ) -> ScriptExecutionResult:
+        """
+        Execute a script in quick rebuild mode.
+
+        Quick rebuild mode skips construction if objects with matching labels and types exist.
+        This is useful for fast iteration during development.
+
+        Args:
+            script_content: The script content to execute
+            script_path: Path to the script file
+            import_freecad: If True, import FreeCAD modules into execution namespace
+
+        Returns:
+            ScriptExecutionResult from quick rebuild execution
+        """
+        # Run in quick rebuild mode
+        return ScriptExecutor.execute(
+            script_content, script_path, mode=ExecutionMode.QUICK_REBUILD, import_freecad=import_freecad
+        )

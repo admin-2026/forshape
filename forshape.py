@@ -200,8 +200,11 @@ class ForShapeAI:
         # Initialize API debugger (disabled by default)
         self.api_debugger = APIDebugger(enabled=False)
 
-        # Initialize AI agent with API key from prestart checker
-        api_key = self.prestart_checker.get_api_key()
+        # Initialize AI agent with API key and provider configuration
+        provider_config = self.config.get_provider_config()
+        api_key = provider_config["api_key"]
+        provider = provider_config["provider"]
+
         # Use gpt-5 for tool calling support, fallback to user's model choice
         agent_model = self.model if self.model else "gpt-5"
         self.ai_client = AIAgent(
@@ -211,9 +214,10 @@ class ForShapeAI:
             logger=self.logger,
             permission_manager=self.permission_manager,
             image_context=self.image_context,
-            api_debugger=self.api_debugger
+            api_debugger=self.api_debugger,
+            provider=provider
         )
-        self.logger.info(f"AI client initialized with model: {agent_model}")
+        self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
         # Update the main window with the initialized components
         if self.main_window:

@@ -1,8 +1,10 @@
 """
-AI Agent with tool calling capabilities for ChatGPT/OpenAI API.
+AI Agent with tool calling capabilities for multiple API providers.
 
 This module provides an AI agent that can call tools to interact with the file system,
 including listing files, reading files, and editing files.
+
+Supports multiple API providers: OpenAI, Fireworks, and more.
 """
 
 import json
@@ -14,14 +16,15 @@ from .tool_manager import ToolManager
 from .permission_manager import PermissionManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
+from .api_provider import APIProvider, create_api_provider
 
 
 class AIAgent:
     """
-    AI Agent with tool-calling capabilities adapted for ChatGPT/OpenAI API.
+    AI Agent with tool-calling capabilities for multiple API providers.
 
     This agent can use tools to interact with the file system and perform
-    tasks autonomously through the OpenAI function calling API.
+    tasks autonomously through function calling APIs (OpenAI, Fireworks, etc.).
     """
 
     def __init__(
@@ -33,25 +36,28 @@ class AIAgent:
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
         image_context = None,
-        api_debugger: Optional[APIDebugger] = None
+        api_debugger: Optional[APIDebugger] = None,
+        provider: str = "openai"
     ):
         """
         Initialize the AI agent.
 
         Args:
-            api_key: OpenAI API key
+            api_key: API key for the selected provider
             context_provider: ContextProvider instance for file operations and context
             model: Model identifier to use
-            max_iterations: Maximum number of tool calling iterations (default: 10)
+            max_iterations: Maximum number of tool calling iterations (default: 50)
             logger: Optional logger for tool call logging
             permission_manager: Optional PermissionManager instance for access control
             image_context: Optional ImageContext instance for screenshot capture
             api_debugger: Optional APIDebugger instance for dumping API data
+            provider: API provider to use ("openai", "fireworks", etc.)
         """
         self.model = model
         self.max_iterations = max_iterations
         self.history_manager = ChatHistoryManager(max_messages=None)
-        self.client = self._initialize_client(api_key)
+        self.provider = self._initialize_provider(provider, api_key)
+        self.provider_name = provider
         self.context_provider = context_provider
         self.permission_manager = permission_manager
         self.tool_manager = ToolManager(
@@ -66,29 +72,31 @@ class AIAgent:
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger if api_debugger else APIDebugger(enabled=False)
 
-    def _initialize_client(self, api_key: Optional[str]):
+    def _initialize_provider(self, provider_name: str, api_key: Optional[str]) -> Optional[APIProvider]:
         """
-        Initialize the OpenAI client.
+        Initialize the API provider.
 
         Args:
-            api_key: OpenAI API key
+            provider_name: Name of the provider ("openai", "fireworks", etc.)
+            api_key: API key for authentication
 
         Returns:
-            OpenAI client instance or None if initialization fails
+            APIProvider instance or None if initialization fails
         """
         if not api_key:
             return None
 
         try:
-            from openai import OpenAI
-        except ImportError:
-            print("Error: OpenAI library not available")
+            provider = create_api_provider(provider_name, api_key)
+            if not provider.is_available():
+                print(f"Error: {provider_name} provider not available")
+                return None
+            return provider
+        except ValueError as e:
+            print(f"Error: {e}")
             return None
-
-        try:
-            return OpenAI(api_key=api_key)
         except Exception as e:
-            print(f"Error initializing OpenAI client: {e}")
+            print(f"Error initializing {provider_name} provider: {e}")
             return None
 
 
@@ -107,8 +115,8 @@ class AIAgent:
         Returns:
             AI response string
         """
-        if self.client is None:
-            return "Error: OpenAI client not initialized. Please check your API key."
+        if self.provider is None:
+            return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
             # Get system message from context provider (only once, then cache it)
@@ -153,8 +161,8 @@ class AIAgent:
         Returns:
             Final response from the agent
         """
-        if self.client is None:
-            return "Error: OpenAI client not initialized. Please check your API key."
+        if self.provider is None:
+            return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
@@ -208,8 +216,8 @@ class AIAgent:
                         additional_data={"iteration": iteration + 1}
                     )
 
-                # Call OpenAI API with tools
-                response = self.client.chat.completions.create(
+                # Call API provider with tools
+                response = self.provider.create_completion(
                     model=self.model,
                     messages=messages,
                     tools=self.tool_manager.get_tools(),
@@ -450,9 +458,9 @@ class AIAgent:
         Check if the AI agent is available and ready.
 
         Returns:
-            True if client is initialized, False otherwise
+            True if provider is initialized, False otherwise
         """
-        return self.client is not None
+        return self.provider is not None and self.provider.is_available()
 
     def get_working_dir(self) -> str:
         """

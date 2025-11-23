@@ -88,6 +88,11 @@ class Boolean:
 
     @staticmethod
     def fuse(fuse_label, primary, secondary):
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(fuse_label, 'PartDesign::Boolean')
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(fuse_label):
             return None
@@ -95,6 +100,11 @@ class Boolean:
 
     @staticmethod
     def common(common_label, primary, secondary):
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(common_label, 'PartDesign::Boolean')
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(common_label):
             return None
@@ -102,6 +112,11 @@ class Boolean:
 
     @staticmethod
     def cut(cut_label, primary, secondary):
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(cut_label, 'PartDesign::Boolean')
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(cut_label):
             return None

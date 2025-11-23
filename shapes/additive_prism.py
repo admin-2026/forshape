@@ -29,6 +29,11 @@ class AdditivePrism(Shape):
         Returns:
             The created or updated Body object
         """
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label)
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(label, created_children=[label + '_prism']):
             return None

@@ -184,6 +184,11 @@ class ImportGeometry(Shape):
         body_label = label + '_imported'
         geometry_label = label + '_geometry'
 
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(body_label)
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(body_label, created_children=[geometry_label]):
             return None

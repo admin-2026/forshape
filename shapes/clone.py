@@ -22,6 +22,11 @@ class Clone(Shape):
         Returns:
             The Body object containing the clone, or None if in teardown mode
         """
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label)
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         clone_label = label + '_clone'
         if Shape._teardown_if_needed(label, created_children=[clone_label]):

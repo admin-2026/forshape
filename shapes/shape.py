@@ -30,6 +30,55 @@ class Shape:
         return pad
 
     @staticmethod
+    def _quick_rebuild_if_possible(label, expected_type='PartDesign::Body'):
+        """
+        Check if we're in quick rebuild mode and can skip construction.
+        Only checks label and type - if both match, returns existing object.
+        If type doesn't match, moves to trash.
+
+        Args:
+            label (str): The object label to check
+            expected_type (str): The expected TypeId (default: 'PartDesign::Body')
+                                Can use prefix matching with '::' (e.g., 'PartDesign::')
+
+        Returns:
+            The existing object if it exists with correct type in quick rebuild mode,
+            None otherwise (caller should proceed with normal construction/update)
+        """
+        import builtins
+        quick_rebuild_mode = getattr(builtins, 'QUICK_REBUILD_MODE', False)
+
+        if not quick_rebuild_mode:
+            return None
+
+        # We are in quick rebuild mode
+        existing_obj = Context.get_object(label)
+
+        if existing_obj is None:
+            return None  # Object doesn't exist, proceed with creation
+
+        # Check if it's the document itself
+        if existing_obj == App.ActiveDocument:
+            return None  # Can't reuse document, proceed with creation
+
+        # Check if type matches (support prefix matching)
+        type_matches = False
+        if expected_type.endswith('::'):
+            # Prefix match (e.g., 'PartDesign::')
+            type_matches = existing_obj.TypeId.startswith(expected_type)
+        else:
+            # Exact match
+            type_matches = existing_obj.TypeId == expected_type
+
+        if not type_matches:
+            # Type doesn't match, move to trash and create new
+            Shape._move_to_trash_bin(existing_obj)
+            return None
+
+        # Label and type match, skip construction
+        return existing_obj
+
+    @staticmethod
     def _teardown_if_needed(label, created_children=None):
         """
         Check if we're in teardown mode and remove object if so.

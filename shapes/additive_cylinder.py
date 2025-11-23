@@ -11,6 +11,11 @@ class AdditiveCylinder(Shape):
     def create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
         from .context import Context
 
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label)
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
         # Handle teardown mode
         if Shape._teardown_if_needed(label, created_children=[label + '_cylinder']):
             return None

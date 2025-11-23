@@ -202,8 +202,14 @@ class ForShapeAI:
 
         # Initialize AI agent with API key and provider configuration
         provider_config = self.config.get_provider_config()
-        api_key = provider_config["api_key"]
-        provider = provider_config["provider"]
+        providers = provider_config.get("providers", {})
+
+        # Default to OpenAI provider
+        provider = "openai"
+        api_key = providers.get(provider)
+
+        if not api_key:
+            self.logger.warning("No OpenAI API key found in provider-config.json. AI features will not work.")
 
         # Use gpt-5 for tool calling support, fallback to user's model choice
         agent_model = self.model if self.model else "gpt-5"

@@ -116,14 +116,25 @@ class PrestartChecker:
             return "error"
 
         # Check 6: API key availability
-        self.api_key = self.config_manager.get_api_key()
+        provider_config = self.config_manager.get_provider_config()
+        providers = provider_config.get("providers", {})
+        self.api_key = providers.get("openai")
+
         if not self.api_key:
+            config_file = self.config_manager.provider_config_file
             window.append_message("System",
                 "⚠️ **OpenAI API Key Not Found**\n\n"
-                "No OpenAI API key was found. The AI features require an API key to function.\n\n"
+                f"No OpenAI API key was found in {config_file.name}. The AI features require an API key to function.\n\n"
                 "**To add your API key:**\n"
-                f"1. Save your API key to: `{self.config_manager.get_api_key_file()}`\n"
-                f"2. **OR** set the `OPENAI_API_KEY` environment variable\n\n"
+                f"1. Create or edit: `{config_file}`\n"
+                "2. Add your OpenAI API key in JSON format:\n"
+                "```json\n"
+                "{\n"
+                '  "providers": {\n'
+                '    "openai": "sk-proj-YOUR_KEY_HERE"\n'
+                "  }\n"
+                "}\n"
+                "```\n\n"
                 "**After adding the API key:**\n"
                 "• Type anything (e.g., 'ready') to continue\n\n"
                 "**Don't have an API key?**\n"
@@ -144,7 +155,7 @@ class PrestartChecker:
 
     def _check_and_setup_directories(self, window: 'ForShapeMainWindow') -> bool:
         """
-        Check and setup .forshape directory and configuration files.
+        Check and setup configuration directories and files.
 
         Args:
             window: The main window instance to display messages
@@ -153,33 +164,12 @@ class PrestartChecker:
             True if successful, False on error
         """
         try:
-            # Setup directories
-            forshape_dir = self.config_manager.get_forshape_dir()
-            history_dir = self.config_manager.get_history_dir()
-            forshape_md = self.config_manager.get_forshape_md_file()
+            # Use config_manager to setup directories
+            created_items = self.config_manager.setup_directories()
 
-            created_items = []
-
-            # Create .forshape directory
-            if not forshape_dir.exists():
-                forshape_dir.mkdir(parents=True, exist_ok=True)
-                created_items.append(f"📁 Created directory: `{forshape_dir}`")
-                self.logger.info(f"Created .forshape directory: {forshape_dir}")
-
-            # Create history directory
-            if not history_dir.exists():
-                history_dir.mkdir(parents=True, exist_ok=True)
-                created_items.append(f"📁 Created directory: `{history_dir}`")
-                self.logger.info(f"Created history directory: {history_dir}")
-
-            # Create default FORSHAPE.md if it doesn't exist
-            if not forshape_md.exists():
-                default_content = """# Add any additional notes or context that would help the AI understand your project better.
-"""
-                with open(forshape_md, 'w', encoding='utf-8') as f:
-                    f.write(default_content)
-                created_items.append(f"📄 Created file: `{forshape_md}`")
-                self.logger.info(f"Created default FORSHAPE.md: {forshape_md}")
+            # Log what was created
+            for item in created_items:
+                self.logger.info(f"Setup: {item}")
 
             # Show what was created if anything
             if created_items:
@@ -230,13 +220,8 @@ class PrestartChecker:
                 os.chdir(doc_dir)
                 self.context_provider.working_dir = doc_dir
 
-                # Reinitialize config manager with new working directory
-                from pathlib import Path
-                self.config_manager.base_dir = Path(doc_dir)
-                self.config_manager.forshape_dir = self.config_manager.base_dir / ".forshape"
-                self.config_manager.history_dir = self.config_manager.forshape_dir / "history"
-                self.config_manager.api_key_file = self.config_manager.forshape_dir / "api-key"
-                self.config_manager.forshape_md_file = self.config_manager.base_dir / "FORSHAPE.md"
+                # Update config manager with new working directory
+                self.config_manager.update_working_directory(doc_dir)
 
                 self.logger.info(f"Changed working directory to: {doc_dir}")
                 window.append_message("System",
@@ -252,14 +237,9 @@ class PrestartChecker:
                 self.status = "error"
                 return False
         elif response == "no":
-            # User wants to keep current directory - ensure config manager is using current dir
-            from pathlib import Path
+            # User wants to keep current directory - update config manager to use current dir
             current_dir = self.context_provider.working_dir
-            self.config_manager.base_dir = Path(current_dir)
-            self.config_manager.forshape_dir = self.config_manager.base_dir / ".forshape"
-            self.config_manager.history_dir = self.config_manager.forshape_dir / "history"
-            self.config_manager.api_key_file = self.config_manager.forshape_dir / "api-key"
-            self.config_manager.forshape_md_file = self.config_manager.base_dir / "FORSHAPE.md"
+            self.config_manager.update_working_directory(current_dir)
 
             window.append_message("System", "Continuing with current directory. Rechecking setup...")
             return True

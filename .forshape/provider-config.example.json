@@ -1,0 +1,6 @@
+{
+  "providers": {
+    "openai": "sk-proj-your-openai-key-here",
+    "fireworks": "fw_your-fireworks-key-here"
+  }
+}

@@ -961,16 +961,18 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         else:
             other_combo_box.currentIndexChanged.connect(lambda idx: self.on_model_changed(idx, "openai"))
 
-        # Update the provider configuration
+        # Get provider-specific API key from configuration
         from .config_manager import ConfigurationManager
         config_manager = ConfigurationManager(self.ai_client.context_provider)
 
-        # Get current API key (preserve it)
         current_config = config_manager.get_provider_config()
-        api_key = current_config.get("api_key")
+        providers = current_config.get("providers", {})
+        api_key = providers.get(provider)
 
-        # Set new provider and preserve API key
-        config_manager.set_provider_config(provider, api_key)
+        # Check if API key exists for this provider
+        if not api_key:
+            self.append_message("System", f"No API key configured for {provider.capitalize()}. Please add '{provider}' to the providers section in .forshape/provider-config.json")
+            return
 
         # Reinitialize the AI agent with the new provider
         from .api_provider import create_api_provider

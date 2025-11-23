@@ -157,36 +157,66 @@ class ForShapeMainWindow(QMainWindow):
         # Create Model menu
         model_menu = menubar.addMenu("Model")
 
-        # Add model selection dropdown
-        model_label = QLabel("  Select Model: ")
-        model_label.setFont(QFont("Consolas", 9))
+        # OpenAI section
+        openai_label = QLabel("  OpenAI: ")
+        openai_label.setFont(QFont("Consolas", 9, QFont.Bold))
 
-        self.model_combo = QComboBox()
-        self.model_combo.setFont(QFont("Consolas", 9))
+        self.openai_model_combo = QComboBox()
+        self.openai_model_combo.setFont(QFont("Consolas", 9))
+        # Add placeholder as first option
+        self.openai_model_combo.addItem("-- Select --", None)
         # Add common OpenAI models
-        self.model_combo.addItem("GPT-5.1", "gpt-5.1")
-        self.model_combo.addItem("GPT-5.1 Codex", "gpt-5.1-codex")
-        self.model_combo.addItem("GPT-5", "gpt-5")
-        self.model_combo.addItem("GPT-4o", "gpt-4o")
-        self.model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
-        self.model_combo.addItem("GPT-4 Turbo", "gpt-4-turbo")
-        self.model_combo.addItem("GPT-4", "gpt-4")
-        self.model_combo.addItem("GPT-3.5 Turbo", "gpt-3.5-turbo")
-        self.model_combo.setCurrentIndex(0)  # Default to GPT-5.1
-        self.model_combo.currentIndexChanged.connect(self.on_model_changed)
+        self.openai_model_combo.addItem("GPT-5.1", "gpt-5.1")
+        self.openai_model_combo.addItem("GPT-5.1 Codex", "gpt-5.1-codex")
+        self.openai_model_combo.addItem("GPT-5", "gpt-5")
+        self.openai_model_combo.addItem("GPT-4o", "gpt-4o")
+        self.openai_model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
+        self.openai_model_combo.addItem("GPT-4 Turbo", "gpt-4-turbo")
+        self.openai_model_combo.addItem("GPT-4", "gpt-4")
+        self.openai_model_combo.addItem("GPT-3.5 Turbo", "gpt-3.5-turbo")
+        self.openai_model_combo.setCurrentIndex(1)  # Default to GPT-5.1
+        self.openai_model_combo.currentIndexChanged.connect(lambda idx: self.on_model_changed(idx, "openai"))
 
-        # Create a widget container for label and combo
-        model_widget = QWidget()
-        model_layout = QHBoxLayout(model_widget)
-        model_layout.setContentsMargins(5, 2, 5, 2)
-        model_layout.addWidget(model_label)
-        model_layout.addWidget(self.model_combo)
-        model_layout.addStretch()
+        # Create a widget container for OpenAI label and combo
+        openai_widget = QWidget()
+        openai_layout = QHBoxLayout(openai_widget)
+        openai_layout.setContentsMargins(5, 2, 5, 2)
+        openai_layout.addWidget(openai_label)
+        openai_layout.addWidget(self.openai_model_combo)
+        openai_layout.addStretch()
 
-        # Add the widget to the menu using QWidgetAction
-        model_action = QWidgetAction(self)
-        model_action.setDefaultWidget(model_widget)
-        model_menu.addAction(model_action)
+        # Add the OpenAI widget to the menu using QWidgetAction
+        openai_action = QWidgetAction(self)
+        openai_action.setDefaultWidget(openai_widget)
+        model_menu.addAction(openai_action)
+
+        # Fireworks section
+        fireworks_label = QLabel("  Fireworks: ")
+        fireworks_label.setFont(QFont("Consolas", 9, QFont.Bold))
+
+        self.fireworks_model_combo = QComboBox()
+        self.fireworks_model_combo.setFont(QFont("Consolas", 9))
+        # Add placeholder as first option
+        self.fireworks_model_combo.addItem("-- Select --", None)
+        # Add Fireworks models
+        self.fireworks_model_combo.addItem("DeepSeek v3.1", "accounts/fireworks/models/deepseek-v3p1-terminus")
+        self.fireworks_model_combo.addItem("Kimi K2", "accounts/fireworks/models/kimi-k2-instruct-0905")
+        self.fireworks_model_combo.addItem("Qwen3 Coder", "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct")
+        self.fireworks_model_combo.setCurrentIndex(0)  # Default to placeholder
+        self.fireworks_model_combo.currentIndexChanged.connect(lambda idx: self.on_model_changed(idx, "fireworks"))
+
+        # Create a widget container for Fireworks label and combo
+        fireworks_widget = QWidget()
+        fireworks_layout = QHBoxLayout(fireworks_widget)
+        fireworks_layout.setContentsMargins(5, 2, 5, 2)
+        fireworks_layout.addWidget(fireworks_label)
+        fireworks_layout.addWidget(self.fireworks_model_combo)
+        fireworks_layout.addStretch()
+
+        # Add the Fireworks widget to the menu using QWidgetAction
+        fireworks_action = QWidgetAction(self)
+        fireworks_action.setDefaultWidget(fireworks_widget)
+        model_menu.addAction(fireworks_action)
 
         # Create central widget and layout
         central_widget = QWidget()
@@ -891,40 +921,112 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         level_name = log_level.name
         self.logger.info(f"Log level changed to {level_name}")
 
-    def on_model_changed(self, index: int):
+    def on_model_changed(self, index: int, provider: str):
         """
         Handle model dropdown selection change.
 
         Args:
             index: The index of the selected item in the combo box
+            provider: The provider name ("openai" or "fireworks")
         """
         if not self.ai_client:
             return
 
+        # Get the appropriate combo box based on provider
+        if provider == "openai":
+            combo_box = self.openai_model_combo
+            other_combo_box = self.fireworks_model_combo
+        elif provider == "fireworks":
+            combo_box = self.fireworks_model_combo
+            other_combo_box = self.openai_model_combo
+        else:
+            return
+
         # Get the model identifier from the combo box data
-        model = self.model_combo.itemData(index)
+        model = combo_box.itemData(index)
+        model_name = combo_box.itemText(index)
 
-        # Update the AI client's model
-        self.ai_client.set_model(model)
+        # If placeholder is selected (model is None), do nothing
+        if model is None:
+            return
 
-        # Show a confirmation message
-        model_name = self.model_combo.itemText(index)
-        self.append_message("System", f"Model changed to: {model_name} ({model})")
+        # Clear the other provider's selection
+        try:
+            other_combo_box.currentIndexChanged.disconnect()
+        except:
+            pass
+        other_combo_box.setCurrentIndex(0)  # Reset to placeholder
+        if provider == "openai":
+            other_combo_box.currentIndexChanged.connect(lambda idx: self.on_model_changed(idx, "fireworks"))
+        else:
+            other_combo_box.currentIndexChanged.connect(lambda idx: self.on_model_changed(idx, "openai"))
+
+        # Update the provider configuration
+        from .config_manager import ConfigurationManager
+        config_manager = ConfigurationManager(self.ai_client.context_provider)
+
+        # Get current API key (preserve it)
+        current_config = config_manager.get_provider_config()
+        api_key = current_config.get("api_key")
+
+        # Set new provider and preserve API key
+        config_manager.set_provider_config(provider, api_key)
+
+        # Reinitialize the AI agent with the new provider
+        from .api_provider import create_api_provider
+        new_provider = create_api_provider(provider, api_key)
+
+        if new_provider and new_provider.is_available():
+            self.ai_client.provider = new_provider
+            self.ai_client.provider_name = provider
+            self.ai_client.set_model(model)
+
+            # Show a confirmation message
+            self.append_message("System", f"Provider changed to: {provider.capitalize()}\nModel changed to: {model_name} ({model})")
+        else:
+            self.append_message("System", f"Failed to initialize {provider} provider. Please check your API key configuration.")
 
     def _sync_model_dropdown(self):
-        """Sync the model dropdown selection with the AI client's current model."""
+        """Sync the model dropdown selection with the AI client's current model and provider."""
         if not self.ai_client:
             return
 
         current_model = self.ai_client.get_model()
+        current_provider = self.ai_client.provider_name
 
-        # Find and select the matching model in the dropdown
-        for i in range(self.model_combo.count()):
-            if self.model_combo.itemData(i) == current_model:
+        # Determine which combo box to sync based on the provider
+        if current_provider == "openai":
+            combo_box = self.openai_model_combo
+            other_combo_box = self.fireworks_model_combo
+            signal_lambda = lambda idx: self.on_model_changed(idx, "openai")
+            other_signal_lambda = lambda idx: self.on_model_changed(idx, "fireworks")
+        elif current_provider == "fireworks":
+            combo_box = self.fireworks_model_combo
+            other_combo_box = self.openai_model_combo
+            signal_lambda = lambda idx: self.on_model_changed(idx, "fireworks")
+            other_signal_lambda = lambda idx: self.on_model_changed(idx, "openai")
+        else:
+            # Unknown provider, keep current dropdown selection
+            return
+
+        # Reset the other provider's dropdown to placeholder
+        try:
+            other_combo_box.currentIndexChanged.disconnect()
+        except:
+            pass
+        other_combo_box.setCurrentIndex(0)  # Reset to placeholder
+        other_combo_box.currentIndexChanged.connect(other_signal_lambda)
+
+        # Find and select the matching model in the appropriate dropdown
+        for i in range(combo_box.count()):
+            if combo_box.itemData(i) == current_model:
                 # Temporarily disconnect signal to avoid triggering on_model_changed
-                self.model_combo.currentIndexChanged.disconnect(self.on_model_changed)
-                self.model_combo.setCurrentIndex(i)
-                self.model_combo.currentIndexChanged.connect(self.on_model_changed)
+                try:
+                    combo_box.currentIndexChanged.disconnect()
+                except:
+                    pass
+                combo_box.setCurrentIndex(i)
+                combo_box.currentIndexChanged.connect(signal_lambda)
                 return
 
         # If model not found in dropdown, it might be a custom model

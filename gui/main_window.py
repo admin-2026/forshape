@@ -21,7 +21,7 @@ from .dialogs import PythonFileSelector, ImagePreviewDialog
 from .workers import AIWorker
 from .formatters import MessageFormatter
 from .logger import LogLevel
-from .script_executor import ScriptExecutor
+from .script_executor import ScriptExecutor, ExecutionMode
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
@@ -336,8 +336,15 @@ class ForShapeMainWindow(QMainWindow):
         self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
+        # Add Quick Rebuild button
+        self.quick_rebuild_button = QPushButton("Quick Rebuild")
+        self.quick_rebuild_button.setFont(QFont("Consolas", 10))
+        self.quick_rebuild_button.setToolTip("Quick Rebuild - run a script in quick rebuild mode (skips construction if objects exist)")
+        self.quick_rebuild_button.clicked.connect(self.on_quick_rebuild_script)
+
         second_row_layout.addWidget(self.run_button)
         second_row_layout.addWidget(self.redo_button)
+        second_row_layout.addWidget(self.quick_rebuild_button)
         second_row_layout.addStretch()  # Push buttons to the left
 
         # Add both rows to the input container
@@ -981,6 +988,22 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if selected_file:
                 self.redo_python_file(selected_file)
 
+    def on_quick_rebuild_script(self):
+        """Handle Quick Rebuild button click."""
+        # Scan for Python files
+        python_files = self.scan_python_files()
+
+        if not python_files:
+            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
+            return
+
+        # Show file selector dialog
+        dialog = PythonFileSelector(python_files, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_file = dialog.get_selected_file()
+            if selected_file:
+                self.quick_rebuild_python_file(selected_file)
+
     def update_capture_button_state(self):
         """Update the capture button text and styling based on number of captured images."""
         image_count = len(self.captured_images)
@@ -1083,6 +1106,85 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
             self.append_message("[SYSTEM]", error_msg)
 
+    def _execute_python_file_with_mode(self, file_path, mode, action_name):
+        """
+        Generic helper to execute a Python file with a specific execution mode.
+
+        Args:
+            file_path: Path to the Python file to run
+            mode: ExecutionMode enum value or 'with_teardown' for execute_with_teardown
+            action_name: Action name for messages (e.g., "Teardown", "Quick rebuild", "Build")
+
+        Returns:
+            None
+        """
+        self.append_message("[SYSTEM]", f"{action_name}: {file_path}")
+
+        # Get absolute path
+        abs_path = os.path.abspath(file_path)
+
+        if not os.path.exists(abs_path):
+            self.display_error(f"File not found: {file_path}")
+            return
+
+        # Add project directory to sys.path if not already there
+        project_dir = self.context_provider.get_project_dir()
+        if project_dir not in sys.path:
+            sys.path.insert(0, project_dir)
+
+        try:
+            # Read the script content
+            with open(abs_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
+
+            from pathlib import Path
+            path_obj = Path(abs_path)
+
+            # Execute based on mode
+            if mode == 'with_teardown':
+                # Execute with teardown first, then normal
+                teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
+                    script_content, path_obj, import_freecad=False
+                )
+
+                # Display teardown output if any
+                if teardown_result.output.strip():
+                    self.append_message("[TEARDOWN OUTPUT]", teardown_result.output.strip())
+
+                # Display normal execution output if any
+                if normal_result.output.strip():
+                    self.append_message("[OUTPUT]", normal_result.output.strip())
+
+                # Check results
+                if teardown_result.success and normal_result.success:
+                    self.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
+                elif not teardown_result.success:
+                    error_msg = f"Error during teardown of {file_path}:\n{teardown_result.error}"
+                    self.display_error(error_msg)
+                else:
+                    error_msg = f"Error running {file_path}:\n{normal_result.error}"
+                    self.display_error(error_msg)
+            else:
+                # Execute with specific mode
+                result = ScriptExecutor.execute(
+                    script_content, path_obj, mode=mode, import_freecad=False
+                )
+
+                # Display output if any
+                if result.output.strip():
+                    self.append_message("[OUTPUT]", result.output.strip())
+
+                if result.success:
+                    self.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
+                else:
+                    error_msg = f"Error during {action_name.lower()} of {file_path}:\n{result.error}"
+                    self.display_error(error_msg)
+
+        except Exception as e:
+            # Format and display the error
+            error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
+            self.display_error(error_msg)
+
     def redo_python_file(self, file_path):
         """
         Teardown a Python file - run the script in teardown mode to remove objects.
@@ -1090,96 +1192,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         Args:
             file_path: Path to the Python file to teardown
         """
-        self.append_message("[SYSTEM]", f"Tearing down: {file_path}")
+        self._execute_python_file_with_mode(file_path, ExecutionMode.TEARDOWN, "Tearing down")
 
-        # Get absolute path
-        abs_path = os.path.abspath(file_path)
-
-        if not os.path.exists(abs_path):
-            self.display_error(f"File not found: {file_path}")
-            return
-
-        # Add project directory to sys.path if not already there
-        project_dir = self.context_provider.get_project_dir()
-        if project_dir not in sys.path:
-            sys.path.insert(0, project_dir)
-
-        try:
-            # Read the script content
-            with open(abs_path, 'r', encoding='utf-8') as f:
-                script_content = f.read()
-
-            # Execute the script in teardown mode using ScriptExecutor
-            from pathlib import Path
-            result = ScriptExecutor.execute(
-                script_content, Path(abs_path), teardown_mode=True, import_freecad=False
-            )
-
-            # Display output if any
-            if result.output.strip():
-                self.append_message("[OUTPUT]", result.output.strip())
-
-            if result.success:
-                # Success message
-                self.append_message("[SYSTEM]", f"Teardown completed successfully: {file_path}")
-            else:
-                # Display error
-                error_msg = f"Error during teardown of {file_path}:\n{result.error}"
-                self.display_error(error_msg)
-
-        except Exception as e:
-            # Format and display the error
-            error_msg = f"Error during redo of {file_path}:\n{traceback.format_exc()}"
-            self.display_error(error_msg)
-
-    def run_python_file(self, file_path):
+    def quick_rebuild_python_file(self, file_path):
         """
-        Run a Python file in the current Python context (FreeCAD's interpreter).
+        Quick rebuild a Python file - run the script in quick rebuild mode.
 
         Args:
             file_path: Path to the Python file to run
         """
-        self.append_message("[SYSTEM]", f"Running: {file_path}")
+        self._execute_python_file_with_mode(file_path, ExecutionMode.QUICK_REBUILD, "Quick rebuilding")
 
-        # Get absolute path
-        abs_path = os.path.abspath(file_path)
+    def run_python_file(self, file_path):
+        """
+        Run a Python file with teardown first, then normal execution.
 
-        if not os.path.exists(abs_path):
-            self.display_error(f"File not found: {file_path}")
-            return
-
-        # Add project directory to sys.path if not already there
-        project_dir = self.context_provider.get_project_dir()
-        if project_dir not in sys.path:
-            sys.path.insert(0, project_dir)
-
-        try:
-            # Read the script content
-            with open(abs_path, 'r', encoding='utf-8') as f:
-                script_content = f.read()
-
-            # Execute the script using ScriptExecutor
-            from pathlib import Path
-            result = ScriptExecutor.execute(
-                script_content, Path(abs_path), teardown_mode=False, import_freecad=False
-            )
-
-            # Display output if any
-            if result.output.strip():
-                self.append_message("[OUTPUT]", result.output.strip())
-
-            if result.success:
-                # Success message
-                self.append_message("[SYSTEM]", f"Finished running: {file_path}")
-            else:
-                # Display error
-                error_msg = f"Error running {file_path}:\n{result.error}"
-                self.display_error(error_msg)
-
-        except Exception as e:
-            # Format and display the error
-            error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
-            self.display_error(error_msg)
+        Args:
+            file_path: Path to the Python file to run
+        """
+        self._execute_python_file_with_mode(file_path, 'with_teardown', "Building (with teardown)")
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Handle drag enter event to accept file drops."""

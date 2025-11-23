@@ -371,6 +371,45 @@ Creates a Body object with a Clone feature that references another object. Clone
   Clone.create_clone('clone1', 'original', offset=(10, 10, 0))
   ```
 
+### 12. Copy
+Location: `copy.py:9`
+
+Creates a Body object with an independent geometric copy of another object. Unlike Clone which creates a parametric reference, Copy creates an independent copy that doesn't change when the original is modified.
+
+**Public Methods:**
+
+`Copy.create_copy(label, base_obj_or_label, offset=(0, 0, 0), rotation=(0, 0, 0))`
+- **Description:** Creates a new Body containing a SimpleCopy feature that is an independent copy of an existing object
+- **Parameters:**
+  - `label` (str): Name/label for the Body containing the copy
+  - `base_obj_or_label` (str or object): The object or label to copy
+  - `offset` (tuple, optional): Tuple of (x, y, z) offset values. Defaults to (0, 0, 0)
+  - `rotation` (tuple, optional): Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0)
+- **Returns:** The Body object containing the copy, or None if in teardown mode
+- **Key Differences from Clone:**
+  - **Clone:** Creates a parametric reference that updates when the original changes
+  - **Copy:** Creates an independent geometric copy that doesn't update with the original
+- **Example:**
+  ```python
+  from shapes.copy import Copy
+  from shapes.additive_box import AdditiveBox
+
+  # Create original object
+  AdditiveBox.create_box('original', 'XY_Plane', 10, 10, 10)
+
+  # Create an independent copy at the origin
+  Copy.create_copy('copy1', 'original')
+
+  # Create a copy with custom offset (translated 20mm in X direction)
+  Copy.create_copy('copy2', 'original', offset=(20, 0, 0))
+
+  # Create a copy with offset and rotation (rotated 45 degrees around Z axis)
+  Copy.create_copy('copy3', 'original', offset=(40, 0, 0), rotation=(0, 0, 45))
+
+  # Update existing copy (idempotent)
+  Copy.create_copy('copy1', 'original', offset=(10, 10, 0))
+  ```
+
 ## Complete Usage Example
 
 ```python
@@ -415,7 +454,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, `create_pad`, and `create_clone` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, `create_pad`, `create_clone`, and `create_copy` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 

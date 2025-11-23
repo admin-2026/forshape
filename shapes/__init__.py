@@ -19,6 +19,7 @@ from .import_geometry import ImportGeometry
 from .image_context import ImageContext, Perspective
 from .folder import Folder
 from .clone import Clone
+from .copy import Copy
 
 __all__ = [
     'Shape',
@@ -36,4 +37,5 @@ __all__ = [
     'Perspective',
     'Folder',
     'Clone',
+    'Copy',
 ]

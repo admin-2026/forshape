@@ -9,6 +9,7 @@ Simplified manager for conversation history with support for:
 
 from typing import List, Dict, Optional, Any
 from datetime import datetime
+import os
 
 
 class ChatHistoryManager:
@@ -88,6 +89,64 @@ class ChatHistoryManager:
     def clear_history(self) -> None:
         """Clear all conversation history."""
         self._history = []
+
+    def dump_history(self, output_dir: str, model_name: str = "Unknown") -> str:
+        """
+        Dump the conversation history to a timestamped file.
+
+        Args:
+            output_dir: Directory to save the history dump
+            model_name: Name of the model being used
+
+        Returns:
+            Path to the dumped history file
+
+        Raises:
+            Exception: If history dump fails
+        """
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Generate timestamped filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dump_filename = f"history_dump_{timestamp}.txt"
+        dump_path = os.path.join(output_dir, dump_filename)
+
+        # Write history to file
+        with open(dump_path, 'w', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write("ForShape AI - Conversation History Dump\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Model: {model_name}\n")
+            f.write(f"Total Messages: {len(self._history)}\n")
+            f.write("=" * 80 + "\n\n")
+
+            for i, message in enumerate(self._history, 1):
+                role = message.get('role', 'unknown')
+                content = message.get('content', '')
+                timestamp_str = message.get('timestamp', 'N/A')
+
+                f.write(f"\n{'=' * 80}\n")
+                f.write(f"Message #{i} - Role: {role.upper()}\n")
+                f.write(f"Timestamp: {timestamp_str}\n")
+                f.write(f"{'=' * 80}\n")
+
+                # Handle multi-modal content (lists) and plain text
+                if isinstance(content, list):
+                    for item in content:
+                        if isinstance(item, dict):
+                            if item.get('type') == 'text':
+                                f.write(f"{item.get('text', '')}\n")
+                            elif item.get('type') == 'image_url':
+                                f.write(f"[IMAGE: {item.get('image_url', {}).get('url', 'N/A')[:100]}...]\n")
+                            else:
+                                f.write(f"[{item.get('type', 'unknown').upper()} CONTENT]\n")
+                        else:
+                            f.write(f"{item}\n")
+                else:
+                    f.write(f"{content}\n")
+
+        return dump_path
 
     def get_context_for_api(self, system_message: Optional[str] = None,
                            max_history_messages: Optional[int] = None) -> List[Dict]:

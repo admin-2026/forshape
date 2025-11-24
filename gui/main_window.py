@@ -127,6 +127,11 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_api_dump_action.triggered.connect(self.toggle_api_dump)
         view_menu.addAction(self.toggle_api_dump_action)
 
+        # Add dump history action
+        self.dump_history_action = QAction("Dump History", self)
+        self.dump_history_action.triggered.connect(self.dump_history)
+        view_menu.addAction(self.dump_history_action)
+
         # Add log level dropdown
         view_menu.addSeparator()
         log_level_label = QLabel("  Log Level: ")
@@ -167,7 +172,6 @@ class ForShapeMainWindow(QMainWindow):
         self.openai_model_combo.addItem("-- Select --", None)
         # Add common OpenAI models
         self.openai_model_combo.addItem("GPT-5.1", "gpt-5.1")
-        self.openai_model_combo.addItem("GPT-5.1 Codex", "gpt-5.1-codex")
         self.openai_model_combo.addItem("GPT-5", "gpt-5")
         self.openai_model_combo.addItem("GPT-4o", "gpt-4o")
         self.openai_model_combo.addItem("GPT-4o Mini", "gpt-4o-mini")
@@ -904,6 +908,36 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.append_message("System", "API data dumping disabled.")
             if self.logger:
                 self.logger.info("API data dumping disabled")
+
+    def dump_history(self):
+        """Dump the conversation history to a file."""
+        if not self.ai_client:
+            self.append_message("System", "AI client not initialized yet.")
+            return
+
+        try:
+            # Get the history manager from AI client
+            history_manager = self.ai_client.get_history_manager()
+
+            # Use working directory's .forshape folder for history dumps
+            history_dir = os.path.join(self.context_provider.working_dir, '.forshape', 'history_dumps')
+
+            # Get model name
+            model_name = self.ai_client.get_model()
+
+            # Dump history using chat_history_manager
+            dump_path = history_manager.dump_history(history_dir, model_name)
+
+            self.append_message("System", f"Conversation history dumped successfully!\nSaved to: {dump_path}")
+            if self.logger:
+                self.logger.info(f"History dumped to: {dump_path}")
+
+        except Exception as e:
+            import traceback
+            error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
+            self.append_message("[ERROR]", error_msg)
+            if self.logger:
+                self.logger.error(f"Failed to dump history: {str(e)}")
 
     def on_log_level_changed(self, index: int):
         """

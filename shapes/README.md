@@ -410,6 +410,73 @@ Creates a Body object with an independent geometric copy of another object. Unli
   Copy.create_copy('copy1', 'original', offset=(10, 10, 0))
   ```
 
+### 13. ImportGeometry
+Location: `import_geometry.py:11`
+
+Imports 3D geometry from external files into the FreeCAD document. Supports multiple common 3D file formats and can optionally wrap imported geometry in a PartDesign Body.
+
+**Public Methods:**
+
+`ImportGeometry.import_geometry(file_path, label=None, file_type=None)`
+- **Description:** Imports 3D geometry from a file into the FreeCAD document. Automatically detects file type from extension if not specified.
+- **Parameters:**
+  - `file_path` (str): Full path to the file to import
+  - `label` (str, optional): Name/label for the imported object. If not specified, uses the filename without extension
+  - `file_type` (str, optional): File format type. If not specified, inferred from file extension
+- **Supported file formats:**
+  - STEP (.step, .stp) - Standard exchange format
+  - STL (.stl) - Triangulated mesh
+  - IGES (.iges, .igs) - CAD exchange format
+  - OBJ (.obj) - Wavefront 3D object
+  - BREP (.brep) - Boundary representation
+  - VRML/WRL (.wrl, .vrml) - Virtual Reality Modeling Language
+- **Returns:** The imported object(s), or None if import failed
+- **Note:** This method is idempotent - if an object with the label already exists, it returns the existing object without re-importing
+- **Example:**
+  ```python
+  from shapes.import_geometry import ImportGeometry
+
+  # Import STEP file with auto-detected type
+  ImportGeometry.import_geometry('C:/models/part.step')
+
+  # Import with custom label
+  ImportGeometry.import_geometry('C:/models/bracket.stl', label='my_bracket')
+
+  # Import with explicit file type
+  ImportGeometry.import_geometry('C:/models/model.obj', label='imported_obj', file_type='obj')
+
+  # Import VRML file (commonly used for PCB models)
+  ImportGeometry.import_geometry('./artifacts/pcb.wrl', label='pcb_model')
+  ```
+
+`ImportGeometry.import_as_body(file_path, label=None, file_type=None)`
+- **Description:** Imports 3D geometry and wraps it in a PartDesign::Body for integration with PartDesign workflow. The Body will have '_imported' suffix and contains a geometry child with '_geometry' suffix.
+- **Parameters:**
+  - `file_path` (str): Full path to the file to import
+  - `label` (str, optional): Base name for the Body object (actual Body will be named '{label}_imported'). If not specified, uses the filename without extension
+  - `file_type` (str, optional): File format type. If not specified, inferred from file extension
+- **Returns:** The Body object containing the imported geometry, or the imported object directly if it cannot be added to a Body (e.g., mesh objects)
+- **Note:**
+  - Mesh objects (STL, OBJ) and VRML objects cannot be added to a Body and will be returned as-is
+  - STEP, IGES, and BREP formats work well with PartDesign Bodies
+  - This method is idempotent - if the Body and geometry already exist, returns the existing Body
+- **Example:**
+  ```python
+  from shapes.import_geometry import ImportGeometry
+
+  # Import STEP file as Body (creates 'part_imported' Body with 'part_geometry' child)
+  body = ImportGeometry.import_as_body('C:/models/part.step')
+
+  # Import with custom label (creates 'motor_imported' Body with 'motor_geometry' child)
+  body = ImportGeometry.import_as_body('C:/models/motor.stp', label='motor')
+
+  # Import BREP as Body
+  body = ImportGeometry.import_as_body('C:/models/component.brep', label='component')
+
+  # Import STL (will return mesh object directly, not in Body)
+  mesh = ImportGeometry.import_as_body('C:/models/scan.stl', label='scan')
+  ```
+
 ## Complete Usage Example
 
 ```python

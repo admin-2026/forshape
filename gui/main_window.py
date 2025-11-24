@@ -55,7 +55,7 @@ class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 logger: 'Logger', context_provider, special_commands_handler, exit_handler,
+                 logger: 'Logger', context_provider, exit_handler,
                  image_context=None, prestart_checker=None, completion_callback=None, window_close_callback=None):
         """
         Initialize the main window.
@@ -65,7 +65,6 @@ class ForShapeMainWindow(QMainWindow):
             history_logger: The HistoryLogger instance for logging (can be None initially)
             logger: The Logger instance for tool call logging
             context_provider: The ContextProvider instance for accessing working directory and project info
-            special_commands_handler: Function to handle special commands
             exit_handler: Function to handle exit
             image_context: Optional ImageContext instance for capturing screenshots
             prestart_checker: Optional PrestartChecker instance for prestart validation
@@ -78,7 +77,6 @@ class ForShapeMainWindow(QMainWindow):
         self.logger = logger
         self.context_provider = context_provider
         self.image_context = image_context
-        self.handle_special_commands = special_commands_handler
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
         self.pending_input = ""  # Store pending user input when AI is busy
@@ -317,15 +315,36 @@ class ForShapeMainWindow(QMainWindow):
         input_container_layout.setContentsMargins(0, 0, 0, 0)
         input_container_layout.setSpacing(5)
 
-        # First row: input field and capture button
+        # First row: Capture and New Chat buttons (new row above input)
         first_row = QWidget()
         first_row_layout = QHBoxLayout(first_row)
         first_row_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Add Capture button
+        self.capture_button = QPushButton("Capture")
+        self.capture_button.setFont(QFont("Consolas", 10))
+        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
+        self.capture_button.clicked.connect(self.on_capture_screenshot)
+
+        # Add New Chat button
+        self.new_chat_button = QPushButton("New Chat")
+        self.new_chat_button.setFont(QFont("Consolas", 10))
+        self.new_chat_button.setToolTip("New Chat - clear the chatbox and conversation history")
+        self.new_chat_button.clicked.connect(self.clear_conversation)
+
+        first_row_layout.addWidget(self.capture_button)
+        first_row_layout.addWidget(self.new_chat_button)
+        first_row_layout.addStretch()  # Push buttons to the left
+
+        # Second row: input field and cancel button
+        second_row = QWidget()
+        second_row_layout = QHBoxLayout(second_row)
+        second_row_layout.setContentsMargins(0, 0, 0, 0)
+
         input_label = QLabel("You:")
         self.input_field = MultiLineInputField()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
+        self.input_field.setPlaceholderText("Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
         self.input_field.submit_callback = self.on_user_input
 
         # Configure for 5 lines high with word wrap and scrolling
@@ -338,12 +357,6 @@ class ForShapeMainWindow(QMainWindow):
         line_height = font_metrics.lineSpacing()
         self.input_field.setFixedHeight(line_height * 5 + 10)  # 5 lines + padding
 
-        # Add Capture button
-        self.capture_button = QPushButton("Capture")
-        self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
-        self.capture_button.clicked.connect(self.on_capture_screenshot)
-
         # Add Cancel button
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.setFont(QFont("Consolas", 10))
@@ -352,15 +365,20 @@ class ForShapeMainWindow(QMainWindow):
         self.cancel_button.setVisible(False)  # Initially hidden
         self.cancel_button.setStyleSheet("background-color: #FF6B6B; color: white; font-weight: bold;")
 
-        first_row_layout.addWidget(input_label)
-        first_row_layout.addWidget(self.input_field, stretch=1)
-        first_row_layout.addWidget(self.capture_button)
-        first_row_layout.addWidget(self.cancel_button)
+        second_row_layout.addWidget(input_label)
+        second_row_layout.addWidget(self.input_field, stretch=1)
+        second_row_layout.addWidget(self.cancel_button)
 
-        # Second row: Build and Teardown buttons
-        second_row = QWidget()
-        second_row_layout = QHBoxLayout(second_row)
-        second_row_layout.setContentsMargins(0, 0, 0, 0)
+        # Third row: Build and Teardown buttons
+        third_row = QWidget()
+        third_row_layout = QHBoxLayout(third_row)
+        third_row_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add Quick Rebuild button
+        self.quick_rebuild_button = QPushButton("Quick Rebuild")
+        self.quick_rebuild_button.setFont(QFont("Consolas", 10))
+        self.quick_rebuild_button.setToolTip("Quick Rebuild - run a script in quick rebuild mode (skips construction if objects exist)")
+        self.quick_rebuild_button.clicked.connect(self.on_quick_rebuild_script)
 
         # Add Build button
         self.run_button = QPushButton("Build")
@@ -374,22 +392,17 @@ class ForShapeMainWindow(QMainWindow):
         self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
-        # Add Quick Rebuild button
-        self.quick_rebuild_button = QPushButton("Quick Rebuild")
-        self.quick_rebuild_button.setFont(QFont("Consolas", 10))
-        self.quick_rebuild_button.setToolTip("Quick Rebuild - run a script in quick rebuild mode (skips construction if objects exist)")
-        self.quick_rebuild_button.clicked.connect(self.on_quick_rebuild_script)
+        third_row_layout.addWidget(self.quick_rebuild_button)
+        third_row_layout.addWidget(self.run_button)
+        third_row_layout.addWidget(self.redo_button)
+        third_row_layout.addStretch()  # Push buttons to the left
 
-        second_row_layout.addWidget(self.run_button)
-        second_row_layout.addWidget(self.redo_button)
-        second_row_layout.addWidget(self.quick_rebuild_button)
-        second_row_layout.addStretch()  # Push buttons to the left
-
-        # Add both rows to the input container
+        # Add all rows to the input container
         input_container_layout.addWidget(first_row)
         input_container_layout.addWidget(second_row)
+        input_container_layout.addWidget(third_row)
 
-        # Third row: Token usage status label
+        # Fourth row: Token usage status label
         self.token_status_label = QLabel("")
         self.token_status_label.setFont(QFont("Consolas", 9))
         self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
@@ -423,10 +436,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 {'='*60}</pre>
 <p style="margin: 5px 0;">{model_info}{context_info}</p>
 
-<p style="margin: 5px 0;"><strong>Commands:</strong><br>
-  /help - Show help<br>
-  /clear - Clear conversation history</p>
-
 <p style="margin: 5px 0;"><strong>Tip:</strong> Drag & drop images or .py files to attach them to your messages</p>
 
 <p style="margin: 5px 0;">{start_message}</p>
@@ -442,6 +451,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Clear the AI agent's conversation history
         if self.ai_client:
             self.ai_client.clear_history()
+
+            # Also explicitly clear the chat history manager
+            history_manager = self.ai_client.get_history_manager()
+            if history_manager:
+                history_manager.clear_history()
 
         # Clear the conversation display
         self.conversation_display.clear()
@@ -578,10 +592,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Log user input
         if self.history_logger:
             self.history_logger.log_conversation("user", user_input)
-
-        # Handle special commands
-        if self.handle_special_commands(user_input, self):
-            return
 
         # Check if there are attached Python files to include in message
         has_files = len(self.attached_files) > 0
@@ -1166,7 +1176,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """Update the input field placeholder text based on attached files."""
         file_count = len(self.attached_files)
         if file_count == 0:
-            self.input_field.setPlaceholderText("Type your message here... (/help for commands) - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
+            self.input_field.setPlaceholderText("Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
         elif file_count == 1:
             file_name = self.attached_files[0]['name']
             self.input_field.setPlaceholderText(f"1 Python file attached ({file_name}) - Type your message...\nPress Enter to send, Shift+Enter for new line")

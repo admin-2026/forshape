@@ -211,8 +211,8 @@ class ForShapeAI:
         if not api_key:
             self.logger.warning("No OpenAI API key found in provider-config.json. AI features will not work.")
 
-        # Use gpt-5 for tool calling support, fallback to user's model choice
-        agent_model = self.model if self.model else "gpt-5"
+        # Use gpt-5.1 for tool calling support, fallback to user's model choice
+        agent_model = self.model if self.model else "gpt-5.1"
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
@@ -257,7 +257,6 @@ class ForShapeAI:
             history_logger=None,  # Will be set after prestart checks
             logger=self.logger,
             context_provider=self.context_provider,
-            special_commands_handler=self.handle_special_commands,
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,
             completion_callback=self._complete_initialization,
@@ -321,34 +320,6 @@ class ForShapeAI:
 
         # Return the PermissionResponse directly
         return choice
-
-    def handle_special_commands(self, user_input: str, window: ForShapeMainWindow) -> bool:
-        """
-        Handle special commands like /help, /clear, etc.
-
-        Args:
-            user_input: The user's input string
-            window: The main window instance
-
-        Returns:
-            True if a special command was handled, False otherwise
-        """
-        command = user_input.strip().lower()
-
-        if command == "/help":
-            help_text = """Available commands:
-  /help - Show this help message
-  /clear - Clear conversation history
-
-Simply type your questions or requests to interact with the AI."""
-            window.append_message("System", help_text)
-            return True
-
-        if command == "/clear":
-            window.clear_conversation()
-            return True
-
-        return False
 
     def handle_exit(self):
         """Handle graceful exit of the application."""

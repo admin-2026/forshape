@@ -238,6 +238,10 @@ class ForShapeMainWindow(QMainWindow):
         self.conversation_display.setAcceptRichText(True)
         # Enable word wrapping at widget width
         self.conversation_display.setLineWrapMode(QTextEdit.WidgetWidth)
+        # Enable text selection and copying
+        self.conversation_display.setTextInteractionFlags(
+            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard | Qt.LinksAccessibleByMouse
+        )
 
         # Set default stylesheet for better markdown rendering
         self.conversation_display.document().setDefaultStyleSheet("""

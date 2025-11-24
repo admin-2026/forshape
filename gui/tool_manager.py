@@ -65,7 +65,7 @@ class ToolManager:
                 "type": "function",
                 "function": {
                     "name": "list_files",
-                    "description": "List all files and directories in a given folder path. Returns a list of file and directory names.",
+                    "description": "List files and directories in a given folder path. Returns a list of file and directory names.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -436,12 +436,13 @@ class ToolManager:
 
         return _capture()
 
-    def _tool_list_files(self, folder_path: str) -> str:
+    def _tool_list_files(self, folder_path: str, only_python: bool = True) -> str:
         """
         Implementation of the list_files tool.
 
         Args:
             folder_path: Path to the folder to list
+            only_python: If True, only list Python files (.py). If False, list all files (default: True)
 
         Returns:
             JSON string containing the list of files and directories
@@ -462,6 +463,10 @@ class ToolManager:
             items = []
             working_dir = Path(self.working_dir)
             for item in resolved_path.iterdir():
+                # If only_python is True, filter out non-Python files
+                if only_python and item.is_file() and not item.name.endswith('.py'):
+                    continue
+
                 item_info = {
                     "name": item.name,
                     "type": "directory" if item.is_dir() else "file",
@@ -475,7 +480,8 @@ class ToolManager:
             return json.dumps({
                 "folder": str(resolved_path),
                 "items": items,
-                "count": len(items)
+                "count": len(items),
+                # "filter": "Python files only (.py)" if only_python else "All files"
             }, indent=2)
 
         except Exception as e:

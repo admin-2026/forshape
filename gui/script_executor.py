@@ -91,6 +91,13 @@ class ScriptExecutor:
         elif mode == ExecutionMode.QUICK_REBUILD:
             builtins.QUICK_REBUILD_MODE = True
 
+        # Add script's directory to sys.path so imports work
+        script_dir = str(script_path.parent)
+        path_added = False
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+            path_added = True
+
         try:
             # Create execution namespace
             exec_globals = {
@@ -130,6 +137,10 @@ class ScriptExecutor:
             return ScriptExecutionResult(success, output, error_msg)
 
         finally:
+            # Remove script directory from sys.path if we added it
+            if path_added and script_dir in sys.path:
+                sys.path.remove(script_dir)
+
             # Always reset mode flags
             if mode == ExecutionMode.TEARDOWN:
                 builtins.TEARDOWN_MODE = False

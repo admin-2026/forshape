@@ -98,6 +98,9 @@ class ScriptExecutor:
             sys.path.insert(0, script_dir)
             path_added = True
 
+        # Track modules before execution to detect new imports
+        modules_before = set(sys.modules.keys())
+
         try:
             # Create execution namespace
             exec_globals = {
@@ -137,6 +140,19 @@ class ScriptExecutor:
             return ScriptExecutionResult(success, output, error_msg)
 
         finally:
+            # Remove imported modules from script directory to allow reloading
+            # This ensures edited files are reloaded on next execution
+            modules_after = set(sys.modules.keys())
+            new_modules = modules_after - modules_before
+
+            for module_name in new_modules:
+                module = sys.modules.get(module_name)
+                if module is not None and hasattr(module, '__file__') and module.__file__:
+                    # Check if module is from the script's directory
+                    module_path = Path(module.__file__).parent
+                    if str(module_path) == script_dir:
+                        del sys.modules[module_name]
+
             # Remove script directory from sys.path if we added it
             if path_added and script_dir in sys.path:
                 sys.path.remove(script_dir)

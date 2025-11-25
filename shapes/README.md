@@ -218,19 +218,6 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   EdgeFeature.add_chamfer('chamfer1', 'box1', ['Edge5', 'Edge6'], 1.5)
   ```
 
-`EdgeFeature.add_draft(label, object_label, faces, angle, neutral_plane)`
-- **Description:** Adds a draft (tapered face) to selected faces of an existing object
-- **Parameters:**
-  - `label` (str): Name/label for the draft feature
-  - `object_label` (str): Label of the existing object to add draft to
-  - `faces` (list): List of face labels (e.g., ['Face1', 'Face2'])
-  - `angle` (float): Draft angle in degrees
-  - `neutral_plane` (str): Neutral plane label (e.g., 'XY_Plane')
-- **Example:**
-  ```python
-  EdgeFeature.add_draft('draft1', 'box1', ['Face1', 'Face2'], 5, 'XY_Plane')
-  ```
-
 ### 7. Boolean
 Location: `boolean.py:9`
 

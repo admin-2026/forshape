@@ -230,7 +230,7 @@ class AdditiveBox(Shape):
         if radius > 0:
             obj.newObject('PartDesign::Fillet', fillet_label)
             fillet = Context.get_object(fillet_label)
-            fillet.Base = (slot,['Edge7','Edge5','Edge1','Edge3',])
+            fillet.Base = (slot,['Edge1','Edge3','Edge5','Edge7',])
             # Subtract epsilon only when diameter equals width or length to prevent adjacent fillets from touching
             fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
 
@@ -239,5 +239,146 @@ class AdditiveBox(Shape):
         else:
             # No fillet, keep slot visible
             slot.Visibility = True
+
+        return obj
+
+    @staticmethod
+    def create_round_side_box(label, plane_label, length, width, height, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+        """
+        Creates a box with individually rounded side edges.
+
+        Args:
+            label: Name/label for the box object
+            plane_label: Plane to attach to (e.g., 'XY_Plane')
+            length: Length dimension in mm
+            width: Width dimension in mm
+            height: Height dimension in mm
+            radius1: Fillet radius for Edge1 in mm (0 for no fillet)
+            radius3: Fillet radius for Edge3 in mm (0 for no fillet)
+            radius5: Fillet radius for Edge5 in mm (0 for no fillet)
+            radius7: Fillet radius for Edge7 in mm (0 for no fillet)
+            x_offset, y_offset, z_offset: Position offsets
+            yaw, pitch, roll: Rotation angles
+
+        Returns:
+            The created/updated object
+        """
+        # Handle quick rebuild mode
+        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label)
+        if quick_rebuild_obj is not None:
+            return quick_rebuild_obj
+
+        # Determine expected children based on radiuses
+        box_label = label + '_box'
+        fillet1_label = label + '_fillet1'
+        fillet3_label = label + '_fillet3'
+        fillet5_label = label + '_fillet5'
+        fillet7_label = label + '_fillet7'
+
+        created_children = [box_label]
+        expected_children = [(box_label, 'PartDesign::AdditiveBox')]
+
+        # Track which fillets we need
+        fillet_config = {
+            'Edge1': (radius1, fillet1_label),
+            'Edge3': (radius3, fillet3_label),
+            'Edge5': (radius5, fillet5_label),
+            'Edge7': (radius7, fillet7_label)
+        }
+
+        for edge, (radius, fillet_label) in fillet_config.items():
+            if radius > 0:
+                created_children.append(fillet_label)
+                expected_children.append((fillet_label, 'PartDesign::Fillet'))
+
+        # Handle teardown mode
+        if Shape._teardown_if_needed(label, created_children=created_children):
+            return None
+
+        # Calculate center-based rotation offset
+        adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
+            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
+        )
+
+        # Check for existing object and get children if they exist
+        existing_obj, children = Shape._get_or_recreate_body(label, expected_children)
+
+        if existing_obj is not None:
+            # Children exist, update their properties
+            existing_box = children[box_label]
+            needs_recompute = False
+
+            # Update box dimensions
+            new_length = f'{length} mm'
+            new_width = f'{width} mm'
+            new_height = f'{height} mm'
+
+            if str(existing_box.Length) != new_length:
+                existing_box.Length = new_length
+                needs_recompute = True
+            if str(existing_box.Width) != new_width:
+                existing_box.Width = new_width
+                needs_recompute = True
+            if str(existing_box.Height) != new_height:
+                existing_box.Height = new_height
+                needs_recompute = True
+
+            # Update attachment, offset, and rotation with adjusted offset
+            if Shape._update_attachment_and_offset(existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
+                needs_recompute = True
+
+            # Update each fillet if it exists
+            for edge, (radius, fillet_label) in fillet_config.items():
+                if radius > 0 and fillet_label in children:
+                    existing_fillet = children[fillet_label]
+                    new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+
+                    if existing_fillet.Radius != new_radius:
+                        existing_fillet.Radius = new_radius
+                        needs_recompute = True
+
+            # Handle box visibility - hide if any fillet exists
+            should_hide = any(radius > 0 for radius, _ in fillet_config.values())
+            if existing_box.Visibility != (not should_hide):
+                existing_box.Visibility = not should_hide
+                needs_recompute = True
+
+            if needs_recompute:
+                App.ActiveDocument.recompute()
+
+            return existing_obj
+
+        # Create new object if it doesn't exist
+        obj = Shape._create_object(label)
+
+        App.ActiveDocument.addObject('PartDesign::AdditiveBox', box_label)
+        box = Context.get_object(box_label)
+        obj.addObject(box)
+        box.Length = f'{length} mm'
+        box.Width = f'{width} mm'
+        box.Height = f'{height} mm'
+
+        Shape._update_attachment_and_offset(box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
+        App.ActiveDocument.recompute()
+
+        # Create fillets for edges with radius > 0
+        last_feature = box
+        has_fillets = False
+
+        for edge, (radius, fillet_label) in fillet_config.items():
+            if radius > 0:
+                obj.newObject('PartDesign::Fillet', fillet_label)
+                fillet = Context.get_object(fillet_label)
+                fillet.Base = (last_feature, [edge])
+                fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+                last_feature = fillet
+                has_fillets = True
+                App.ActiveDocument.recompute()
+
+        # Hide the box if we created any fillets
+        if has_fillets:
+            box.Visibility = False
+        else:
+            box.Visibility = True
 
         return obj

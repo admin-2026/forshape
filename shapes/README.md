@@ -129,6 +129,37 @@ The box is created with the bottom left corner on the plane origin. The height i
   AdditiveBox.create_slot('slot3', 'XY_Plane', 15, 8, 3, 1.5, x_offset=10, y_offset=15, yaw=45)
   ```
 
+`AdditiveBox.create_round_side_box(label, plane_label, length, width, height, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp.
+- **Parameters:**
+  - `label` (str): Name/label for the box object
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
+  - `length` (float): Length dimension in mm
+  - `width` (float): Width dimension in mm
+  - `height` (float): Height dimension in mm
+  - `radius1` (float): Fillet radius for Edge1 in mm (0 for no fillet)
+  - `radius3` (float): Fillet radius for Edge3 in mm (0 for no fillet)
+  - `radius5` (float): Fillet radius for Edge5 in mm (0 for no fillet)
+  - `radius7` (float): Fillet radius for Edge7 in mm (0 for no fillet)
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+- **Example:**
+  ```python
+  from shapes.additive_box import AdditiveBox
+  # Box with all edges rounded with different radiuses
+  AdditiveBox.create_round_side_box('box1', 'XY_Plane', 20, 10, 5, 1, 2, 3, 4)
+  # Box with only some edges rounded (others sharp)
+  AdditiveBox.create_round_side_box('box2', 'XY_Plane', 15, 12, 8, 2, 0, 2, 0, x_offset=25)
+  # Box with all edges rounded uniformly (similar to uniform fillet)
+  AdditiveBox.create_round_side_box('box3', 'XY_Plane', 10, 10, 10, 1.5, 1.5, 1.5, 1.5, y_offset=20)
+  # Box with asymmetric rounding
+  AdditiveBox.create_round_side_box('box4', 'XY_Plane', 30, 20, 15, 5, 0, 0, 5, x_offset=15, yaw=45)
+  ```
+
 ### 5. Pad
 Location: `pad.py:10`
 

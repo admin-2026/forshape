@@ -92,7 +92,7 @@ class EdgeFeature(Shape):
         return fillet
 
     @staticmethod
-    def add_chamfer(label, object_label, edges, size):
+    def add_chamfer(label, object_label, edges, size, angle=None):
         """
         Add a chamfer feature to selected edges of an existing object.
 
@@ -100,7 +100,8 @@ class EdgeFeature(Shape):
             label (str): Name/label for the chamfer feature
             object_label (str): Label of the existing object to add chamfer to
             edges (list): List of edge labels (e.g., ['Edge1', 'Edge2', 'Edge3'])
-            size (float): Chamfer size in mm
+            size (float): Chamfer size/distance in mm
+            angle (float, optional): Chamfer angle in degrees. If provided, uses "Distance and Angle" chamfer type
 
         Returns:
             The chamfer object
@@ -155,10 +156,29 @@ class EdgeFeature(Shape):
                     existing_chamfer.Base = new_base
                     needs_recompute = True
 
-                # Update size
-                if existing_chamfer.Size != size:
-                    existing_chamfer.Size = size
-                    needs_recompute = True
+                # Update chamfer type and parameters
+                if angle is not None:
+                    # Distance and Angle mode
+                    if existing_chamfer.ChamferType != 'Distance and Angle':
+                        existing_chamfer.ChamferType = 'Distance and Angle'
+                        needs_recompute = True
+
+                    if existing_chamfer.Size != size:
+                        existing_chamfer.Size = size
+                        needs_recompute = True
+
+                    if existing_chamfer.Angle != angle:
+                        existing_chamfer.Angle = angle
+                        needs_recompute = True
+                else:
+                    # Equal distance mode (default)
+                    if existing_chamfer.ChamferType != 'Equal distance':
+                        existing_chamfer.ChamferType = 'Equal distance'
+                        needs_recompute = True
+
+                    if existing_chamfer.Size != size:
+                        existing_chamfer.Size = size
+                        needs_recompute = True
 
                 if needs_recompute:
                     App.ActiveDocument.recompute()
@@ -169,7 +189,17 @@ class EdgeFeature(Shape):
         body.newObject('PartDesign::Chamfer', label)
         chamfer = Context.get_object(label)
         chamfer.Base = (base_feature, edges)
-        chamfer.Size = size
+
+        if angle is not None:
+            # Distance and Angle mode
+            chamfer.ChamferType = 'Distance and Angle'
+            chamfer.Size = size
+            chamfer.Angle = angle
+        else:
+            # Equal distance mode (default)
+            chamfer.ChamferType = 'Equal distance'
+            chamfer.Size = size
+
         App.ActiveDocument.recompute()
 
         return chamfer

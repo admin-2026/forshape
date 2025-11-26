@@ -206,16 +206,24 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   EdgeFeature.add_fillet('fillet1', 'box1', ['Edge1', 'Edge2', 'Edge3'], 2)
   ```
 
-`EdgeFeature.add_chamfer(label, object_label, edges, size)`
-- **Description:** Adds a chamfer (beveled edge) to selected edges of an existing object
+`EdgeFeature.add_chamfer(label, object_label, edges, size, angle=None)`
+- **Description:** Adds a chamfer (beveled edge) to selected edges of an existing object. Supports both "Equal distance" (default) and "Distance and Angle" chamfer types.
 - **Parameters:**
   - `label` (str): Name/label for the chamfer feature
   - `object_label` (str): Label of the existing object to add chamfer to
   - `edges` (list): List of edge labels (e.g., ['Edge1', 'Edge2'])
-  - `size` (float): Chamfer size in mm
+  - `size` (float): Chamfer size/distance in mm
+  - `angle` (float, optional): Chamfer angle in degrees.
 - **Example:**
   ```python
+  # Equal distance chamfer (default)
   EdgeFeature.add_chamfer('chamfer1', 'box1', ['Edge5', 'Edge6'], 1.5)
+
+  # Distance and angle chamfer (45 degree angle)
+  EdgeFeature.add_chamfer('chamfer2', 'box1', ['Edge9', 'Edge10'], 2.0, angle=45)
+
+  # Distance and angle chamfer (60 degree angle)
+  EdgeFeature.add_chamfer('chamfer3', 'box1', ['Edge11'], 1.0, angle=60)
   ```
 
 ### 7. Boolean

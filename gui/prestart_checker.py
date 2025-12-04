@@ -6,9 +6,11 @@ This module provides functionality to check and setup:
 - API keys for all configured providers
 - FreeCAD active document
 - Working directory configuration
+- Template files (constants.py, main.py, export.py, import.py)
 """
 
 import os
+import shutil
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
@@ -213,6 +215,9 @@ class PrestartChecker:
                     "✅ **Configuration Setup**\n\n" +
                     "\n".join(created_items))
 
+            # Copy template files to working directory if they don't exist
+            self._setup_template_files(window)
+
             return True
 
         except Exception as e:
@@ -221,6 +226,58 @@ class PrestartChecker:
                 f"Failed to create configuration directories:\n{str(e)}")
             self.logger.error(f"Failed to setup directories: {e}")
             return False
+
+    def _setup_template_files(self, window: 'ForShapeMainWindow') -> None:
+        """
+        Copy template files to the working directory if they don't exist.
+
+        Template files: constants.py, main.py, export.py, import.py
+
+        Args:
+            window: The main window instance to display messages
+        """
+        # Get the templates directory path (relative to this module)
+        module_dir = os.path.dirname(os.path.abspath(__file__))
+        templates_dir = os.path.join(module_dir, 'templates')
+
+        # Template files to copy
+        template_files = ['constants.py', 'main.py', 'export.py', 'import.py']
+
+        copied_files = []
+
+        for filename in template_files:
+            # Source: template file in gui/templates/
+            source_path = os.path.join(templates_dir, filename)
+
+            # Destination: working directory
+            dest_path = os.path.join(self.context_provider.working_dir, filename)
+
+            # Check if file already exists in working directory
+            if os.path.exists(dest_path):
+                self.logger.info(f"Template file already exists: {filename}")
+                continue
+
+            # Check if template source exists
+            if not os.path.exists(source_path):
+                self.logger.warning(f"Template source not found: {source_path}")
+                continue
+
+            # Copy the template file
+            try:
+                shutil.copy2(source_path, dest_path)
+                copied_files.append(filename)
+                self.logger.info(f"Copied template file: {filename}")
+            except Exception as e:
+                self.logger.error(f"Failed to copy template file {filename}: {e}")
+
+        # Inform user if any files were copied
+        if copied_files:
+            files_list = "\n".join([f"• {f}" for f in copied_files])
+            window.append_message("System",
+                f"✅ **Template Files Created**\n\n"
+                f"The following template files have been created in your working directory:\n"
+                f"{files_list}\n\n"
+                f"You can now customize these files for your project.")
 
     def handle_directory_mismatch(self, window: 'ForShapeMainWindow', user_input: str) -> bool:
         """

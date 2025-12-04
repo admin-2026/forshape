@@ -20,10 +20,10 @@ class Folder(Shape):
         Returns:
             The folder object, or None if in teardown mode
         """
-        # Handle quick rebuild mode
-        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label, 'App::DocumentObjectGroup')
-        if quick_rebuild_obj is not None:
-            return quick_rebuild_obj
+        # Handle incremental build mode
+        incremental_build_obj = Shape._incremental_build_if_possible(label, 'App::DocumentObjectGroup')
+        if incremental_build_obj is not None:
+            return incremental_build_obj
 
         # Handle teardown mode
         if Shape._teardown_if_needed(label):

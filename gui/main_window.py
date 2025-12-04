@@ -325,11 +325,11 @@ class ForShapeMainWindow(QMainWindow):
         third_row_layout = QHBoxLayout(third_row)
         third_row_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Add Quick Rebuild button
-        self.quick_rebuild_button = QPushButton("Quick Rebuild")
-        self.quick_rebuild_button.setFont(QFont("Consolas", 10))
-        self.quick_rebuild_button.setToolTip("Quick Rebuild - run a script in quick rebuild mode (skips construction if objects exist)")
-        self.quick_rebuild_button.clicked.connect(self.on_quick_rebuild_script)
+        # Add Incremental Build button
+        self.incremental_build_button = QPushButton("Incremental Build")
+        self.incremental_build_button.setFont(QFont("Consolas", 10))
+        self.incremental_build_button.setToolTip("Incremental Build - run a script in incremental build mode (skips construction if objects exist)")
+        self.incremental_build_button.clicked.connect(self.on_incremental_build_script)
 
         # Add Build button
         self.run_button = QPushButton("Build")
@@ -343,7 +343,7 @@ class ForShapeMainWindow(QMainWindow):
         self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
         self.redo_button.clicked.connect(self.on_redo_script)
 
-        third_row_layout.addWidget(self.quick_rebuild_button)
+        third_row_layout.addWidget(self.incremental_build_button)
         third_row_layout.addWidget(self.run_button)
         third_row_layout.addWidget(self.redo_button)
         third_row_layout.addStretch()  # Push buttons to the left
@@ -1242,8 +1242,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if selected_file:
                 self.redo_python_file(selected_file)
 
-    def on_quick_rebuild_script(self):
-        """Handle Quick Rebuild button click."""
+    def on_incremental_build_script(self):
+        """Handle Incremental Build button click."""
         # Scan for Python files
         python_files = self.scan_python_files()
 
@@ -1256,7 +1256,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if dialog.exec_() == QDialog.Accepted:
             selected_file = dialog.get_selected_file()
             if selected_file:
-                self.quick_rebuild_python_file(selected_file)
+                self.incremental_build_python_file(selected_file)
 
     def update_capture_button_state(self):
         """Update the capture button text and styling based on number of captured images."""
@@ -1367,7 +1367,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         Args:
             file_path: Path to the Python file to run
             mode: ExecutionMode enum value or 'with_teardown' for execute_with_teardown
-            action_name: Action name for messages (e.g., "Teardown", "Quick rebuild", "Build")
+            action_name: Action name for messages (e.g., "Teardown", "Incremental build", "Build")
 
         Returns:
             None
@@ -1448,14 +1448,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """
         self._execute_python_file_with_mode(file_path, ExecutionMode.TEARDOWN, "Tearing down")
 
-    def quick_rebuild_python_file(self, file_path):
+    def incremental_build_python_file(self, file_path):
         """
-        Quick rebuild a Python file - run the script in quick rebuild mode.
+        Incremental build a Python file - run the script in incremental build mode.
 
         Args:
             file_path: Path to the Python file to run
         """
-        self._execute_python_file_with_mode(file_path, ExecutionMode.QUICK_REBUILD, "Quick rebuilding")
+        self._execute_python_file_with_mode(file_path, ExecutionMode.INCREMENTAL_BUILD, "Incremental building")
 
     def run_python_file(self, file_path):
         """

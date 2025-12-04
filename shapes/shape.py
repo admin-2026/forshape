@@ -30,9 +30,9 @@ class Shape:
         return pad
 
     @staticmethod
-    def _quick_rebuild_if_possible(label, expected_type='PartDesign::Body'):
+    def _incremental_build_if_possible(label, expected_type='PartDesign::Body'):
         """
-        Check if we're in quick rebuild mode and can skip construction.
+        Check if we're in incremental build mode and can skip construction.
         Only checks label and type - if both match, returns existing object.
         If type doesn't match, moves to trash.
 
@@ -42,16 +42,16 @@ class Shape:
                                 Can use prefix matching with '::' (e.g., 'PartDesign::')
 
         Returns:
-            The existing object if it exists with correct type in quick rebuild mode,
+            The existing object if it exists with correct type in incremental build mode,
             None otherwise (caller should proceed with normal construction/update)
         """
         import builtins
-        quick_rebuild_mode = getattr(builtins, 'QUICK_REBUILD_MODE', False)
+        incremental_build_mode = getattr(builtins, 'INCREMENTAL_BUILD_MODE', False)
 
-        if not quick_rebuild_mode:
+        if not incremental_build_mode:
             return None
 
-        # We are in quick rebuild mode
+        # We are in incremental build mode
         existing_obj = Context.get_object(label)
 
         if existing_obj is None:

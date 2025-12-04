@@ -1,9 +1,9 @@
 """
-Script executor for running Python scripts in normal, teardown, or quick rebuild mode.
+Script executor for running Python scripts in normal, teardown, or incremental build mode.
 
 This module provides a unified interface for executing Python scripts with support for:
 - Teardown mode (TEARDOWN_MODE flag) - removes objects before recreation
-- Quick rebuild mode (QUICK_REBUILD_MODE flag) - skips construction if objects match
+- Incremental build mode (INCREMENTAL_BUILD_MODE flag) - skips construction if objects match
 - Output capture (stdout/stderr)
 - FreeCAD module imports
 - Proper cleanup and error handling
@@ -23,7 +23,7 @@ class ExecutionMode(Enum):
     """Execution mode for running scripts."""
     NORMAL = "normal"
     TEARDOWN = "teardown"
-    QUICK_REBUILD = "quick_rebuild"
+    INCREMENTAL_BUILD = "incremental_build"
 
 
 class ScriptExecutionResult:
@@ -44,7 +44,7 @@ class ScriptExecutionResult:
 
 
 class ScriptExecutor:
-    """Executes Python scripts with support for teardown mode, quick rebuild mode, and output capture."""
+    """Executes Python scripts with support for teardown mode, incremental build mode, and output capture."""
 
     @staticmethod
     @contextmanager
@@ -79,7 +79,7 @@ class ScriptExecutor:
         Args:
             script_content: The script content to execute
             script_path: Path to the script file (for __file__ variable)
-            mode: Execution mode (NORMAL, TEARDOWN, or QUICK_REBUILD)
+            mode: Execution mode (NORMAL, TEARDOWN, or INCREMENTAL_BUILD)
             import_freecad: If True, import FreeCAD modules into execution namespace
 
         Returns:
@@ -88,8 +88,8 @@ class ScriptExecutor:
         # Set execution mode flags
         if mode == ExecutionMode.TEARDOWN:
             builtins.TEARDOWN_MODE = True
-        elif mode == ExecutionMode.QUICK_REBUILD:
-            builtins.QUICK_REBUILD_MODE = True
+        elif mode == ExecutionMode.INCREMENTAL_BUILD:
+            builtins.INCREMENTAL_BUILD_MODE = True
 
         # Add script's directory to sys.path so imports work
         script_dir = str(script_path.parent)
@@ -160,8 +160,8 @@ class ScriptExecutor:
             # Always reset mode flags
             if mode == ExecutionMode.TEARDOWN:
                 builtins.TEARDOWN_MODE = False
-            elif mode == ExecutionMode.QUICK_REBUILD:
-                builtins.QUICK_REBUILD_MODE = False
+            elif mode == ExecutionMode.INCREMENTAL_BUILD:
+                builtins.INCREMENTAL_BUILD_MODE = False
 
     @staticmethod
     def execute_with_teardown(
@@ -193,15 +193,15 @@ class ScriptExecutor:
         return teardown_result, normal_result
 
     @staticmethod
-    def execute_with_quick_rebuild(
+    def execute_with_incremental_build(
         script_content: str,
         script_path: Path,
         import_freecad: bool = True
     ) -> ScriptExecutionResult:
         """
-        Execute a script in quick rebuild mode.
+        Execute a script in incremental build mode.
 
-        Quick rebuild mode skips construction if objects with matching labels and types exist.
+        Incremental build mode skips construction if objects with matching labels and types exist.
         This is useful for fast iteration during development.
 
         Args:
@@ -210,9 +210,9 @@ class ScriptExecutor:
             import_freecad: If True, import FreeCAD modules into execution namespace
 
         Returns:
-            ScriptExecutionResult from quick rebuild execution
+            ScriptExecutionResult from incremental build execution
         """
-        # Run in quick rebuild mode
+        # Run in incremental build mode
         return ScriptExecutor.execute(
-            script_content, script_path, mode=ExecutionMode.QUICK_REBUILD, import_freecad=import_freecad
+            script_content, script_path, mode=ExecutionMode.INCREMENTAL_BUILD, import_freecad=import_freecad
         )

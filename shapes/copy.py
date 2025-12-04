@@ -22,10 +22,10 @@ class Copy(Shape):
         Returns:
             The Body object containing the copy, or None if in teardown mode
         """
-        # Handle quick rebuild mode
-        quick_rebuild_obj = Shape._quick_rebuild_if_possible(label)
-        if quick_rebuild_obj is not None:
-            return quick_rebuild_obj
+        # Handle incremental build mode
+        incremental_build_obj = Shape._incremental_build_if_possible(label)
+        if incremental_build_obj is not None:
+            return incremental_build_obj
 
         # Handle teardown mode
         copy_label = label + '_copy'

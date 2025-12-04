@@ -586,6 +586,15 @@ class ToolManager:
                 with open(resolved_path, 'w', encoding='utf-8') as f:
                     f.write(new_content)
 
+                # Track file creation in edit history (for deletion during rewind)
+                if self.edit_history:
+                    creation_tracked = self.edit_history.track_file_creation(resolved_path)
+                    if self.logger:
+                        if creation_tracked:
+                            self.logger.info(f"File creation tracked in edit history: {resolved_path}")
+                        else:
+                            self.logger.warn(f"Failed to track file creation in edit history: {resolved_path}")
+
                 return self._json_success(
                     file=str(resolved_path),
                     message="File created successfully"
@@ -596,7 +605,12 @@ class ToolManager:
 
             # Backup the file before editing (if edit history is enabled)
             if self.edit_history:
-                self.edit_history.backup_file(resolved_path)
+                backup_success = self.edit_history.backup_file(resolved_path)
+                if self.logger:
+                    if backup_success:
+                        self.logger.info(f"File backed up to edit history: {resolved_path}")
+                    else:
+                        self.logger.warn(f"Failed to backup file to edit history: {resolved_path}")
 
             # Read current content
             with open(resolved_path, 'r', encoding='utf-8') as f:

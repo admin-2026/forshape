@@ -60,7 +60,7 @@ class EditHistory:
         """
         Get or create the session folder for the current conversation.
 
-        Creates a folder with the format: {conversation_id}_{timestamp}
+        Creates a folder with the format: {conversation_id}
 
         Returns:
             Path to the session folder
@@ -70,8 +70,7 @@ class EditHistory:
             if self.conversation_id is None:
                 self.conversation_id = "default"
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:17]  # Include milliseconds
-            folder_name = f"{self.conversation_id}_{timestamp}"
+            folder_name = self.conversation_id
             self.session_folder = self.history_base / folder_name
             self.session_folder.mkdir(parents=True, exist_ok=True)
 
@@ -281,12 +280,15 @@ class EditHistory:
             return {"error": "Session not found"}
 
         # Parse conversation ID and timestamp from folder name
+        # Format is now just the conversation_id: conv_YYYYMMDD_HHMMSS_###
+        conversation_id = session_name
+
+        # Extract timestamp from conversation_id if it follows the expected format
         parts = session_name.split('_')
-        if len(parts) >= 3:
-            conversation_id = parts[0]
-            timestamp = '_'.join(parts[1:])
+        if len(parts) >= 3 and parts[0] == "conv":
+            # Extract date and time parts: conv_YYYYMMDD_HHMMSS_###
+            timestamp = f"{parts[1]}_{parts[2]}"
         else:
-            conversation_id = session_name
             timestamp = "unknown"
 
         # Count backed up files

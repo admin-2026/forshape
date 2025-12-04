@@ -17,7 +17,7 @@ import io
 import traceback
 from typing import TYPE_CHECKING
 
-from .dialogs import PythonFileSelector, ImagePreviewDialog, ApiKeyDialog
+from .dialogs import PythonFileSelector, ImagePreviewDialog, ApiKeyDialog, CheckpointSelector
 from .workers import AIWorker
 from .formatters import MessageFormatter
 from .logger import LogLevel
@@ -283,8 +283,15 @@ class ForShapeMainWindow(QMainWindow):
         self.new_chat_button.setToolTip("New Chat - clear the chatbox and conversation history")
         self.new_chat_button.clicked.connect(self.clear_conversation)
 
+        # Add Rewind button
+        self.rewind_button = QPushButton("Rewind")
+        self.rewind_button.setFont(QFont("Consolas", 10))
+        self.rewind_button.setToolTip("Rewind - restore files from a previous checkpoint")
+        self.rewind_button.clicked.connect(self.on_rewind_clicked)
+
         first_row_layout.addWidget(self.capture_button)
         first_row_layout.addWidget(self.new_chat_button)
+        first_row_layout.addWidget(self.rewind_button)
         first_row_layout.addStretch()  # Push buttons to the left
 
         # Second row: input field and cancel button
@@ -507,6 +514,77 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")
+
+    def on_rewind_clicked(self):
+        """Handle Rewind button click - show checkpoint selector and restore files."""
+        # Get the edits directory from the context provider
+        if not self.context_provider:
+            self.append_message("[ERROR]", "Context provider not initialized.")
+            return
+
+        working_dir = self.context_provider.working_dir
+        edits_dir = os.path.join(working_dir, '.forshape', 'edits')
+
+        # Check if edits directory exists
+        if not os.path.exists(edits_dir):
+            self.append_message("System", "No edit history found. The edits directory does not exist yet.")
+            return
+
+        # Get all sessions using EditHistory
+        from .edit_history import EditHistory
+        session_names = EditHistory.list_all_sessions(edits_dir)
+
+        if not session_names:
+            self.append_message("System", "No checkpoints found. Edit history is empty.")
+            return
+
+        # Get session info for each session
+        sessions = []
+        for session_name in session_names:
+            session_info = EditHistory.get_session_info(edits_dir, session_name)
+            if "error" not in session_info:
+                sessions.append(session_info)
+
+        if not sessions:
+            self.append_message("System", "No valid checkpoints found.")
+            return
+
+        # Show checkpoint selector dialog
+        dialog = CheckpointSelector(sessions, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_session = dialog.get_selected_session()
+            if selected_session:
+                self.restore_checkpoint(selected_session)
+
+    def restore_checkpoint(self, session_info):
+        """
+        Restore files from a selected checkpoint.
+
+        Args:
+            session_info: Dictionary containing session information
+        """
+        session_name = session_info.get("session_name")
+        conversation_id = session_info.get("conversation_id")
+        file_count = session_info.get("file_count", 0)
+
+        self.append_message("System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}...")
+
+        # Get paths
+        working_dir = self.context_provider.working_dir
+        edits_dir = os.path.join(working_dir, '.forshape', 'edits')
+
+        # Restore using EditHistory
+        from .edit_history import EditHistory
+        success, message = EditHistory.restore_from_session(edits_dir, session_name, working_dir, self.logger)
+
+        if success:
+            self.append_message("System", f"✓ {message}")
+            if self.logger:
+                self.logger.info(f"Restored checkpoint: {conversation_id}")
+        else:
+            self.append_message("[ERROR]", f"Failed to restore checkpoint:\n{message}")
+            if self.logger:
+                self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
     def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None, api_debugger=None):
         """

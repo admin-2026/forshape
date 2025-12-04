@@ -132,24 +132,18 @@ class ForShapeAI:
         self.config = ConfigurationManager(self.context_provider)
         # Note: Directory setup moved to prestart checker for interactive handling
 
-        # Check and install dependencies
+        # Check and install all dependencies
         self.dependency_manager = DependencyManager(self.config.get_libs_dir())
-        success, error_msg = self.dependency_manager.check_and_install_openai()
+        success, error_msg = self.dependency_manager.check_and_install_all()
 
         if not success:
             print(f"\n{'='*60}")
             print(f"ERROR: Cannot initialize ForShapeAI")
             print(f"{'='*60}")
             print(f"\n{error_msg}")
-            print("\nPlease install the OpenAI library to use ForShape AI.")
+            print("\nPlease install the required libraries to use ForShape AI.")
             print(f"{'='*60}\n")
             return
-
-        # Check and install markdown library (optional, for GUI markdown support)
-        markdown_success, markdown_error = self.dependency_manager.check_and_install_markdown()
-        if not markdown_success:
-            print(f"Warning: Failed to install markdown library - GUI will use fallback rendering")
-            print(f"Details: {markdown_error}")
 
         # Initialize prestart checker (will setup directories and check API key)
         # Create a minimal logger before directories exist

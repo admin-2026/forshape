@@ -4,7 +4,6 @@ API Key management for ForShape AI.
 This module handles secure storage and retrieval of API keys using the system keyring.
 """
 
-import keyring
 from typing import Optional
 
 # Keyring service name for storing API keys
@@ -28,6 +27,7 @@ class ApiKeyManager:
             The API key if found, None otherwise
         """
         try:
+            import keyring
             return keyring.get_password(KEYRING_SERVICE, provider.lower())
         except Exception as e:
             print(f"Error reading {provider} key from keyring: {e}")
@@ -42,6 +42,7 @@ class ApiKeyManager:
             api_key: The API key to store
         """
         try:
+            import keyring
             keyring.set_password(KEYRING_SERVICE, provider.lower(), api_key)
             print(f"Provider API key updated: {provider}")
         except Exception as e:
@@ -55,13 +56,15 @@ class ApiKeyManager:
             provider: Provider name ("openai", "fireworks", etc.)
         """
         try:
+            import keyring
             keyring.delete_password(KEYRING_SERVICE, provider.lower())
             print(f"Provider API key removed: {provider}")
-        except keyring.errors.PasswordDeleteError:
-            # Key didn't exist, that's fine
-            pass
         except Exception as e:
-            print(f"Error deleting keyring entry for {provider}: {e}")
+            # Check if it's a PasswordDeleteError (key didn't exist)
+            if 'PasswordDeleteError' in type(e).__name__:
+                pass
+            else:
+                print(f"Error deleting keyring entry for {provider}: {e}")
 
     def get_all_api_keys(self) -> dict:
         """

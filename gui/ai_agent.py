@@ -37,7 +37,8 @@ class AIAgent:
         permission_manager: Optional[PermissionManager] = None,
         image_context = None,
         api_debugger: Optional[APIDebugger] = None,
-        provider: str = "openai"
+        provider: str = "openai",
+        edit_history = None
     ):
         """
         Initialize the AI agent.
@@ -52,6 +53,7 @@ class AIAgent:
             image_context: Optional ImageContext instance for screenshot capture
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
+            edit_history: Optional EditHistory instance for tracking file edits
         """
         self.model = model
         self.max_iterations = max_iterations
@@ -60,17 +62,20 @@ class AIAgent:
         self.provider_name = provider
         self.context_provider = context_provider
         self.permission_manager = permission_manager
+
         self.tool_manager = ToolManager(
             context_provider.working_dir,
             logger,
             self.permission_manager,
-            image_context
+            image_context,
+            edit_history
         )
         self._system_message_cache = None
         self.logger = logger
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger if api_debugger else APIDebugger(enabled=False)
+        self._conversation_counter = 0  # Counter for generating unique conversation IDs
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str]) -> Optional[APIProvider]:
         """
@@ -99,6 +104,21 @@ class AIAgent:
             print(f"Error initializing {provider_name} provider: {e}")
             return None
 
+    def _generate_conversation_id(self) -> str:
+        """
+        Generate a unique conversation ID.
+
+        Each conversation represents a user request and all subsequent AI agent work
+        until a final response is given.
+
+        Returns:
+            Unique conversation ID string
+        """
+        from datetime import datetime
+        self._conversation_counter += 1
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"conv_{timestamp}_{self._conversation_counter:03d}"
+
 
     def process_request(self, user_input: str, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
@@ -119,6 +139,13 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
+            # Generate a new conversation ID for this user request
+            # Each user request begins a new conversation in the edit history
+            conversation_id = self._generate_conversation_id()
+            self.tool_manager.start_conversation(conversation_id)
+            if self.logger:
+                self.logger.info(f"Started new conversation: {conversation_id}")
+
             # Get system message from context provider (only once, then cache it)
             if self._system_message_cache is None:
                 system_message, forshape_context = self.context_provider.get_context(include_agent_tools=True)

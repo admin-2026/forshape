@@ -24,16 +24,26 @@ class ConfigurationManager:
             context_provider: ContextProvider instance to get working directory from
         """
         self.context_provider = context_provider
-        self.base_dir = Path(context_provider.working_dir)
-        self.forshape_dir = self.base_dir / ".forshape"
-        self.history_dir = self.forshape_dir / "history"
         self.install_dir = Path(__file__).parent.parent
-        # Note: provider-config.json is reserved for future provider configuration (NOT for API keys)
-        # API keys are managed separately via ApiKeyManager
         self.provider_config_file = self.install_dir / "provider-config.json"
-        self.forshape_md_file = self.base_dir / "FORSHAPE.md"
         # libs is at project root, not in gui folder
         self.libs_dir = self.install_dir / "libs"
+
+        # Initialize all directory paths
+        self._setup_paths(context_provider.working_dir)
+
+    def _setup_paths(self, working_directory: str):
+        """
+        Setup all directory paths based on the working directory.
+
+        Args:
+            working_directory: The working directory path
+        """
+        self.base_dir = Path(working_directory)
+        self.forshape_dir = self.base_dir / ".forshape"
+        self.history_dir = self.forshape_dir / "history"
+        self.edits_dir = self.forshape_dir / "edits"
+        self.forshape_md_file = self.base_dir / "FORSHAPE.md"
 
     def setup_directories(self) -> list[str]:
         """
@@ -51,6 +61,10 @@ class ConfigurationManager:
         if not self.history_dir.exists():
             self.history_dir.mkdir(parents=True, exist_ok=True)
             created_items.append(f"📁 Created directory: `{self.history_dir}`")
+
+        if not self.edits_dir.exists():
+            self.edits_dir.mkdir(parents=True, exist_ok=True)
+            created_items.append(f"📁 Created directory: `{self.edits_dir}`")
 
         # Create default FORSHAPE.md if it doesn't exist
         if not self.forshape_md_file.exists():
@@ -71,6 +85,10 @@ class ConfigurationManager:
     def get_history_dir(self) -> Path:
         """Get the history directory."""
         return self.history_dir
+
+    def get_edits_dir(self) -> Path:
+        """Get the edits directory."""
+        return self.edits_dir
 
     def get_libs_dir(self) -> Path:
         """Get the local libs directory."""
@@ -102,7 +120,4 @@ class ConfigurationManager:
         Args:
             new_directory: The new working directory path
         """
-        self.base_dir = Path(new_directory)
-        self.forshape_dir = self.base_dir / ".forshape"
-        self.history_dir = self.forshape_dir / "history"
-        self.forshape_md_file = self.base_dir / "FORSHAPE.md"
+        self._setup_paths(new_directory)

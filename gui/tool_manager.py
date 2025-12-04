@@ -13,6 +13,7 @@ from pathlib import Path
 from .logger import Logger
 from .permission_manager import PermissionManager, PermissionResponse
 from .script_executor import ScriptExecutor
+from .edit_history import EditHistory
 from shapes.context import Context
 from shapes.image_context import ImageContext
 
@@ -34,7 +35,8 @@ class ToolManager:
         working_dir: str,
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
-        image_context: Optional[ImageContext] = None
+        image_context: Optional[ImageContext] = None,
+        edit_history: Optional[EditHistory] = None
     ):
         """
         Initialize the tool manager.
@@ -44,14 +46,29 @@ class ToolManager:
             logger: Optional logger for tool call logging
             permission_manager: Optional permission manager for access control
             image_context: Optional ImageContext instance for screenshot capture
+            edit_history: Optional EditHistory instance for tracking file edits
         """
         self.working_dir = working_dir
         self.logger = logger
         self.permission_manager = permission_manager
         self.image_context = image_context
+        self.edit_history = edit_history
 
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
+
+    def start_conversation(self, conversation_id: str) -> None:
+        """
+        Start a new conversation with the given ID.
+
+        This delegates to the edit history to prepare for tracking file edits
+        in this conversation.
+
+        Args:
+            conversation_id: Unique conversation ID from AIAgent
+        """
+        if self.edit_history:
+            self.edit_history.start_new_conversation(conversation_id)
 
     def _define_tools(self) -> List[Dict]:
         """
@@ -576,6 +593,10 @@ class ToolManager:
 
             if not resolved_path.is_file():
                 return self._json_error(f"Path is not a file: {resolved_path}")
+
+            # Backup the file before editing (if edit history is enabled)
+            if self.edit_history:
+                self.edit_history.backup_file(resolved_path)
 
             # Read current content
             with open(resolved_path, 'r', encoding='utf-8') as f:

@@ -195,6 +195,14 @@ class ForShapeAI:
         # Initialize API debugger (disabled by default)
         self.api_debugger = APIDebugger(enabled=False)
 
+        # Initialize edit history for tracking file changes
+        from gui.edit_history import EditHistory
+        self.edit_history = EditHistory(
+            working_dir=self.context_provider.working_dir,
+            edits_dir=str(self.config.get_edits_dir()),
+            logger=self.logger
+        )
+
         # Initialize AI agent with API key from keyring
         api_key_manager = ApiKeyManager()
 
@@ -215,7 +223,8 @@ class ForShapeAI:
             permission_manager=self.permission_manager,
             image_context=self.image_context,
             api_debugger=self.api_debugger,
-            provider=provider
+            provider=provider,
+            edit_history=self.edit_history
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 

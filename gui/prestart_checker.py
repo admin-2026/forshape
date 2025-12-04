@@ -3,7 +3,7 @@ Prestart checker for FreeCAD document validation and configuration setup.
 
 This module provides functionality to check and setup:
 - .forshape directory and configuration files
-- OpenAI API key
+- API keys for all configured providers
 - FreeCAD active document
 - Working directory configuration
 """
@@ -46,7 +46,7 @@ class PrestartChecker:
         3. Document saved status
         4. Working directory match
         5. .forshape directory setup (in document's directory)
-        6. API key availability
+        6. API key availability for all configured providers
 
         Uses chatbox for interaction instead of modal dialogs so user can interact with FreeCAD.
 
@@ -55,7 +55,7 @@ class PrestartChecker:
 
         Returns:
             Status string: "ready" if all checks passed, "waiting" if waiting for user action,
-                          "dir_mismatch" if directory needs confirmation, "need_api_key" if API key missing,
+                          "dir_mismatch" if directory needs confirmation, "need_api_key" if any API keys missing,
                           "error" if fatal error
         """
         # Check 1: FreeCAD availability
@@ -115,36 +115,76 @@ class PrestartChecker:
             self.status = "error"
             return "error"
 
-        # Check 6: API key availability
+        # Check 6: API key availability for all configured providers
         from .api_key_manager import ApiKeyManager
-        api_key_manager = ApiKeyManager()
-        self.api_key = api_key_manager.get_api_key("openai")
+        from .provider_config_loader import ProviderConfigLoader
 
-        if not self.api_key:
+        api_key_manager = ApiKeyManager()
+        provider_loader = ProviderConfigLoader()
+
+        # Get all configured providers
+        configured_providers = provider_loader.get_providers()
+
+        if not configured_providers:
             window.append_message("System",
-                "⚠️ **OpenAI API Key Not Found**\n\n"
-                "No OpenAI API key was found in the system keyring. The AI features require an API key to function.\n\n"
-                "**To add your API key:**\n"
-                "1. Use the Settings dialog (if available in the GUI)\n"
-                "2. Or run this Python command:\n"
-                "```python\n"
-                "import keyring\n"
-                "keyring.set_password('ForShape_AI', 'openai', 'sk-proj-YOUR_KEY_HERE')\n"
-                "```\n\n"
-                "**After adding the API key:**\n"
-                "• Type anything (e.g., 'ready') to continue\n\n"
-                "**Don't have an API key?**\n"
-                "• Get one at: https://platform.openai.com/api-keys")
+                "⚠️ **No Providers Configured**\n\n"
+                "No API providers found in provider-config.json. Please check your configuration.")
+            self.status = "error"
+            return "error"
+
+        # Check API keys for each configured provider
+        missing_keys = []
+        provider_info = {}
+
+        for provider in configured_providers:
+            api_key = api_key_manager.get_api_key(provider.name)
+            provider_info[provider.name] = {
+                "display_name": provider.display_name,
+                "has_key": api_key is not None
+            }
+            if not api_key:
+                missing_keys.append(provider.name)
+
+        # If any keys are missing, show a comprehensive message
+        if missing_keys:
+            message_lines = ["⚠️ **Missing API Keys**\n"]
+            message_lines.append("The following API providers are missing keys:\n")
+
+            for provider_name in missing_keys:
+                display_name = provider_info[provider_name]["display_name"]
+                message_lines.append(f"• **{display_name}** (`{provider_name}`)")
+
+            message_lines.append("\n**To add API keys:**")
+            message_lines.append("• Use the Settings dialog to configure your API keys\n")
+            message_lines.append("**After adding the API key(s):**")
+            message_lines.append("• Type anything (e.g., 'ready') to continue\n")
+
+            # Add helpful links for getting API keys
+            message_lines.append("**Don't have API keys?**")
+            if "openai" in missing_keys:
+                message_lines.append("• OpenAI: https://platform.openai.com/api-keys")
+            if "fireworks" in missing_keys:
+                message_lines.append("• Fireworks: https://fireworks.ai/account/api-keys")
+            if "anthropic" in missing_keys:
+                message_lines.append("• Anthropic: https://console.anthropic.com/settings/keys")
+
+            window.append_message("System", "\n".join(message_lines))
             self.status = "need_api_key"
             return "need_api_key"
 
+        # Store the first provider's API key for backwards compatibility
+        self.api_key = api_key_manager.get_api_key(configured_providers[0].name)
+
         # All checks passed
-        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.context_provider.working_dir}, API key: {'present' if self.api_key else 'missing'}")
+        configured_keys = [f"{provider_info[p]['display_name']}" for p in provider_info if provider_info[p]['has_key']]
+        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.context_provider.working_dir}, API keys: {', '.join(configured_keys)}")
+
+        keys_message = ", ".join(configured_keys) if configured_keys else "None"
         window.append_message("System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
             f"📂 Working directory: `{self.context_provider.working_dir}`\n"
-            f"🔑 API key: Configured\n\n"
+            f"🔑 API keys configured: {keys_message}\n\n"
             f"You can now start chatting with the AI!")
         self.status = "ready"
         return "ready"

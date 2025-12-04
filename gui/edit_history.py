@@ -41,8 +41,9 @@ class EditHistory:
         self.conversation_id: Optional[str] = None
         self.session_folder: Optional[Path] = None
         self.file_operations: List[Dict] = []  # Track file operations in current session
+        self.user_request: Optional[str] = None  # Store the original user request
 
-    def start_new_conversation(self, conversation_id: str) -> None:
+    def start_new_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
         """
         Start a new conversation with the provided ID.
 
@@ -51,8 +52,10 @@ class EditHistory:
 
         Args:
             conversation_id: Unique conversation ID provided by AIAgent
+            user_request: Optional user request text to store with this checkpoint
         """
         self.conversation_id = conversation_id
+        self.user_request = user_request
         self.session_folder = None  # Reset session folder for new conversation
         self.file_operations = []  # Reset file operations for new conversation
 
@@ -196,6 +199,7 @@ class EditHistory:
             with open(metadata_path, 'w', encoding='utf-8') as f:
                 json.dump({
                     "conversation_id": self.conversation_id,
+                    "user_request": self.user_request,
                     "file_operations": self.file_operations
                 }, f, indent=2)
         except Exception as e:
@@ -291,6 +295,10 @@ class EditHistory:
         else:
             timestamp = "unknown"
 
+        # Load metadata to get user_request
+        metadata = EditHistory._load_metadata(session_path, logger=None)
+        user_request = metadata.get("user_request", None)
+
         # Count backed up files
         file_count = sum(1 for _ in session_path.rglob('*') if _.is_file())
 
@@ -298,6 +306,7 @@ class EditHistory:
             "session_name": session_name,
             "conversation_id": conversation_id,
             "timestamp": timestamp,
+            "user_request": user_request,
             "path": str(session_path),
             "file_count": file_count
         }

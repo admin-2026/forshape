@@ -87,6 +87,15 @@ class CheckpointSelector(QDialog):
             info_text = f"Conversation ID: {session.get('conversation_id', 'unknown')}\n"
             info_text += f"Timestamp: {session.get('timestamp', 'unknown')}\n"
             info_text += f"Files backed up: {session.get('file_count', 0)}\n"
+
+            # Add user request if available
+            user_request = session.get('user_request')
+            if user_request:
+                # Truncate long requests for display
+                if len(user_request) > 200:
+                    user_request = user_request[:200] + "..."
+                info_text += f"User Request: {user_request}\n"
+
             info_text += f"Path: {session.get('path', 'unknown')}"
             self.info_display.setText(info_text)
         else:

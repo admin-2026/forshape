@@ -142,7 +142,8 @@ class AIAgent:
             # Generate a new conversation ID for this user request
             # Each user request begins a new conversation in the edit history
             conversation_id = self._generate_conversation_id()
-            self.tool_manager.start_conversation(conversation_id)
+            self.tool_manager.start_conversation(conversation_id, user_request=user_input)
+            self.history_manager.set_conversation_id(conversation_id)
             if self.logger:
                 self.logger.info(f"Started new conversation: {conversation_id}")
 

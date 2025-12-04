@@ -57,7 +57,7 @@ class ToolManager:
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
 
-    def start_conversation(self, conversation_id: str) -> None:
+    def start_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
         """
         Start a new conversation with the given ID.
 
@@ -66,9 +66,10 @@ class ToolManager:
 
         Args:
             conversation_id: Unique conversation ID from AIAgent
+            user_request: Optional user request text to store with this checkpoint
         """
         if self.edit_history:
-            self.edit_history.start_new_conversation(conversation_id)
+            self.edit_history.start_new_conversation(conversation_id, user_request)
 
     def _define_tools(self) -> List[Dict]:
         """

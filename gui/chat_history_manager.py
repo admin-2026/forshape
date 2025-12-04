@@ -24,6 +24,7 @@ class ChatHistoryManager:
         """
         self._history: List[Dict[str, Any]] = []
         self.max_messages = max_messages
+        self.current_conversation_id: Optional[str] = None  # Track current conversation
 
     def add_message(self, role: str, content: Any, metadata: Optional[Dict] = None) -> None:
         """
@@ -46,6 +47,10 @@ class ChatHistoryManager:
         # Add timestamp if not provided
         if "timestamp" not in message:
             message["timestamp"] = datetime.now().isoformat()
+
+        # Add conversation_id if available
+        if self.current_conversation_id is not None:
+            message["conversation_id"] = self.current_conversation_id
 
         self._history.append(message)
 
@@ -90,6 +95,17 @@ class ChatHistoryManager:
         """Clear all conversation history."""
         self._history = []
 
+    def set_conversation_id(self, conversation_id: str) -> None:
+        """
+        Set the current conversation ID.
+
+        All subsequent messages added will be tagged with this conversation ID.
+
+        Args:
+            conversation_id: Unique conversation ID
+        """
+        self.current_conversation_id = conversation_id
+
     def dump_history(self, output_dir: str, model_name: str = "Unknown") -> str:
         """
         Dump the conversation history to a timestamped file.
@@ -125,10 +141,12 @@ class ChatHistoryManager:
                 role = message.get('role', 'unknown')
                 content = message.get('content', '')
                 timestamp_str = message.get('timestamp', 'N/A')
+                conversation_id = message.get('conversation_id', 'N/A')
 
                 f.write(f"\n{'=' * 80}\n")
                 f.write(f"Message #{i} - Role: {role.upper()}\n")
                 f.write(f"Timestamp: {timestamp_str}\n")
+                f.write(f"Conversation ID: {conversation_id}\n")
                 f.write(f"{'=' * 80}\n")
 
                 # Handle multi-modal content (lists) and plain text

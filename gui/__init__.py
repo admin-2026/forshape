@@ -14,6 +14,7 @@ from .logger import Logger, LogLevel
 from .permission_manager import PermissionManager, PermissionResponse
 from .prestart_checker import PrestartChecker
 from .api_debugger import APIDebugger
+from .api_key_manager import ApiKeyManager
 
 __all__ = [
     'DependencyManager',
@@ -28,4 +29,5 @@ __all__ = [
     'PermissionResponse',
     'PrestartChecker',
     'APIDebugger',
+    'ApiKeyManager',
 ]

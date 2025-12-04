@@ -116,24 +116,20 @@ class PrestartChecker:
             return "error"
 
         # Check 6: API key availability
-        provider_config = self.config_manager.get_provider_config()
-        providers = provider_config.get("providers", {})
-        self.api_key = providers.get("openai")
+        from .api_key_manager import ApiKeyManager
+        api_key_manager = ApiKeyManager()
+        self.api_key = api_key_manager.get_api_key("openai")
 
         if not self.api_key:
-            config_file = self.config_manager.provider_config_file
             window.append_message("System",
                 "⚠️ **OpenAI API Key Not Found**\n\n"
-                f"No OpenAI API key was found in {config_file.name}. The AI features require an API key to function.\n\n"
+                "No OpenAI API key was found in the system keyring. The AI features require an API key to function.\n\n"
                 "**To add your API key:**\n"
-                f"1. Create or edit: `{config_file}`\n"
-                "2. Add your OpenAI API key in JSON format:\n"
-                "```json\n"
-                "{\n"
-                '  "providers": {\n'
-                '    "openai": "sk-proj-YOUR_KEY_HERE"\n'
-                "  }\n"
-                "}\n"
+                "1. Use the Settings dialog (if available in the GUI)\n"
+                "2. Or run this Python command:\n"
+                "```python\n"
+                "import keyring\n"
+                "keyring.set_password('ForShape_AI', 'openai', 'sk-proj-YOUR_KEY_HERE')\n"
                 "```\n\n"
                 "**After adding the API key:**\n"
                 "• Type anything (e.g., 'ready') to continue\n\n"

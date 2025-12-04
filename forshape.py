@@ -31,7 +31,8 @@ from gui import (
     PermissionManager,
     PermissionResponse,
     PrestartChecker,
-    APIDebugger
+    APIDebugger,
+    ApiKeyManager
 )
 
 
@@ -200,16 +201,15 @@ class ForShapeAI:
         # Initialize API debugger (disabled by default)
         self.api_debugger = APIDebugger(enabled=False)
 
-        # Initialize AI agent with API key and provider configuration
-        provider_config = self.config.get_provider_config()
-        providers = provider_config.get("providers", {})
+        # Initialize AI agent with API key from keyring
+        api_key_manager = ApiKeyManager()
 
         # Default to OpenAI provider
         provider = "openai"
-        api_key = providers.get(provider)
+        api_key = api_key_manager.get_api_key(provider)
 
         if not api_key:
-            self.logger.warning("No OpenAI API key found in provider-config.json. AI features will not work.")
+            self.logger.warning("No OpenAI API key found in system keyring. AI features will not work.")
 
         # Use gpt-5.1 for tool calling support, fallback to user's model choice
         agent_model = self.model if self.model else "gpt-5.1"

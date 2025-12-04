@@ -182,7 +182,7 @@ class FireworksProvider(APIProvider):
 
         Args:
             api_key: Fireworks API key
-            **kwargs: Additional configuration
+            **kwargs: Additional configuration (including base_url)
         """
         super().__init__(api_key, **kwargs)
         self.client = self._initialize_client()
@@ -204,10 +204,12 @@ class FireworksProvider(APIProvider):
             return None
 
         try:
+            # Get base_url from config, default to Fireworks API endpoint
+            base_url = self.config.get("base_url", "https://api.fireworks.ai/inference/v1")
             # Fireworks API is OpenAI-compatible, just use a different base URL
             return OpenAI(
                 api_key=self.api_key,
-                base_url="https://api.fireworks.ai/inference/v1"
+                base_url=base_url
             )
         except Exception as e:
             print(f"Error initializing Fireworks client: {e}")
@@ -278,7 +280,7 @@ def create_api_provider(provider_name: str, api_key: Optional[str], **kwargs) ->
     Args:
         provider_name: Name of the provider ("openai" or "fireworks")
         api_key: API key for authentication
-        **kwargs: Additional provider-specific configuration
+        **kwargs: Additional provider-specific configuration (e.g., base_url from config)
 
     Returns:
         APIProvider instance
@@ -294,3 +296,24 @@ def create_api_provider(provider_name: str, api_key: Optional[str], **kwargs) ->
         return FireworksProvider(api_key, **kwargs)
     else:
         raise ValueError(f"Unsupported API provider: {provider_name}")
+
+
+def create_api_provider_from_config(provider_config, api_key: Optional[str]) -> APIProvider:
+    """
+    Create an API provider instance from a ProviderConfig object.
+
+    Args:
+        provider_config: ProviderConfig object with provider configuration
+        api_key: API key for authentication
+
+    Returns:
+        APIProvider instance
+
+    Raises:
+        ValueError: If provider_name is not supported
+    """
+    kwargs = {}
+    if provider_config.base_url:
+        kwargs["base_url"] = provider_config.base_url
+
+    return create_api_provider(provider_config.name, api_key, **kwargs)

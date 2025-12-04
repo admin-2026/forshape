@@ -17,7 +17,7 @@ import io
 import traceback
 from typing import TYPE_CHECKING
 
-from .dialogs import PythonFileSelector, ImagePreviewDialog
+from .dialogs import PythonFileSelector, ImagePreviewDialog, ApiKeyDialog
 from .workers import AIWorker
 from .formatters import MessageFormatter
 from .logger import LogLevel
@@ -105,6 +105,9 @@ class ForShapeMainWindow(QMainWindow):
 
         # Dictionary to store model combo boxes for each provider (will be populated dynamically)
         self.model_combos = {}
+
+        # Dictionary to store "Add API Key" buttons for providers missing keys
+        self.api_key_buttons = {}
 
         # Enable drag and drop
         self.setAcceptDrops(True)
@@ -366,10 +369,13 @@ class ForShapeMainWindow(QMainWindow):
     def _create_model_menu_items(self, model_menu):
         """
         Dynamically create model menu items from provider configuration.
+        If a provider is missing an API key, show an "Add API Key" button instead of a dropdown.
 
         Args:
             model_menu: The QMenu to add model selection widgets to
         """
+        from .api_key_manager import ApiKeyManager
+
         providers = self.provider_config_loader.get_providers()
 
         if not providers:
@@ -379,51 +385,77 @@ class ForShapeMainWindow(QMainWindow):
             model_menu.addAction(QWidgetAction(self))
             return
 
+        # Check API keys for all providers
+        api_key_manager = ApiKeyManager()
+
         # Create a section for each provider
         for provider in providers:
             # Create label for provider
             provider_label = QLabel(f"  {provider.display_name}: ")
             provider_label.setFont(QFont("Consolas", 9, QFont.Bold))
 
-            # Create combo box for this provider's models
-            model_combo = QComboBox()
-            model_combo.setFont(QFont("Consolas", 9))
+            # Check if API key exists for this provider
+            api_key = api_key_manager.get_api_key(provider.name)
 
-            # Add placeholder as first option
-            model_combo.addItem("-- Select --", None)
-
-            # Add all models for this provider
-            default_index = 0
-            for idx, model in enumerate(provider.models, start=1):
-                model_combo.addItem(model.display_name, model.name)
-                # Set default if this is the default model
-                if model.name == provider.default_model:
-                    default_index = idx
-
-            # Set the default model if configured
-            if default_index > 0:
-                model_combo.setCurrentIndex(default_index)
-
-            # Connect change event
-            model_combo.currentIndexChanged.connect(
-                lambda idx, prov=provider.name: self.on_model_changed(idx, prov)
-            )
-
-            # Store the combo box for later access
-            self.model_combos[provider.name] = model_combo
-
-            # Create a widget container for label and combo
+            # Create a widget container for label and combo/button
             provider_widget = QWidget()
             provider_layout = QHBoxLayout(provider_widget)
             provider_layout.setContentsMargins(5, 2, 5, 2)
             provider_layout.addWidget(provider_label)
-            provider_layout.addWidget(model_combo)
-            provider_layout.addStretch()
 
-            # Add the widget to the menu using QWidgetAction
-            provider_action = QWidgetAction(self)
-            provider_action.setDefaultWidget(provider_widget)
-            model_menu.addAction(provider_action)
+            if api_key:
+                # API key exists - show model dropdown
+                model_combo = QComboBox()
+                model_combo.setFont(QFont("Consolas", 9))
+
+                # Add placeholder as first option
+                model_combo.addItem("-- Select --", None)
+
+                # Add all models for this provider
+                default_index = 0
+                for idx, model in enumerate(provider.models, start=1):
+                    model_combo.addItem(model.display_name, model.name)
+                    # Set default if this is the default model
+                    if model.name == provider.default_model:
+                        default_index = idx
+
+                # Set the default model if configured
+                if default_index > 0:
+                    model_combo.setCurrentIndex(default_index)
+
+                # Connect change event
+                model_combo.currentIndexChanged.connect(
+                    lambda idx, prov=provider.name: self.on_model_changed(idx, prov)
+                )
+
+                # Store the combo box for later access
+                self.model_combos[provider.name] = model_combo
+
+                provider_layout.addWidget(model_combo)
+                provider_layout.addStretch()
+
+                # Add the widget to the menu using QWidgetAction
+                provider_action = QWidgetAction(self)
+                provider_action.setDefaultWidget(provider_widget)
+                model_menu.addAction(provider_action)
+            else:
+                # API key missing - show a clickable menu action instead of a button widget
+                # First add the label as a widget
+                provider_action = QWidgetAction(self)
+                provider_action.setDefaultWidget(provider_widget)
+                model_menu.addAction(provider_action)
+
+                # Then add a clickable "Add API Key" action
+                add_key_action = QAction(f"      → Add API Key", self)
+
+                # Use a closure-safe connection
+                def make_handler(prov, disp):
+                    def handler():
+                        self.on_add_api_key(prov, disp)
+                    return handler
+
+                add_key_action.triggered.connect(make_handler(provider.name, provider.display_name))
+                model_menu.addAction(add_key_action)
 
     def display_welcome(self):
         """Display welcome message in the conversation area."""
@@ -1053,6 +1085,59 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         else:
             display_name = provider_config.display_name if provider_config else provider.capitalize()
             self.append_message("System", f"Failed to initialize {display_name} provider. Please check your API key configuration.")
+
+    def on_add_api_key(self, provider_name: str, display_name: str):
+        """
+        Handle "Add API Key" action click for a provider.
+
+        Args:
+            provider_name: Internal provider name (e.g., "openai", "fireworks")
+            display_name: Display name for the provider (e.g., "OpenAI", "Fireworks")
+        """
+        try:
+            # Show API key input dialog
+            dialog = ApiKeyDialog(provider_name, display_name, self)
+            if dialog.exec_() == QDialog.Accepted:
+                api_key = dialog.get_api_key()
+                if api_key:
+                    # Save the API key using ApiKeyManager
+                    from .api_key_manager import ApiKeyManager
+                    api_key_manager = ApiKeyManager()
+                    api_key_manager.set_api_key(provider_name, api_key)
+
+                    # Show success message
+                    self.append_message("System", f"API key for {display_name} has been saved successfully!")
+
+                    # Refresh the Model menu to show the dropdown instead of the button
+                    self._refresh_model_menu()
+
+                    # If this is the first API key and AI client is not initialized yet,
+                    # we might need to trigger completion callback
+                    if self.completion_callback and not self.ai_client:
+                        # Re-run prestart checks which should now pass
+                        if self.prestart_checker:
+                            status = self.prestart_checker.check(self)
+                            if status == "ready":
+                                self.completion_callback()
+                                self.enable_ai_mode()
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error adding API key: {e}")
+            self.append_message("[ERROR]", f"Failed to add API key: {str(e)}")
+
+    def _refresh_model_menu(self):
+        """Refresh the Model menu to update API key status and available models."""
+        # Find and clear the Model menu
+        menubar = self.menuBar()
+        for action in menubar.actions():
+            if action.text() == "Model":
+                menu = action.menu()
+                if menu:
+                    # Clear all actions
+                    menu.clear()
+                    # Recreate menu items
+                    self._create_model_menu_items(menu)
+                break
 
     def _sync_model_dropdown(self):
         """Sync the model dropdown selection with the AI client's current model and provider."""

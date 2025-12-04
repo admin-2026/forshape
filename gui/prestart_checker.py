@@ -155,7 +155,7 @@ class PrestartChecker:
                 message_lines.append(f"• **{display_name}** (`{provider_name}`)")
 
             message_lines.append("\n**To add API keys:**")
-            message_lines.append("• Use the Settings dialog to configure your API keys\n")
+            message_lines.append("• Go to **Model menu** → **Add API Key** to configure your API keys\n")
             message_lines.append("**After adding the API key(s):**")
             message_lines.append("• Type anything (e.g., 'ready') to continue\n")
 

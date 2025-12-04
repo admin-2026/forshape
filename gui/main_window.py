@@ -331,10 +331,10 @@ class ForShapeMainWindow(QMainWindow):
         self.incremental_build_button.setToolTip("Incremental Build - run a script in incremental build mode (skips construction if objects exist)")
         self.incremental_build_button.clicked.connect(self.on_incremental_build_script)
 
-        # Add Build button
-        self.run_button = QPushButton("Build")
+        # Add Rebuild button
+        self.run_button = QPushButton("Rebuild")
         self.run_button.setFont(QFont("Consolas", 10))
-        self.run_button.setToolTip("Build - run a Python script from the working directory")
+        self.run_button.setToolTip("Rebuild - run a Python script from the working directory")
         self.run_button.clicked.connect(self.on_run_script)
 
         # Add Teardown button
@@ -1211,7 +1211,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         return python_files
 
     def on_run_script(self):
-        """Handle Build button click."""
+        """Handle Rebuild button click."""
         # Scan for Python files
         python_files = self.scan_python_files()
 

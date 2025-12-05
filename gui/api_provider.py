@@ -272,13 +272,112 @@ class FireworksProvider(APIProvider):
         return "Fireworks"
 
 
+class DeepSeekProvider(APIProvider):
+    """DeepSeek API provider implementation."""
+
+    def __init__(self, api_key: Optional[str], **kwargs):
+        """
+        Initialize the DeepSeek provider.
+
+        Args:
+            api_key: DeepSeek API key
+            **kwargs: Additional configuration (including base_url)
+        """
+        super().__init__(api_key, **kwargs)
+        self.client = self._initialize_client()
+
+    def _initialize_client(self):
+        """
+        Initialize the DeepSeek client (using OpenAI-compatible interface).
+
+        Returns:
+            OpenAI client instance configured for DeepSeek or None if initialization fails
+        """
+        if not self.api_key:
+            return None
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            print("Error: OpenAI library not available (required for DeepSeek compatibility)")
+            return None
+
+        try:
+            # Get base_url from config, default to DeepSeek API endpoint
+            base_url = self.config.get("base_url", "https://api.deepseek.com")
+            # DeepSeek API is OpenAI-compatible, just use a different base URL
+            return OpenAI(
+                api_key=self.api_key,
+                base_url=base_url
+            )
+        except Exception as e:
+            print(f"Error initializing DeepSeek client: {e}")
+            return None
+
+    def create_completion(
+        self,
+        model: str,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        tool_choice: str = "auto",
+        **kwargs
+    ) -> Any:
+        """
+        Create a chat completion using DeepSeek API.
+
+        Args:
+            model: Model identifier (e.g., "deepseek-chat", "deepseek-reasoner")
+            messages: List of message dictionaries
+            tools: Optional list of tool definitions
+            tool_choice: Tool choice strategy
+            **kwargs: Additional DeepSeek-specific parameters
+
+        Returns:
+            ChatCompletion object (OpenAI-compatible)
+        """
+        if not self.client:
+            raise RuntimeError("DeepSeek client not initialized")
+
+        params = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if tools:
+            params["tools"] = tools
+            params["tool_choice"] = tool_choice
+
+        # Add any additional parameters
+        params.update(kwargs)
+
+        return self.client.chat.completions.create(**params)
+
+    def is_available(self) -> bool:
+        """
+        Check if DeepSeek provider is available.
+
+        Returns:
+            True if client is initialized, False otherwise
+        """
+        return self.client is not None
+
+    def get_provider_name(self) -> str:
+        """
+        Get the provider name.
+
+        Returns:
+            "DeepSeek"
+        """
+        return "DeepSeek"
+
+
 # Factory function to create API providers
 def create_api_provider(provider_name: str, api_key: Optional[str], **kwargs) -> APIProvider:
     """
     Create an API provider instance.
 
     Args:
-        provider_name: Name of the provider ("openai" or "fireworks")
+        provider_name: Name of the provider ("openai", "fireworks", or "deepseek")
         api_key: API key for authentication
         **kwargs: Additional provider-specific configuration (e.g., base_url from config)
 
@@ -294,6 +393,8 @@ def create_api_provider(provider_name: str, api_key: Optional[str], **kwargs) ->
         return OpenAIProvider(api_key, **kwargs)
     elif provider_name == "fireworks":
         return FireworksProvider(api_key, **kwargs)
+    elif provider_name == "deepseek":
+        return DeepSeekProvider(api_key, **kwargs)
     else:
         raise ValueError(f"Unsupported API provider: {provider_name}")
 

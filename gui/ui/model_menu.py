@@ -182,7 +182,8 @@ class ModelMenuManager:
         if not api_key:
             provider_config = self.provider_config_loader.get_provider(provider)
             display_name = provider_config.display_name if provider_config else provider.capitalize()
-            self.message_handler.append_message("System", f"No API key configured for {display_name}. Please add the API key to the system keyring using ApiKeyManager.")
+            if self.message_handler:
+                self.message_handler.append_message("System", f"No API key configured for {display_name}. Please add the API key to the system keyring using ApiKeyManager.")
             return
 
         # Get provider config for base_url and other settings
@@ -206,10 +207,12 @@ class ModelMenuManager:
             display_name = provider_config.display_name if provider_config else provider.capitalize()
 
             # Show a confirmation message
-            self.message_handler.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
+            if self.message_handler:
+                self.message_handler.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
         else:
             display_name = provider_config.display_name if provider_config else provider.capitalize()
-            self.message_handler.append_message("System", f"Failed to initialize {display_name} provider. Please check your API key configuration.")
+            if self.message_handler:
+                self.message_handler.append_message("System", f"Failed to initialize {display_name} provider. Please check your API key configuration.")
 
     def on_add_api_key(self, provider_name: str, display_name: str, parent_window):
         """
@@ -234,7 +237,8 @@ class ModelMenuManager:
                     api_key_manager.set_api_key(provider_name, api_key)
 
                     # Show success message
-                    self.message_handler.append_message("System", f"API key for {display_name} has been saved successfully!")
+                    if self.message_handler:
+                        self.message_handler.append_message("System", f"API key for {display_name} has been saved successfully!")
 
                     # Refresh the Model menu to show the dropdown instead of the button
                     self.refresh_model_menu(parent_window)
@@ -252,7 +256,8 @@ class ModelMenuManager:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error adding API key: {e}")
-            self.message_handler.append_message("[ERROR]", f"Failed to add API key: {str(e)}")
+            if self.message_handler:
+                self.message_handler.append_message("System", f"❌ Failed to add API key: {str(e)}")
 
     def refresh_model_menu(self, parent_window):
         """

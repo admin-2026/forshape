@@ -159,16 +159,7 @@ class PrestartChecker:
             message_lines.append("\n**To add API keys:**")
             message_lines.append("• Go to **Model menu** → **Add API Key** to configure your API keys\n")
             message_lines.append("**After adding the API key(s):**")
-            message_lines.append("• Type anything (e.g., 'ready') to continue\n")
-
-            # Add helpful links for getting API keys
-            message_lines.append("**Don't have API keys?**")
-            if "openai" in missing_keys:
-                message_lines.append("• OpenAI: https://platform.openai.com/api-keys")
-            if "fireworks" in missing_keys:
-                message_lines.append("• Fireworks: https://fireworks.ai/account/api-keys")
-            if "anthropic" in missing_keys:
-                message_lines.append("• Anthropic: https://console.anthropic.com/settings/keys")
+            message_lines.append("• Type anything (e.g., 'ready') to continue")
 
             window.append_message("System", "\n".join(message_lines))
             self.status = "need_api_key"

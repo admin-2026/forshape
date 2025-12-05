@@ -55,6 +55,22 @@
           "display_name": "Qwen3 Coder"
         }
       ]
+    },
+    {
+      "name": "deepseek",
+      "display_name": "DeepSeek",
+      "base_url": "https://api.deepseek.com",
+      "default_model": "deepseek-chat",
+      "models": [
+        {
+          "name": "deepseek-chat",
+          "display_name": "DeepSeek Chat"
+        },
+        {
+          "name": "deepseek-reasoner",
+          "display_name": "DeepSeek Reasoner"
+        }
+      ]
     }
   ]
 }

@@ -21,6 +21,7 @@ from .formatters import MessageFormatter
 from .logger import LogLevel
 from .script_executor import ScriptExecutor, ExecutionMode
 from .provider_config_loader import ProviderConfigLoader
+from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 
 if TYPE_CHECKING:
@@ -75,6 +76,12 @@ class ForShapeMainWindow(QMainWindow):
         # Load provider configuration
         self.provider_config_loader = ProviderConfigLoader()
 
+        # Initialize UI config manager for persisting menu selections
+        from pathlib import Path
+        forshape_dir = Path(self.context_provider.working_dir) / '.forshape'
+        self.ui_config_manager = UIConfigManager(forshape_dir)
+        self.ui_config_manager.load()
+
         # Initialize handler instances (will be fully configured after UI setup)
         self.message_handler = None
         self.file_executor = None
@@ -123,7 +130,12 @@ class ForShapeMainWindow(QMainWindow):
         self.log_level_combo.addItem("INFO", LogLevel.INFO)
         self.log_level_combo.addItem("WARN", LogLevel.WARN)
         self.log_level_combo.addItem("ERROR", LogLevel.ERROR)
-        self.log_level_combo.setCurrentIndex(1)  # Default to INFO
+
+        # Restore log level from config, default to INFO if not set
+        saved_log_level = self.ui_config_manager.get('log_level', 'INFO')
+        log_level_index = {'DEBUG': 0, 'INFO': 1, 'WARN': 2, 'ERROR': 3}.get(saved_log_level, 1)
+        self.log_level_combo.setCurrentIndex(log_level_index)
+
         self.log_level_combo.currentIndexChanged.connect(self.on_log_level_changed)
 
         # Create a widget container for label and combo
@@ -227,8 +239,16 @@ class ForShapeMainWindow(QMainWindow):
         # Set initial splitter sizes (70% conversation, 30% logs)
         splitter.setSizes([700, 300])
 
-        # Hide log panel by default
-        self.log_widget.hide()
+        # Restore show_logs state from config, default to hidden
+        show_logs = self.ui_config_manager.get('show_logs', False)
+        if show_logs:
+            self.log_widget.show()
+            self.toggle_logs_action.setText("Hide Logs")
+            self.toggle_logs_action.setChecked(True)
+        else:
+            self.log_widget.hide()
+            self.toggle_logs_action.setText("Show Logs")
+            self.toggle_logs_action.setChecked(False)
 
         main_layout.addWidget(splitter, stretch=1)
 
@@ -391,7 +411,8 @@ class ForShapeMainWindow(QMainWindow):
         self.model_menu_manager = ModelMenuManager(
             self.provider_config_loader,
             self.message_handler,
-            self.logger
+            self.logger,
+            self.ui_config_manager
         )
         self.model_menu_manager.set_ai_client(self.ai_client)
         self.model_menu_manager.set_callbacks(
@@ -425,7 +446,8 @@ class ForShapeMainWindow(QMainWindow):
             temp_manager = ModelMenuManager(
                 self.provider_config_loader,
                 None,  # message_handler not yet initialized
-                self.logger
+                self.logger,
+                self.ui_config_manager
             )
             temp_manager.create_model_menu_items(model_menu, self)
             # Store the model_combos for later use
@@ -579,6 +601,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if api_debugger is not None:
             self.api_debugger = api_debugger
 
+            # Restore dump_api_data state from config
+            saved_dump_api_data = self.ui_config_manager.get('dump_api_data', False)
+            if saved_dump_api_data:
+                self.api_debugger.set_enabled(True)
+                self.toggle_api_dump_action.setChecked(True)
+
         # Update logger if provided
         if logger is not None:
             # Disconnect old logger
@@ -609,9 +637,18 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.model_menu_manager:
             self.model_menu_manager.set_ai_client(self.ai_client)
 
-        # Sync model dropdown with AI client's current model
+        # Restore saved model selection to AI client, or sync dropdown with current model
         if self.ai_client and self.model_menu_manager:
-            self.model_menu_manager.sync_model_dropdown()
+            # Try to restore saved model selection
+            saved_provider = self.ui_config_manager.get('selected_provider')
+            saved_model = self.ui_config_manager.get('selected_model')
+
+            if saved_provider and saved_model:
+                # Apply saved model selection to AI client
+                self.model_menu_manager.restore_saved_model(saved_provider, saved_model)
+            else:
+                # No saved selection, sync dropdown with AI client's default
+                self.model_menu_manager.sync_model_dropdown()
 
     def handle_prestart_input(self, user_input: str):
         """
@@ -866,10 +903,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.log_widget.hide()
             self.toggle_logs_action.setText("Show Logs")
             self.toggle_logs_action.setChecked(False)
+            # Save to config
+            self.ui_config_manager.set('show_logs', False)
         else:
             self.log_widget.show()
             self.toggle_logs_action.setText("Hide Logs")
             self.toggle_logs_action.setChecked(True)
+            # Save to config
+            self.ui_config_manager.set('show_logs', True)
 
     def toggle_api_dump(self):
         """Toggle API data dumping."""
@@ -881,6 +922,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Toggle the enabled state
         new_state = not self.api_debugger.enabled
         self.api_debugger.set_enabled(new_state)
+
+        # Save to config
+        self.ui_config_manager.set('dump_api_data', new_state)
 
         if new_state:
             dump_dir = self.api_debugger.output_dir
@@ -937,6 +981,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Update the logger's minimum level
         self.logger.set_min_level(log_level)
+
+        # Save to config
+        self.ui_config_manager.set('log_level', log_level.name)
 
         # Show a brief message in the log display
         level_name = log_level.name

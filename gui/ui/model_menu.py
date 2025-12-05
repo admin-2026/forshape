@@ -12,7 +12,7 @@ from PySide2.QtGui import QFont
 class ModelMenuManager:
     """Handles model and provider menu creation and management."""
 
-    def __init__(self, provider_config_loader, message_handler, logger=None):
+    def __init__(self, provider_config_loader, message_handler, logger=None, ui_config_manager=None):
         """
         Initialize the model menu manager.
 
@@ -20,10 +20,12 @@ class ModelMenuManager:
             provider_config_loader: ProviderConfigLoader instance
             message_handler: MessageHandler instance for displaying messages
             logger: Optional Logger instance
+            ui_config_manager: Optional UIConfigManager instance for persisting selections
         """
         self.provider_config_loader = provider_config_loader
         self.message_handler = message_handler
         self.logger = logger
+        self.ui_config_manager = ui_config_manager
 
         # Dictionary to store model combo boxes for each provider
         self.model_combos = {}
@@ -99,6 +101,7 @@ class ModelMenuManager:
                         default_index = idx
 
                 # Set the default model if configured
+                # (The actual saved model will be restored later via restore_saved_model)
                 if default_index > 0:
                     model_combo.setCurrentIndex(default_index)
 
@@ -203,6 +206,13 @@ class ModelMenuManager:
             self.ai_client.provider_name = provider
             self.ai_client.set_model(model)
 
+            # Save to config
+            if self.ui_config_manager:
+                self.ui_config_manager.update({
+                    'selected_provider': provider,
+                    'selected_model': model
+                })
+
             # Get display name from config
             display_name = provider_config.display_name if provider_config else provider.capitalize()
 
@@ -279,6 +289,93 @@ class ModelMenuManager:
                     # Recreate menu items
                     self.create_model_menu_items(menu, parent_window)
                 break
+
+    def restore_saved_model(self, provider: str, model: str):
+        """
+        Restore a saved model selection by applying it to the AI client.
+
+        Args:
+            provider: The provider name (e.g., "openai", "deepseek")
+            model: The model identifier (e.g., "gpt-4o", "deepseek-chat")
+        """
+        if not self.ai_client:
+            return
+
+        # Get the combo box for this provider
+        combo_box = self.model_combos.get(provider)
+        if not combo_box:
+            if self.logger:
+                self.logger.warn(f"Cannot restore model: provider '{provider}' not found in menu")
+            return
+
+        # Check if the model exists in the combo box
+        model_index = None
+        for i in range(combo_box.count()):
+            if combo_box.itemData(i) == model:
+                model_index = i
+                break
+
+        if model_index is None or model_index == 0:
+            if self.logger:
+                self.logger.warn(f"Cannot restore model: model '{model}' not found for provider '{provider}'")
+            return
+
+        # Get provider-specific API key from keyring
+        from ..api_key_manager import ApiKeyManager
+        api_key_manager = ApiKeyManager()
+        api_key = api_key_manager.get_api_key(provider)
+
+        if not api_key:
+            if self.logger:
+                self.logger.warn(f"Cannot restore model: no API key for provider '{provider}'")
+            return
+
+        # Get provider config for base_url and other settings
+        provider_config = self.provider_config_loader.get_provider(provider)
+
+        # Reinitialize the AI agent with the saved provider
+        from ..api_provider import create_api_provider_from_config
+        if provider_config:
+            new_provider = create_api_provider_from_config(provider_config, api_key)
+        else:
+            # Fallback to basic provider creation if config not found
+            from ..api_provider import create_api_provider
+            new_provider = create_api_provider(provider, api_key)
+
+        if new_provider and new_provider.is_available():
+            # Update AI client
+            self.ai_client.provider = new_provider
+            self.ai_client.provider_name = provider
+            self.ai_client.set_model(model)
+
+            # Update dropdown to reflect the restored selection
+            # Reset all other providers' dropdowns to placeholder
+            for other_provider, other_combo in self.model_combos.items():
+                if other_provider != provider:
+                    try:
+                        other_combo.currentIndexChanged.disconnect()
+                    except:
+                        pass
+                    other_combo.setCurrentIndex(0)  # Reset to placeholder
+                    # Reconnect signal
+                    other_combo.currentIndexChanged.connect(
+                        lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
+                    )
+
+            # Set the current provider's dropdown to the saved model
+            try:
+                combo_box.currentIndexChanged.disconnect()
+            except:
+                pass
+            combo_box.setCurrentIndex(model_index)
+            # Reconnect signal
+            combo_box.currentIndexChanged.connect(
+                lambda idx, prov=provider: self.on_model_changed(idx, prov)
+            )
+
+            # Log the restoration
+            if self.logger:
+                self.logger.info(f"Restored saved model: {provider}/{model}")
 
     def sync_model_dropdown(self):
         """Sync the model dropdown selection with the AI client's current model and provider."""

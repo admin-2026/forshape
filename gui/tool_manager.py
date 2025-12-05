@@ -492,6 +492,10 @@ class ToolManager:
                 if forshape_folder in item.parts:
                     continue
 
+                # Skip __pycache__ directories
+                if item.name == "__pycache__":
+                    continue
+
                 # If only_python is True, filter out non-Python files
                 if only_python and item.is_file() and not item.name.endswith('.py'):
                     continue

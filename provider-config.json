@@ -3,6 +3,7 @@
     {
       "name": "openai",
       "display_name": "OpenAI",
+      "provider_class": "openai_compatible",
       "base_url": null,
       "default_model": "gpt-5.1",
       "models": [
@@ -39,6 +40,7 @@
     {
       "name": "fireworks",
       "display_name": "Fireworks",
+      "provider_class": "openai_compatible",
       "base_url": "https://api.fireworks.ai/inference/v1",
       "default_model": "accounts/fireworks/models/deepseek-v3p1-terminus",
       "models": [
@@ -59,6 +61,7 @@
     {
       "name": "deepseek",
       "display_name": "DeepSeek",
+      "provider_class": "openai_compatible",
       "base_url": "https://api.deepseek.com",
       "default_model": "deepseek-chat",
       "models": [

@@ -22,6 +22,7 @@ class ProviderConfig:
         """
         self.name = data.get("name", "")
         self.display_name = data.get("display_name", self.name.capitalize())
+        self.provider_class = data.get("provider_class", "openai_compatible")
         self.base_url = data.get("base_url")
         self.default_model = data.get("default_model")
         self.models = [ModelConfig(m) for m in data.get("models", [])]

@@ -1,8 +1,9 @@
 """
 API Provider abstraction layer.
 
-This module provides a base class for API providers and concrete implementations
-for OpenAI and Fireworks API providers.
+This module provides a base class for API providers and a generic OpenAI-compatible
+provider implementation that works with any OpenAI-compatible API service.
+All provider configuration is driven by provider-config.json.
 """
 
 from abc import ABC, abstractmethod
@@ -73,23 +74,31 @@ class APIProvider(ABC):
         pass
 
 
-class OpenAIProvider(APIProvider):
-    """OpenAI API provider implementation."""
+class OpenAICompatibleProvider(APIProvider):
+    """
+    Generic OpenAI-compatible API provider implementation.
 
-    def __init__(self, api_key: Optional[str], **kwargs):
+    This provider works with any API that follows the OpenAI API interface,
+    including OpenAI, Fireworks, DeepSeek, and other compatible services.
+    All configuration is driven by the provider-config.json file.
+    """
+
+    def __init__(self, api_key: Optional[str], provider_name: str = "OpenAI", **kwargs):
         """
-        Initialize the OpenAI provider.
+        Initialize the OpenAI-compatible provider.
 
         Args:
-            api_key: OpenAI API key
+            api_key: API key for authentication
+            provider_name: Display name of the provider (e.g., "OpenAI", "Fireworks")
             **kwargs: Additional configuration (e.g., base_url, organization)
         """
         super().__init__(api_key, **kwargs)
+        self.provider_name = provider_name
         self.client = self._initialize_client()
 
     def _initialize_client(self):
         """
-        Initialize the OpenAI client.
+        Initialize the OpenAI-compatible client.
 
         Returns:
             OpenAI client instance or None if initialization fails
@@ -104,16 +113,20 @@ class OpenAIProvider(APIProvider):
             return None
 
         try:
-            # Extract OpenAI-specific config
+            # Build client configuration
             client_kwargs = {"api_key": self.api_key}
-            if "base_url" in self.config:
+
+            # Add base_url if provided (required for non-OpenAI providers)
+            if "base_url" in self.config and self.config["base_url"]:
                 client_kwargs["base_url"] = self.config["base_url"]
+
+            # Add organization if provided (OpenAI-specific)
             if "organization" in self.config:
                 client_kwargs["organization"] = self.config["organization"]
 
             return OpenAI(**client_kwargs)
         except Exception as e:
-            print(f"Error initializing OpenAI client: {e}")
+            print(f"Error initializing {self.provider_name} client: {e}")
             return None
 
     def create_completion(
@@ -125,20 +138,20 @@ class OpenAIProvider(APIProvider):
         **kwargs
     ) -> Any:
         """
-        Create a chat completion using OpenAI API.
+        Create a chat completion using the OpenAI-compatible API.
 
         Args:
-            model: Model identifier (e.g., "gpt-4", "gpt-3.5-turbo")
+            model: Model identifier
             messages: List of message dictionaries
             tools: Optional list of tool definitions
             tool_choice: Tool choice strategy
-            **kwargs: Additional OpenAI-specific parameters
+            **kwargs: Additional provider-specific parameters
 
         Returns:
-            OpenAI ChatCompletion object
+            ChatCompletion object
         """
         if not self.client:
-            raise RuntimeError("OpenAI client not initialized")
+            raise RuntimeError(f"{self.provider_name} client not initialized")
 
         params = {
             "model": model,
@@ -156,7 +169,7 @@ class OpenAIProvider(APIProvider):
 
     def is_available(self) -> bool:
         """
-        Check if OpenAI provider is available.
+        Check if the provider is available.
 
         Returns:
             True if client is initialized, False otherwise
@@ -168,207 +181,9 @@ class OpenAIProvider(APIProvider):
         Get the provider name.
 
         Returns:
-            "OpenAI"
+            Provider name string
         """
-        return "OpenAI"
-
-
-class FireworksProvider(APIProvider):
-    """Fireworks AI API provider implementation."""
-
-    def __init__(self, api_key: Optional[str], **kwargs):
-        """
-        Initialize the Fireworks provider.
-
-        Args:
-            api_key: Fireworks API key
-            **kwargs: Additional configuration (including base_url)
-        """
-        super().__init__(api_key, **kwargs)
-        self.client = self._initialize_client()
-
-    def _initialize_client(self):
-        """
-        Initialize the Fireworks client (using OpenAI-compatible interface).
-
-        Returns:
-            OpenAI client instance configured for Fireworks or None if initialization fails
-        """
-        if not self.api_key:
-            return None
-
-        try:
-            from openai import OpenAI
-        except ImportError:
-            print("Error: OpenAI library not available (required for Fireworks compatibility)")
-            return None
-
-        try:
-            # Get base_url from config, default to Fireworks API endpoint
-            base_url = self.config.get("base_url", "https://api.fireworks.ai/inference/v1")
-            # Fireworks API is OpenAI-compatible, just use a different base URL
-            return OpenAI(
-                api_key=self.api_key,
-                base_url=base_url
-            )
-        except Exception as e:
-            print(f"Error initializing Fireworks client: {e}")
-            return None
-
-    def create_completion(
-        self,
-        model: str,
-        messages: List[Dict],
-        tools: Optional[List[Dict]] = None,
-        tool_choice: str = "auto",
-        **kwargs
-    ) -> Any:
-        """
-        Create a chat completion using Fireworks API.
-
-        Args:
-            model: Model identifier (e.g., "accounts/fireworks/models/llama-v3p1-8b-instruct")
-            messages: List of message dictionaries
-            tools: Optional list of tool definitions
-            tool_choice: Tool choice strategy
-            **kwargs: Additional Fireworks-specific parameters
-
-        Returns:
-            ChatCompletion object (OpenAI-compatible)
-        """
-        if not self.client:
-            raise RuntimeError("Fireworks client not initialized")
-
-        params = {
-            "model": model,
-            "messages": messages,
-        }
-
-        if tools:
-            params["tools"] = tools
-            params["tool_choice"] = tool_choice
-
-        # Add any additional parameters
-        params.update(kwargs)
-
-        return self.client.chat.completions.create(**params)
-
-    def is_available(self) -> bool:
-        """
-        Check if Fireworks provider is available.
-
-        Returns:
-            True if client is initialized, False otherwise
-        """
-        return self.client is not None
-
-    def get_provider_name(self) -> str:
-        """
-        Get the provider name.
-
-        Returns:
-            "Fireworks"
-        """
-        return "Fireworks"
-
-
-class DeepSeekProvider(APIProvider):
-    """DeepSeek API provider implementation."""
-
-    def __init__(self, api_key: Optional[str], **kwargs):
-        """
-        Initialize the DeepSeek provider.
-
-        Args:
-            api_key: DeepSeek API key
-            **kwargs: Additional configuration (including base_url)
-        """
-        super().__init__(api_key, **kwargs)
-        self.client = self._initialize_client()
-
-    def _initialize_client(self):
-        """
-        Initialize the DeepSeek client (using OpenAI-compatible interface).
-
-        Returns:
-            OpenAI client instance configured for DeepSeek or None if initialization fails
-        """
-        if not self.api_key:
-            return None
-
-        try:
-            from openai import OpenAI
-        except ImportError:
-            print("Error: OpenAI library not available (required for DeepSeek compatibility)")
-            return None
-
-        try:
-            # Get base_url from config, default to DeepSeek API endpoint
-            base_url = self.config.get("base_url", "https://api.deepseek.com")
-            # DeepSeek API is OpenAI-compatible, just use a different base URL
-            return OpenAI(
-                api_key=self.api_key,
-                base_url=base_url
-            )
-        except Exception as e:
-            print(f"Error initializing DeepSeek client: {e}")
-            return None
-
-    def create_completion(
-        self,
-        model: str,
-        messages: List[Dict],
-        tools: Optional[List[Dict]] = None,
-        tool_choice: str = "auto",
-        **kwargs
-    ) -> Any:
-        """
-        Create a chat completion using DeepSeek API.
-
-        Args:
-            model: Model identifier (e.g., "deepseek-chat", "deepseek-reasoner")
-            messages: List of message dictionaries
-            tools: Optional list of tool definitions
-            tool_choice: Tool choice strategy
-            **kwargs: Additional DeepSeek-specific parameters
-
-        Returns:
-            ChatCompletion object (OpenAI-compatible)
-        """
-        if not self.client:
-            raise RuntimeError("DeepSeek client not initialized")
-
-        params = {
-            "model": model,
-            "messages": messages,
-        }
-
-        if tools:
-            params["tools"] = tools
-            params["tool_choice"] = tool_choice
-
-        # Add any additional parameters
-        params.update(kwargs)
-
-        return self.client.chat.completions.create(**params)
-
-    def is_available(self) -> bool:
-        """
-        Check if DeepSeek provider is available.
-
-        Returns:
-            True if client is initialized, False otherwise
-        """
-        return self.client is not None
-
-    def get_provider_name(self) -> str:
-        """
-        Get the provider name.
-
-        Returns:
-            "DeepSeek"
-        """
-        return "DeepSeek"
+        return self.provider_name
 
 
 # Factory function to create API providers
@@ -376,32 +191,28 @@ def create_api_provider(provider_name: str, api_key: Optional[str], **kwargs) ->
     """
     Create an API provider instance.
 
+    This is now a simple wrapper that creates an OpenAI-compatible provider
+    with the given configuration. All providers are assumed to be OpenAI-compatible.
+
     Args:
-        provider_name: Name of the provider ("openai", "fireworks", or "deepseek")
+        provider_name: Name of the provider (for display purposes)
         api_key: API key for authentication
         **kwargs: Additional provider-specific configuration (e.g., base_url from config)
 
     Returns:
-        APIProvider instance
-
-    Raises:
-        ValueError: If provider_name is not supported
+        APIProvider instance (OpenAICompatibleProvider)
     """
-    provider_name = provider_name.lower()
-
-    if provider_name == "openai":
-        return OpenAIProvider(api_key, **kwargs)
-    elif provider_name == "fireworks":
-        return FireworksProvider(api_key, **kwargs)
-    elif provider_name == "deepseek":
-        return DeepSeekProvider(api_key, **kwargs)
-    else:
-        raise ValueError(f"Unsupported API provider: {provider_name}")
+    # All providers use the OpenAI-compatible interface
+    # The provider name is passed for display/logging purposes
+    return OpenAICompatibleProvider(api_key, provider_name=provider_name.title(), **kwargs)
 
 
 def create_api_provider_from_config(provider_config, api_key: Optional[str]) -> APIProvider:
     """
     Create an API provider instance from a ProviderConfig object.
+
+    This function is fully config-driven and selects the appropriate provider class
+    based on the provider_class field in the configuration.
 
     Args:
         provider_config: ProviderConfig object with provider configuration
@@ -411,10 +222,36 @@ def create_api_provider_from_config(provider_config, api_key: Optional[str]) -> 
         APIProvider instance
 
     Raises:
-        ValueError: If provider_name is not supported
+        ValueError: If provider_class is not supported
+
+    Note:
+        To add a new provider, simply add it to provider-config.json with:
+        - provider_class: "openai_compatible" for OpenAI-compatible APIs
+        - (future) provider_class: "anthropic_native" for Anthropic's API
+        - (future) provider_class: "google_gemini" for Google's Gemini API
+        No code changes needed for new OpenAI-compatible providers!
     """
+    # Build kwargs from config
     kwargs = {}
     if provider_config.base_url:
         kwargs["base_url"] = provider_config.base_url
 
-    return create_api_provider(provider_config.name, api_key, **kwargs)
+    # Select provider class based on config
+    provider_class_type = provider_config.provider_class
+
+    if provider_class_type == "openai_compatible":
+        return OpenAICompatibleProvider(
+            api_key,
+            provider_name=provider_config.display_name,
+            **kwargs
+        )
+    # Future provider classes can be added here:
+    # elif provider_class_type == "anthropic_native":
+    #     return AnthropicNativeProvider(api_key, provider_name=provider_config.display_name, **kwargs)
+    # elif provider_class_type == "google_gemini":
+    #     return GoogleGeminiProvider(api_key, provider_name=provider_config.display_name, **kwargs)
+    else:
+        raise ValueError(
+            f"Unsupported provider class: {provider_class_type}. "
+            f"Supported classes: openai_compatible"
+        )

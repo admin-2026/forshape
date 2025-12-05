@@ -12,8 +12,6 @@ from PySide2.QtGui import QFont, QTextCursor, QDragEnterEvent, QDropEvent
 
 import os
 import sys
-import glob
-import io
 import traceback
 from typing import TYPE_CHECKING
 
@@ -23,33 +21,12 @@ from .formatters import MessageFormatter
 from .logger import LogLevel
 from .script_executor import ScriptExecutor, ExecutionMode
 from .provider_config_loader import ProviderConfigLoader
+from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
     from .history_logger import HistoryLogger
     from .logger import Logger
-
-
-class MultiLineInputField(QTextEdit):
-    """Custom QTextEdit for multi-line user input with Enter to submit."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.submit_callback = None
-
-    def keyPressEvent(self, event):
-        """Handle key press events. Enter submits, Shift+Enter adds new line."""
-        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
-            if event.modifiers() == Qt.ShiftModifier:
-                # Shift+Enter: insert new line
-                super().keyPressEvent(event)
-            else:
-                # Plain Enter: submit
-                if self.submit_callback:
-                    self.submit_callback()
-                event.accept()
-        else:
-            super().keyPressEvent(event)
 
 
 class ForShapeMainWindow(QMainWindow):
@@ -92,22 +69,17 @@ class ForShapeMainWindow(QMainWindow):
         self.completion_callback = completion_callback
         self.window_close_callback = window_close_callback
 
-        # Connect logger signal to display handler
-        if self.logger:
-            self.logger.log_message.connect(self.on_log_message)
-
-
         # Initialize message formatter
         self.message_formatter = MessageFormatter(self.logger)
 
         # Load provider configuration
         self.provider_config_loader = ProviderConfigLoader()
 
-        # Dictionary to store model combo boxes for each provider (will be populated dynamically)
-        self.model_combos = {}
-
-        # Dictionary to store "Add API Key" buttons for providers missing keys
-        self.api_key_buttons = {}
+        # Initialize handler instances (will be fully configured after UI setup)
+        self.message_handler = None
+        self.file_executor = None
+        self.drag_drop_handler = None
+        self.model_menu_manager = None
 
         # Enable drag and drop
         self.setAcceptDrops(True)
@@ -345,14 +317,28 @@ class ForShapeMainWindow(QMainWindow):
         self.run_button.clicked.connect(self.on_run_script)
 
         # Add Teardown button
-        self.redo_button = QPushButton("Teardown")
-        self.redo_button.setFont(QFont("Consolas", 10))
-        self.redo_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
-        self.redo_button.clicked.connect(self.on_redo_script)
+        self.teardown_button = QPushButton("Teardown")
+        self.teardown_button.setFont(QFont("Consolas", 10))
+        self.teardown_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
+        self.teardown_button.clicked.connect(self.on_redo_script)
+
+        # Add Export button
+        self.export_button = QPushButton("Export")
+        self.export_button.setFont(QFont("Consolas", 10))
+        self.export_button.setToolTip("Export - run export.py from the working directory")
+        self.export_button.clicked.connect(self.on_export_clicked)
+
+        # Add Import button
+        self.import_button = QPushButton("Import")
+        self.import_button.setFont(QFont("Consolas", 10))
+        self.import_button.setToolTip("Import - run import.py from the working directory")
+        self.import_button.clicked.connect(self.on_import_clicked)
 
         third_row_layout.addWidget(self.incremental_build_button)
         third_row_layout.addWidget(self.run_button)
-        third_row_layout.addWidget(self.redo_button)
+        third_row_layout.addWidget(self.teardown_button)
+        third_row_layout.addWidget(self.export_button)
+        third_row_layout.addWidget(self.import_button)
         third_row_layout.addStretch()  # Push buttons to the left
 
         # Add all rows to the input container
@@ -370,99 +356,81 @@ class ForShapeMainWindow(QMainWindow):
         # Add input container to main layout
         main_layout.addWidget(input_container)
 
+        # Initialize handler instances now that UI components are created
+        self.message_handler = MessageHandler(
+            self.conversation_display,
+            self.log_display,
+            self.message_formatter,
+            self.logger
+        )
+
+        # Connect logger signal to message handler
+        if self.logger:
+            self.logger.log_message.connect(self.message_handler.on_log_message)
+
+        self.file_executor = FileExecutor(
+            self.context_provider,
+            self.message_handler,
+            self.logger
+        )
+
+        self.drag_drop_handler = DragDropHandler(
+            self.message_handler,
+            self.image_context,
+            self.logger
+        )
+        # Set state references for drag drop handler
+        self.drag_drop_handler.set_state_references(
+            self.captured_images,
+            self.attached_files,
+            lambda: self.is_ai_busy,
+            self.capture_button,
+            self.input_field
+        )
+
+        self.model_menu_manager = ModelMenuManager(
+            self.provider_config_loader,
+            self.message_handler,
+            self.logger
+        )
+        self.model_menu_manager.set_ai_client(self.ai_client)
+        self.model_menu_manager.set_callbacks(
+            self.prestart_checker,
+            self.completion_callback,
+            self.enable_ai_mode
+        )
+
+        # Transfer model_combos from temp manager if it exists
+        if hasattr(self, '_temp_model_combos'):
+            self.model_menu_manager.model_combos = self._temp_model_combos
+            del self._temp_model_combos
+
         # Display welcome message
         self.display_welcome()
 
     def _create_model_menu_items(self, model_menu):
         """
         Dynamically create model menu items from provider configuration.
-        If a provider is missing an API key, show an "Add API Key" button instead of a dropdown.
+        Delegates to ModelMenuManager.
 
         Args:
             model_menu: The QMenu to add model selection widgets to
         """
-        from .api_key_manager import ApiKeyManager
-
-        providers = self.provider_config_loader.get_providers()
-
-        if not providers:
-            # No providers configured, show a message
-            no_providers_label = QLabel("  No providers configured")
-            no_providers_label.setFont(QFont("Consolas", 9))
-            model_menu.addAction(QWidgetAction(self))
-            return
-
-        # Check API keys for all providers
-        api_key_manager = ApiKeyManager()
-
-        # Create a section for each provider
-        for provider in providers:
-            # Create label for provider
-            provider_label = QLabel(f"  {provider.display_name}: ")
-            provider_label.setFont(QFont("Consolas", 9, QFont.Bold))
-
-            # Check if API key exists for this provider
-            api_key = api_key_manager.get_api_key(provider.name)
-
-            # Create a widget container for label and combo/button
-            provider_widget = QWidget()
-            provider_layout = QHBoxLayout(provider_widget)
-            provider_layout.setContentsMargins(5, 2, 5, 2)
-            provider_layout.addWidget(provider_label)
-
-            if api_key:
-                # API key exists - show model dropdown
-                model_combo = QComboBox()
-                model_combo.setFont(QFont("Consolas", 9))
-
-                # Add placeholder as first option
-                model_combo.addItem("-- Select --", None)
-
-                # Add all models for this provider
-                default_index = 0
-                for idx, model in enumerate(provider.models, start=1):
-                    model_combo.addItem(model.display_name, model.name)
-                    # Set default if this is the default model
-                    if model.name == provider.default_model:
-                        default_index = idx
-
-                # Set the default model if configured
-                if default_index > 0:
-                    model_combo.setCurrentIndex(default_index)
-
-                # Connect change event
-                model_combo.currentIndexChanged.connect(
-                    lambda idx, prov=provider.name: self.on_model_changed(idx, prov)
-                )
-
-                # Store the combo box for later access
-                self.model_combos[provider.name] = model_combo
-
-                provider_layout.addWidget(model_combo)
-                provider_layout.addStretch()
-
-                # Add the widget to the menu using QWidgetAction
-                provider_action = QWidgetAction(self)
-                provider_action.setDefaultWidget(provider_widget)
-                model_menu.addAction(provider_action)
-            else:
-                # API key missing - show a clickable menu action instead of a button widget
-                # First add the label as a widget
-                provider_action = QWidgetAction(self)
-                provider_action.setDefaultWidget(provider_widget)
-                model_menu.addAction(provider_action)
-
-                # Then add a clickable "Add API Key" action
-                add_key_action = QAction(f"      → Add API Key", self)
-
-                # Use a closure-safe connection
-                def make_handler(prov, disp):
-                    def handler():
-                        self.on_add_api_key(prov, disp)
-                    return handler
-
-                add_key_action.triggered.connect(make_handler(provider.name, provider.display_name))
-                model_menu.addAction(add_key_action)
+        # Delegate to model menu manager (will be called before manager is initialized)
+        # So we need to handle this case
+        if self.model_menu_manager:
+            self.model_menu_manager.create_model_menu_items(model_menu, self)
+        else:
+            # During initial setup, create a temporary manager
+            temp_manager = ModelMenuManager(
+                self.provider_config_loader,
+                None,  # message_handler not yet initialized
+                self.logger
+            )
+            temp_manager.create_model_menu_items(model_menu, self)
+            # Store the model_combos for later use
+            if hasattr(temp_manager, 'model_combos'):
+                self._temp_model_combos = temp_manager.model_combos
 
     def display_welcome(self):
         """Display welcome message in the conversation area."""
@@ -603,6 +571,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Update image_context if provided
         if image_context is not None:
             self.image_context = image_context
+            # Update drag drop handler's image context
+            if self.drag_drop_handler:
+                self.drag_drop_handler.image_context = image_context
 
         # Update api_debugger if provided
         if api_debugger is not None:
@@ -613,20 +584,34 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             # Disconnect old logger
             if self.logger and hasattr(self.logger, 'log_message'):
                 try:
-                    self.logger.log_message.disconnect(self.on_log_message)
+                    self.logger.log_message.disconnect(self.message_handler.on_log_message if self.message_handler else lambda: None)
                 except:
                     pass
 
             # Update to new logger
             self.logger = logger
 
+            # Update handlers' loggers
+            if self.message_handler:
+                self.message_handler.logger = logger
+            if self.file_executor:
+                self.file_executor.logger = logger
+            if self.drag_drop_handler:
+                self.drag_drop_handler.logger = logger
+            if self.model_menu_manager:
+                self.model_menu_manager.logger = logger
+
             # Connect new logger
-            if self.logger and hasattr(self.logger, 'log_message'):
-                self.logger.log_message.connect(self.on_log_message)
+            if self.logger and hasattr(self.logger, 'log_message') and self.message_handler:
+                self.logger.log_message.connect(self.message_handler.on_log_message)
+
+        # Update model menu manager's AI client
+        if self.model_menu_manager:
+            self.model_menu_manager.set_ai_client(self.ai_client)
 
         # Sync model dropdown with AI client's current model
-        if self.ai_client:
-            self._sync_model_dropdown()
+        if self.ai_client and self.model_menu_manager:
+            self.model_menu_manager.sync_model_dropdown()
 
     def handle_prestart_input(self, user_input: str):
         """
@@ -787,24 +772,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Force UI to update
         QCoreApplication.processEvents()
 
-    def play_notification_sound(self):
-        """Play a notification sound when AI finishes processing."""
-        try:
-            # Play system beep sound
-            # On Windows, this will play the system default beep
-            # On other platforms, it will attempt to play a system sound
-            import platform
-            if platform.system() == 'Windows':
-                # Use winsound for a simple beep on Windows
-                import winsound
-                winsound.MessageBeep(winsound.MB_ICONASTERISK)
-            else:
-                # On other platforms, try to use system bell
-                print('\a')  # ASCII bell character
-        except Exception as e:
-            # If sound fails, just log it and continue
-            if self.logger:
-                self.logger.debug(f"Could not play notification sound: {e}")
 
     def on_token_update(self, token_data: dict):
         """
@@ -857,7 +824,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.append_message("AI", message, token_data)
 
         # Play notification sound when AI finishes
-        self.play_notification_sound()
+        if self.message_handler:
+            self.message_handler.play_notification_sound()
 
         # Bring main window to front when AI finishes
         self.raise_()
@@ -877,135 +845,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.worker.deleteLater()
             self.worker = None
 
-    def markdown_to_html(self, text: str) -> str:
-        """
-        Convert markdown text to HTML using MessageFormatter.
-
-        Args:
-            text: Markdown text to convert
-
-        Returns:
-            HTML string
-        """
-        return self.message_formatter.markdown_to_html(text)
-
     def append_message(self, role: str, message: str, token_data: dict = None):
-        """
-        Append a message to the conversation display with markdown support.
-
-        Args:
-            role: The role (You, AI, Error, etc.)
-            message: The message content (supports markdown)
-            token_data: Optional dict with token usage information
-        """
-        # Move cursor to end before inserting
-        cursor = self.conversation_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.conversation_display.setTextCursor(cursor)
-
-        # Use MessageFormatter to format the message
-        formatted_message = self.message_formatter.format_message(role, message, token_data)
-
-        # Use insertHtml instead of append for proper HTML rendering
-        self.conversation_display.insertHtml(formatted_message)
-
-        # Add a line break after each message to separate consecutive messages
-        self.conversation_display.insertHtml('<br>')
-
-        # Scroll to bottom
-        cursor = self.conversation_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.conversation_display.setTextCursor(cursor)
+        """Delegate to message handler."""
+        if self.message_handler:
+            self.message_handler.append_message(role, message, token_data)
 
     def remove_last_message(self):
-        """Remove the last message from the conversation display."""
-        # Get the document
-        document = self.conversation_display.document()
-
-        # Start from the end and work backwards to find and remove the last div block
-        cursor = self.conversation_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-
-        # Move to the start of the document and select all
-        cursor.movePosition(QTextCursor.Start, QTextCursor.MoveAnchor)
-        cursor.movePosition(QTextCursor.End, QTextCursor.KeepAnchor)
-
-        # Get HTML content
-        html_content = cursor.selection().toHtml()
-
-        # Find and remove the last message div (work from the end)
-        # Look for the last occurrence of a div with our message styling
-        last_div_start = html_content.rfind('<div style="margin: 15px 0; padding: 8px')
-
-        if last_div_start != -1:
-            # Find the closing </div> after this opening tag
-            search_from = last_div_start + 10
-            div_end = html_content.find('</div>', search_from)
-
-            if div_end != -1:
-                # Also remove the <br> that follows
-                br_end = html_content.find('<br>', div_end)
-                if br_end != -1 and br_end - div_end < 20:  # Make sure it's the immediate <br>
-                    end_pos = br_end + 4  # Include the <br>
-                else:
-                    end_pos = div_end + 6  # Just </div>
-
-                # Remove the last message div and br
-                html_content = html_content[:last_div_start] + html_content[end_pos:]
-
-                # Set the modified HTML back
-                cursor.movePosition(QTextCursor.Start, QTextCursor.MoveAnchor)
-                cursor.movePosition(QTextCursor.End, QTextCursor.KeepAnchor)
-                cursor.removeSelectedText()
-                cursor.insertHtml(html_content)
-
-        # Scroll to bottom
-        cursor = self.conversation_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.conversation_display.setTextCursor(cursor)
+        """Delegate to message handler."""
+        if self.message_handler:
+            self.message_handler.remove_last_message()
 
     def display_error(self, error_message: str):
-        """
-        Display an error message.
-
-        Args:
-            error_message: The error message to display
-        """
-        self.append_message("[ERROR]", error_message)
-
-    def on_log_message(self, level: str, message: str, timestamp: str):
-        """
-        Handle log messages from the logger.
-
-        Args:
-            level: Log level (DEBUG, INFO, WARN, ERROR)
-            message: Log message
-            timestamp: Timestamp of the log
-        """
-        # Color code based on log level
-        color_map = {
-            "DEBUG": "#888888",
-            "INFO": "#0066CC",
-            "WARN": "#FF8800",
-            "ERROR": "#CC0000"
-        }
-        color = color_map.get(level, "#000000")
-
-        # Format the log message with color
-        formatted_log = f'<span style="color: {color};">[{timestamp}] [{level}] {message}</span><br>'
-
-        # Move cursor to end before inserting
-        cursor = self.log_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.log_display.setTextCursor(cursor)
-
-        # Insert HTML
-        self.log_display.insertHtml(formatted_log)
-
-        # Scroll to bottom
-        cursor = self.log_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.log_display.setTextCursor(cursor)
+        """Delegate to message handler."""
+        if self.message_handler:
+            self.message_handler.display_error(error_message)
 
     def toggle_log_panel(self):
         """Toggle the visibility of the log panel."""
@@ -1089,279 +942,31 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         level_name = log_level.name
         self.logger.info(f"Log level changed to {level_name}")
 
-    def on_model_changed(self, index: int, provider: str):
-        """
-        Handle model dropdown selection change.
-
-        Args:
-            index: The index of the selected item in the combo box
-            provider: The provider name (e.g., "openai", "fireworks")
-        """
-        if not self.ai_client:
-            return
-
-        # Get the combo box for this provider
-        combo_box = self.model_combos.get(provider)
-        if not combo_box:
-            return
-
-        # Get the model identifier from the combo box data
-        model = combo_box.itemData(index)
-        model_name = combo_box.itemText(index)
-
-        # If placeholder is selected (model is None), do nothing
-        if model is None:
-            return
-
-        # Clear all other providers' selections
-        for other_provider, other_combo in self.model_combos.items():
-            if other_provider != provider:
-                try:
-                    other_combo.currentIndexChanged.disconnect()
-                except:
-                    pass
-                other_combo.setCurrentIndex(0)  # Reset to placeholder
-                # Reconnect the signal
-                other_combo.currentIndexChanged.connect(
-                    lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
-                )
-
-        # Get provider-specific API key from keyring
-        from .api_key_manager import ApiKeyManager
-        api_key_manager = ApiKeyManager()
-        api_key = api_key_manager.get_api_key(provider)
-
-        # Check if API key exists for this provider
-        if not api_key:
-            provider_config = self.provider_config_loader.get_provider(provider)
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-            self.append_message("System", f"No API key configured for {display_name}. Please add the API key to the system keyring using ApiKeyManager.")
-            return
-
-        # Get provider config for base_url and other settings
-        provider_config = self.provider_config_loader.get_provider(provider)
-
-        # Reinitialize the AI agent with the new provider
-        from .api_provider import create_api_provider_from_config
-        if provider_config:
-            new_provider = create_api_provider_from_config(provider_config, api_key)
-        else:
-            # Fallback to basic provider creation if config not found
-            from .api_provider import create_api_provider
-            new_provider = create_api_provider(provider, api_key)
-
-        if new_provider and new_provider.is_available():
-            self.ai_client.provider = new_provider
-            self.ai_client.provider_name = provider
-            self.ai_client.set_model(model)
-
-            # Get display name from config
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-
-            # Show a confirmation message
-            self.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
-        else:
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-            self.append_message("System", f"Failed to initialize {display_name} provider. Please check your API key configuration.")
-
-    def on_add_api_key(self, provider_name: str, display_name: str):
-        """
-        Handle "Add API Key" action click for a provider.
-
-        Args:
-            provider_name: Internal provider name (e.g., "openai", "fireworks")
-            display_name: Display name for the provider (e.g., "OpenAI", "Fireworks")
-        """
-        try:
-            # Show API key input dialog
-            dialog = ApiKeyDialog(provider_name, display_name, self)
-            if dialog.exec_() == QDialog.Accepted:
-                api_key = dialog.get_api_key()
-                if api_key:
-                    # Save the API key using ApiKeyManager
-                    from .api_key_manager import ApiKeyManager
-                    api_key_manager = ApiKeyManager()
-                    api_key_manager.set_api_key(provider_name, api_key)
-
-                    # Show success message
-                    self.append_message("System", f"API key for {display_name} has been saved successfully!")
-
-                    # Refresh the Model menu to show the dropdown instead of the button
-                    self._refresh_model_menu()
-
-                    # If this is the first API key and AI client is not initialized yet,
-                    # we might need to trigger completion callback
-                    if self.completion_callback and not self.ai_client:
-                        # Re-run prestart checks which should now pass
-                        if self.prestart_checker:
-                            status = self.prestart_checker.check(self)
-                            if status == "ready":
-                                self.completion_callback()
-                                self.enable_ai_mode()
-        except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error adding API key: {e}")
-            self.append_message("[ERROR]", f"Failed to add API key: {str(e)}")
-
-    def _refresh_model_menu(self):
-        """Refresh the Model menu to update API key status and available models."""
-        # Find and clear the Model menu
-        menubar = self.menuBar()
-        for action in menubar.actions():
-            if action.text() == "Model":
-                menu = action.menu()
-                if menu:
-                    # Clear all actions
-                    menu.clear()
-                    # Recreate menu items
-                    self._create_model_menu_items(menu)
-                break
-
-    def _sync_model_dropdown(self):
-        """Sync the model dropdown selection with the AI client's current model and provider."""
-        if not self.ai_client:
-            return
-
-        current_model = self.ai_client.get_model()
-        current_provider = self.ai_client.provider_name
-
-        # Get the combo box for the current provider
-        combo_box = self.model_combos.get(current_provider)
-        if not combo_box:
-            # Unknown provider, keep current dropdown selection
-            return
-
-        # Reset all other providers' dropdowns to placeholder
-        for other_provider, other_combo in self.model_combos.items():
-            if other_provider != current_provider:
-                try:
-                    other_combo.currentIndexChanged.disconnect()
-                except:
-                    pass
-                other_combo.setCurrentIndex(0)  # Reset to placeholder
-                # Reconnect signal
-                other_combo.currentIndexChanged.connect(
-                    lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
-                )
-
-        # Find and select the matching model in the current provider's dropdown
-        for i in range(combo_box.count()):
-            if combo_box.itemData(i) == current_model:
-                # Temporarily disconnect signal to avoid triggering on_model_changed
-                try:
-                    combo_box.currentIndexChanged.disconnect()
-                except:
-                    pass
-                combo_box.setCurrentIndex(i)
-                # Reconnect signal
-                combo_box.currentIndexChanged.connect(
-                    lambda idx, prov=current_provider: self.on_model_changed(idx, prov)
-                )
-                return
-
-        # If model not found in dropdown, it might be a custom model
-        # Keep current dropdown selection as is
-
-    def scan_python_files(self):
-        """
-        Scan the working directory for Python files.
-
-        Returns:
-            List of Python file paths relative to the working directory
-        """
-        python_files = []
-
-        # Get working directory from context provider
-        working_dir = self.context_provider.working_dir
-
-        # Find all .py files in the working directory (non-recursive)
-        pattern = os.path.join(working_dir, "*.py")
-        files = glob.glob(pattern)
-
-        # Convert to relative paths
-        for file_path in files:
-            rel_path = os.path.relpath(file_path, working_dir)
-            python_files.append(rel_path)
-
-        # Sort alphabetically
-        python_files.sort()
-
-        return python_files
 
     def on_run_script(self):
-        """Handle Rebuild button click."""
-        # Scan for Python files
-        python_files = self.scan_python_files()
-
-        if not python_files:
-            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
-            return
-
-        # Show file selector dialog
-        dialog = PythonFileSelector(python_files, self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_file = dialog.get_selected_file()
-            if selected_file:
-                self.run_python_file(selected_file)
+        """Handle Rebuild button click - delegate to file executor."""
+        if self.file_executor:
+            self.file_executor.on_run_script(self)
 
     def on_redo_script(self):
-        """Handle Teardown button click."""
-        # Scan for Python files
-        python_files = self.scan_python_files()
-
-        if not python_files:
-            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
-            return
-
-        # Show file selector dialog
-        dialog = PythonFileSelector(python_files, self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_file = dialog.get_selected_file()
-            if selected_file:
-                self.redo_python_file(selected_file)
+        """Handle Teardown button click - delegate to file executor."""
+        if self.file_executor:
+            self.file_executor.on_redo_script(self)
 
     def on_incremental_build_script(self):
-        """Handle Incremental Build button click."""
-        # Scan for Python files
-        python_files = self.scan_python_files()
-
-        if not python_files:
-            self.append_message("[SYSTEM]", "No Python files found in the working directory.")
-            return
-
-        # Show file selector dialog
-        dialog = PythonFileSelector(python_files, self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_file = dialog.get_selected_file()
-            if selected_file:
-                self.incremental_build_python_file(selected_file)
+        """Handle Incremental Build button click - delegate to file executor."""
+        if self.file_executor:
+            self.file_executor.on_incremental_build_script(self)
 
     def update_capture_button_state(self):
-        """Update the capture button text and styling based on number of captured images."""
-        image_count = len(self.captured_images)
-        if image_count == 0:
-            self.capture_button.setText("Capture")
-            self.capture_button.setStyleSheet("")
-            self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to clear all if already captured)\n\nTip: You can also drag & drop image files onto the window!")
-        elif image_count == 1:
-            self.capture_button.setText("Capture ✓ (1)")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
-            self.capture_button.setToolTip("1 image ready to send. Click to clear all images.")
-        else:
-            self.capture_button.setText(f"Capture ✓ ({image_count})")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
-            self.capture_button.setToolTip(f"{image_count} images ready to send. Click to clear all images.")
+        """Delegate to drag drop handler."""
+        if self.drag_drop_handler:
+            self.drag_drop_handler.update_capture_button_state()
 
     def update_input_placeholder(self):
-        """Update the input field placeholder text based on attached files."""
-        file_count = len(self.attached_files)
-        if file_count == 0:
-            self.input_field.setPlaceholderText("Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
-        elif file_count == 1:
-            file_name = self.attached_files[0]['name']
-            self.input_field.setPlaceholderText(f"1 Python file attached ({file_name}) - Type your message...\nPress Enter to send, Shift+Enter for new line")
-        else:
-            self.input_field.setPlaceholderText(f"{file_count} Python files attached - Type your message...\nPress Enter to send, Shift+Enter for new line")
+        """Delegate to drag drop handler."""
+        if self.drag_drop_handler:
+            self.drag_drop_handler.update_input_placeholder()
 
     def on_capture_screenshot(self):
         """Handle Capture button click - captures scene screenshot or clears all if already captured."""
@@ -1438,277 +1043,30 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
             self.append_message("[SYSTEM]", error_msg)
 
-    def _execute_python_file_with_mode(self, file_path, mode, action_name):
-        """
-        Generic helper to execute a Python file with a specific execution mode.
+    def on_export_clicked(self):
+        """Handle Export button click - delegate to file executor."""
+        if self.file_executor:
+            self.file_executor.on_export_clicked()
 
-        Args:
-            file_path: Path to the Python file to run
-            mode: ExecutionMode enum value or 'with_teardown' for execute_with_teardown
-            action_name: Action name for messages (e.g., "Teardown", "Incremental build", "Build")
-
-        Returns:
-            None
-        """
-        self.append_message("[SYSTEM]", f"{action_name}: {file_path}")
-
-        # Get absolute path
-        abs_path = os.path.abspath(file_path)
-
-        if not os.path.exists(abs_path):
-            self.display_error(f"File not found: {file_path}")
-            return
-
-        # Add project directory to sys.path if not already there
-        project_dir = self.context_provider.get_project_dir()
-        if project_dir not in sys.path:
-            sys.path.insert(0, project_dir)
-
-        try:
-            # Read the script content
-            with open(abs_path, 'r', encoding='utf-8') as f:
-                script_content = f.read()
-
-            from pathlib import Path
-            path_obj = Path(abs_path)
-
-            # Execute based on mode
-            if mode == 'with_teardown':
-                # Execute with teardown first, then normal
-                teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
-                    script_content, path_obj, import_freecad=False
-                )
-
-                # Display teardown output if any
-                if teardown_result.output.strip():
-                    self.append_message("[TEARDOWN OUTPUT]", teardown_result.output.strip())
-
-                # Display normal execution output if any
-                if normal_result.output.strip():
-                    self.append_message("[OUTPUT]", normal_result.output.strip())
-
-                # Check results
-                if teardown_result.success and normal_result.success:
-                    self.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
-                elif not teardown_result.success:
-                    error_msg = f"Error during teardown of {file_path}:\n{teardown_result.error}"
-                    self.display_error(error_msg)
-                else:
-                    error_msg = f"Error running {file_path}:\n{normal_result.error}"
-                    self.display_error(error_msg)
-            else:
-                # Execute with specific mode
-                result = ScriptExecutor.execute(
-                    script_content, path_obj, mode=mode, import_freecad=False
-                )
-
-                # Display output if any
-                if result.output.strip():
-                    self.append_message("[OUTPUT]", result.output.strip())
-
-                if result.success:
-                    self.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
-                else:
-                    error_msg = f"Error during {action_name.lower()} of {file_path}:\n{result.error}"
-                    self.display_error(error_msg)
-
-        except Exception as e:
-            # Format and display the error
-            error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
-            self.display_error(error_msg)
-
-    def redo_python_file(self, file_path):
-        """
-        Teardown a Python file - run the script in teardown mode to remove objects.
-
-        Args:
-            file_path: Path to the Python file to teardown
-        """
-        self._execute_python_file_with_mode(file_path, ExecutionMode.TEARDOWN, "Tearing down")
-
-    def incremental_build_python_file(self, file_path):
-        """
-        Incremental build a Python file - run the script in incremental build mode.
-
-        Args:
-            file_path: Path to the Python file to run
-        """
-        self._execute_python_file_with_mode(file_path, ExecutionMode.INCREMENTAL_BUILD, "Incremental building")
-
-    def run_python_file(self, file_path):
-        """
-        Run a Python file with teardown first, then normal execution.
-
-        Args:
-            file_path: Path to the Python file to run
-        """
-        self._execute_python_file_with_mode(file_path, 'with_teardown', "Building (with teardown)")
+    def on_import_clicked(self):
+        """Handle Import button click - delegate to file executor."""
+        if self.file_executor:
+            self.file_executor.on_import_clicked()
 
     def dragEnterEvent(self, event: QDragEnterEvent):
-        """Handle drag enter event to accept file drops."""
-        if event.mimeData().hasUrls():
-            # Check if any of the URLs are files
-            urls = event.mimeData().urls()
-            has_files = any(url.isLocalFile() for url in urls)
-            if has_files:
-                event.acceptProposedAction()
-        else:
-            event.ignore()
+        """Delegate to drag drop handler."""
+        if self.drag_drop_handler:
+            self.drag_drop_handler.drag_enter_event(event)
 
     def dragMoveEvent(self, event):
-        """Handle drag move event for visual feedback."""
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-        else:
-            event.ignore()
+        """Delegate to drag drop handler."""
+        if self.drag_drop_handler:
+            self.drag_drop_handler.drag_move_event(event)
 
     def dropEvent(self, event: QDropEvent):
-        """Handle file drop event for images and Python files."""
-        if not event.mimeData().hasUrls():
-            event.ignore()
-            return
-
-        # Get the list of dropped files
-        urls = event.mimeData().urls()
-        files = [url.toLocalFile() for url in urls if url.isLocalFile()]
-
-        if not files:
-            event.ignore()
-            return
-
-        # Categorize files by type
-        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif'}
-        image_files = []
-        python_files = []
-        unsupported_files = []
-
-        for file_path in files:
-            file_ext = os.path.splitext(file_path)[1].lower()
-            if file_ext in image_extensions:
-                image_files.append(file_path)
-            elif file_ext == '.py':
-                python_files.append(file_path)
-            else:
-                unsupported_files.append(file_path)
-
-        # Process image files
-        for file_path in image_files:
-            self.handle_dropped_image(file_path)
-
-        # Process Python files
-        for file_path in python_files:
-            self.handle_dropped_python_file(file_path)
-
-        # Show message for unsupported files
-        if unsupported_files:
-            file_names = ", ".join([os.path.basename(f) for f in unsupported_files])
-            self.append_message("System", f"Skipped unsupported file(s): {file_names}\n(Supported: images and .py files)")
-
-        event.acceptProposedAction()
-
-    def handle_dropped_image(self, file_path: str):
-        """
-        Handle a dropped image file by converting it to base64 and adding it to the list.
-
-        Args:
-            file_path: Path to the dropped image file
-        """
-        if self.is_ai_busy:
-            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
-            return
-
-        try:
-            import base64
-
-            # Read and encode the image
-            with open(file_path, 'rb') as image_file:
-                image_bytes = image_file.read()
-                image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-
-            # Determine the file extension for saving
-            file_ext = os.path.splitext(file_path)[1].lower()
-
-            # Copy the image to the history folder (same as capture does)
-            if self.image_context:
-                history_dir = self.image_context.images_dir
-                os.makedirs(history_dir, exist_ok=True)
-
-                # Generate timestamped filename
-                from datetime import datetime
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                new_filename = f"dropped_{timestamp}{file_ext}"
-                new_file_path = os.path.join(history_dir, new_filename)
-
-                # Copy the file
-                import shutil
-                shutil.copy2(file_path, new_file_path)
-                stored_path = new_file_path
-            else:
-                stored_path = file_path
-
-            # Add the image data to the list (same format as captured images)
-            self.captured_images.append({
-                "success": True,
-                "file": stored_path,
-                "image_base64": image_base64  # Just the base64 string, not the data URL
-            })
-
-            # Visual feedback - update button to show images are ready
-            self.update_capture_button_state()
-
-            # Show success message
-            image_count = len(self.captured_images)
-            image_word = "image" if image_count == 1 else "images"
-            self.append_message("System",
-                f"Image added!\n"
-                f"File: {os.path.basename(file_path)}\n"
-                f"Saved to: {stored_path}\n"
-                f"{image_count} {image_word} ready to attach to your next message.")
-
-        except Exception as e:
-            import traceback
-            error_msg = f"Error processing dropped image:\n{traceback.format_exc()}"
-            self.append_message("[SYSTEM]", error_msg)
-
-    def handle_dropped_python_file(self, file_path: str):
-        """
-        Handle a dropped Python file by reading its content and adding it to the attached files list.
-
-        Args:
-            file_path: Path to the dropped Python file
-        """
-        if self.is_ai_busy:
-            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
-            return
-
-        try:
-            # Read the Python file content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                file_content = f.read()
-
-            # Store the file info
-            file_info = {
-                "path": file_path,
-                "name": os.path.basename(file_path),
-                "content": file_content
-            }
-            self.attached_files.append(file_info)
-
-            # Update UI
-            self.update_input_placeholder()
-
-            # Show success message
-            file_count = len(self.attached_files)
-            file_word = "file" if file_count == 1 else "files"
-            self.append_message("System",
-                f"Python file attached!\n"
-                f"File: {os.path.basename(file_path)}\n"
-                f"{file_count} Python {file_word} ready to attach to your next message.")
-
-        except Exception as e:
-            import traceback
-            error_msg = f"Error processing dropped Python file:\n{traceback.format_exc()}"
-            self.append_message("[SYSTEM]", error_msg)
+        """Delegate to drag drop handler."""
+        if self.drag_drop_handler:
+            self.drag_drop_handler.drop_event(event)
 
     def closeEvent(self, event):
         """Handle window close event."""

@@ -36,7 +36,8 @@ class ToolManager:
         logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
         image_context: Optional[ImageContext] = None,
-        edit_history: Optional[EditHistory] = None
+        edit_history: Optional[EditHistory] = None,
+        config_manager = None
     ):
         """
         Initialize the tool manager.
@@ -47,12 +48,14 @@ class ToolManager:
             permission_manager: Optional permission manager for access control
             image_context: Optional ImageContext instance for screenshot capture
             edit_history: Optional EditHistory instance for tracking file edits
+            config_manager: Optional ConfigurationManager instance for configuration
         """
         self.working_dir = working_dir
         self.logger = logger
         self.permission_manager = permission_manager
         self.image_context = image_context
         self.edit_history = edit_history
+        self.config_manager = config_manager
 
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
@@ -480,7 +483,15 @@ class ToolManager:
 
             items = []
             working_dir = Path(self.working_dir)
+
+            # Get the forshape folder name from config_manager, fallback to ".forshape"
+            forshape_folder = self.config_manager.get_forshape_folder_name() if self.config_manager else ".forshape"
+
             for item in resolved_path.iterdir():
+                # Skip files/directories in the forshape folder
+                if forshape_folder in item.parts:
+                    continue
+
                 # If only_python is True, filter out non-Python files
                 if only_python and item.is_file() and not item.name.endswith('.py'):
                     continue

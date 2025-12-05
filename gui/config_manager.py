@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 class ConfigurationManager:
     """Manages configuration and directories for ForShape AI."""
 
+    # Folder name for ForShape internal files
+    FORSHAPE_FOLDER_NAME = ".forshape"
+
     def __init__(self, context_provider: "ContextProvider"):
         """
         Initialize the configuration manager.
@@ -40,7 +43,7 @@ class ConfigurationManager:
             working_directory: The working directory path
         """
         self.base_dir = Path(working_directory)
-        self.forshape_dir = self.base_dir / ".forshape"
+        self.forshape_dir = self.base_dir / self.FORSHAPE_FOLDER_NAME
         self.history_dir = self.forshape_dir / "history"
         self.edits_dir = self.forshape_dir / "edits"
         self.forshape_md_file = self.base_dir / "FORSHAPE.md"
@@ -97,6 +100,10 @@ class ConfigurationManager:
     def get_forshape_md_file(self) -> Path:
         """Get the FORSHAPE.md file path."""
         return self.forshape_md_file
+
+    def get_forshape_folder_name(self) -> str:
+        """Get the ForShape folder name (e.g., '.forshape')."""
+        return self.FORSHAPE_FOLDER_NAME
 
     def has_forshape_md(self) -> bool:
         """Check if FORSHAPE.md exists."""

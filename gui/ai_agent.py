@@ -38,7 +38,8 @@ class AIAgent:
         image_context = None,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
-        edit_history = None
+        edit_history = None,
+        config_manager = None
     ):
         """
         Initialize the AI agent.
@@ -54,6 +55,7 @@ class AIAgent:
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
             edit_history: Optional EditHistory instance for tracking file edits
+            config_manager: Optional ConfigurationManager instance for configuration
         """
         self.model = model
         self.max_iterations = max_iterations
@@ -68,7 +70,8 @@ class AIAgent:
             logger,
             self.permission_manager,
             image_context,
-            edit_history
+            edit_history,
+            config_manager
         )
         self._system_message_cache = None
         self.logger = logger

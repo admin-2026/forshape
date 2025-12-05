@@ -126,7 +126,7 @@ class EditHistory:
             # Track this operation in metadata
             self.file_operations.append({
                 "action": "edit",
-                "file": relative_path,
+                "file": str(relative_path),
                 "absolute_path": str(file_path),
                 "backup_path": str(backup_path.relative_to(session_folder))
             })
@@ -295,12 +295,14 @@ class EditHistory:
         else:
             timestamp = "unknown"
 
-        # Load metadata to get user_request
+        # Load metadata to get user_request and file operations
         metadata = EditHistory._load_metadata(session_path, logger=None)
         user_request = metadata.get("user_request", None)
 
-        # Count backed up files
-        file_count = sum(1 for _ in session_path.rglob('*') if _.is_file())
+        # Count unique changed files from metadata (deduplicate if same file was edited multiple times)
+        file_operations = metadata.get("file_operations", [])
+        unique_files = set(op.get("file") for op in file_operations if op.get("file"))
+        file_count = len(unique_files)
 
         return {
             "session_name": session_name,

@@ -2,6 +2,7 @@
 Checkpoint selector dialog for choosing an edit history checkpoint to rewind to.
 """
 
+from datetime import datetime
 from PySide2.QtWidgets import (QDialog, QVBoxLayout, QLabel, QListWidget,
                                 QListWidgetItem, QDialogButtonBox, QTextEdit)
 from PySide2.QtGui import QFont
@@ -24,6 +25,27 @@ class CheckpointSelector(QDialog):
         self.selected_session = None
         self.setup_ui()
 
+    @staticmethod
+    def _format_timestamp(timestamp_str):
+        """
+        Format timestamp string to be more readable.
+
+        Args:
+            timestamp_str: Timestamp in format "YYYYMMDD_HHMMSS"
+
+        Returns:
+            Formatted timestamp like "Dec 4, 2025 3:45 PM" or original if parsing fails
+        """
+        try:
+            if timestamp_str == "unknown":
+                return "Unknown time"
+            # Parse the timestamp format: YYYYMMDD_HHMMSS
+            dt = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+            # Format as readable string
+            return dt.strftime("%b %d, %Y %I:%M %p")
+        except ValueError:
+            return timestamp_str
+
     def setup_ui(self):
         """Setup the dialog UI."""
         self.setWindowTitle("Rewind to Checkpoint")
@@ -41,12 +63,19 @@ class CheckpointSelector(QDialog):
         self.checkpoint_list.setFont(QFont("Consolas", 9))
 
         for session in self.sessions:
-            # Format display text
-            conv_id = session.get("conversation_id", "unknown")
+            # Format display text using user request instead of conversation ID
+            user_request = session.get("user_request", "No message")
             timestamp = session.get("timestamp", "unknown")
             file_count = session.get("file_count", 0)
 
-            display_text = f"{conv_id} | {timestamp} | {file_count} file(s)"
+            # Truncate long user requests for the list
+            if user_request and len(user_request) > 80:
+                user_request = user_request[:77] + "..."
+
+            # Format timestamp for display
+            formatted_time = self._format_timestamp(timestamp)
+
+            display_text = f"{user_request} | {formatted_time} | {file_count} file(s)"
 
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, session)  # Store session data
@@ -84,8 +113,13 @@ class CheckpointSelector(QDialog):
         """
         if current:
             session = current.data(Qt.UserRole)
+
+            # Format timestamp for display
+            timestamp = session.get('timestamp', 'unknown')
+            formatted_time = self._format_timestamp(timestamp)
+
             info_text = f"Conversation ID: {session.get('conversation_id', 'unknown')}\n"
-            info_text += f"Timestamp: {session.get('timestamp', 'unknown')}\n"
+            info_text += f"Timestamp: {formatted_time}\n"
             info_text += f"Files backed up: {session.get('file_count', 0)}\n"
 
             # Add user request if available

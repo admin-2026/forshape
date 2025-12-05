@@ -3,7 +3,7 @@ Prestart checker for FreeCAD document validation and configuration setup.
 
 This module provides functionality to check and setup:
 - .forshape directory and configuration files
-- API keys for all configured providers
+- API key for at least one configured provider
 - FreeCAD active document
 - Working directory configuration
 - Template files (constants.py, main.py, export.py, import.py)
@@ -48,7 +48,7 @@ class PrestartChecker:
         3. Document saved status
         4. Working directory match
         5. .forshape directory setup (in document's directory)
-        6. API key availability for all configured providers
+        6. API key availability for at least one configured provider
 
         Uses chatbox for interaction instead of modal dialogs so user can interact with FreeCAD.
 
@@ -57,7 +57,7 @@ class PrestartChecker:
 
         Returns:
             Status string: "ready" if all checks passed, "waiting" if waiting for user action,
-                          "dir_mismatch" if directory needs confirmation, "need_api_key" if any API keys missing,
+                          "dir_mismatch" if directory needs confirmation, "need_api_key" if no API keys configured,
                           "error" if fatal error
         """
         # Check 1: FreeCAD availability
@@ -135,8 +135,8 @@ class PrestartChecker:
             return "error"
 
         # Check API keys for each configured provider
-        missing_keys = []
         provider_info = {}
+        providers_with_keys = []
 
         for provider in configured_providers:
             api_key = api_key_manager.get_api_key(provider.name)
@@ -144,29 +144,30 @@ class PrestartChecker:
                 "display_name": provider.display_name,
                 "has_key": api_key is not None
             }
-            if not api_key:
-                missing_keys.append(provider.name)
+            if api_key:
+                providers_with_keys.append(provider.name)
 
-        # If any keys are missing, show a comprehensive message
-        if missing_keys:
+        # Check if at least one provider has an API key
+        if not providers_with_keys:
             message_lines = ["⚠️ **Missing API Keys**\n"]
-            message_lines.append("The following API providers are missing keys:\n")
+            message_lines.append("No API keys are configured for any provider.\n")
+            message_lines.append("\n**Available providers:**")
 
-            for provider_name in missing_keys:
-                display_name = provider_info[provider_name]["display_name"]
+            for provider_name, info in provider_info.items():
+                display_name = info["display_name"]
                 message_lines.append(f"• **{display_name}** (`{provider_name}`)")
 
-            message_lines.append("\n**To add API keys:**")
-            message_lines.append("• Go to **Model menu** → **Add API Key** to configure your API keys\n")
-            message_lines.append("**After adding the API key(s):**")
+            message_lines.append("\n**To add an API key:**")
+            message_lines.append("• Go to **Model menu** → **Add API Key** to configure at least one API key\n")
+            message_lines.append("**After adding an API key:**")
             message_lines.append("• Type anything (e.g., 'ready') to continue")
 
             window.append_message("System", "\n".join(message_lines))
             self.status = "need_api_key"
             return "need_api_key"
 
-        # Store the first provider's API key for backwards compatibility
-        self.api_key = api_key_manager.get_api_key(configured_providers[0].name)
+        # Store the first available provider's API key
+        self.api_key = api_key_manager.get_api_key(providers_with_keys[0])
 
         # All checks passed
         configured_keys = [f"{provider_info[p]['display_name']}" for p in provider_info if provider_info[p]['has_key']]

@@ -39,7 +39,8 @@ class AIAgent:
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
         edit_history = None,
-        config_manager = None
+        config_manager = None,
+        provider_config = None
     ):
         """
         Initialize the AI agent.
@@ -56,11 +57,15 @@ class AIAgent:
             provider: API provider to use ("openai", "fireworks", etc.)
             edit_history: Optional EditHistory instance for tracking file edits
             config_manager: Optional ConfigurationManager instance for configuration
+            provider_config: Optional ProviderConfig instance for provider configuration
         """
+        # Set logger first so it's available in _initialize_provider
+        self.logger = logger
+
         self.model = model
         self.max_iterations = max_iterations
         self.history_manager = ChatHistoryManager(max_messages=None)
-        self.provider = self._initialize_provider(provider, api_key)
+        self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
         self.context_provider = context_provider
         self.permission_manager = permission_manager
@@ -74,19 +79,19 @@ class AIAgent:
             config_manager
         )
         self._system_message_cache = None
-        self.logger = logger
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger if api_debugger else APIDebugger(enabled=False)
         self._conversation_counter = 0  # Counter for generating unique conversation IDs
 
-    def _initialize_provider(self, provider_name: str, api_key: Optional[str]) -> Optional[APIProvider]:
+    def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
         """
         Initialize the API provider.
 
         Args:
             provider_name: Name of the provider ("openai", "fireworks", etc.)
             api_key: API key for authentication
+            provider_config: Optional ProviderConfig instance for provider configuration
 
         Returns:
             APIProvider instance or None if initialization fails
@@ -95,10 +100,16 @@ class AIAgent:
             return None
 
         try:
-            provider = create_api_provider(provider_name, api_key)
+            from .api_provider import create_api_provider_from_config
+            if provider_config:
+                provider = create_api_provider_from_config(provider_config, api_key)
+            else:
+                provider = create_api_provider(provider_name, api_key)
+
             if not provider.is_available():
                 print(f"Error: {provider_name} provider not available")
                 return None
+
             return provider
         except ValueError as e:
             print(f"Error: {e}")

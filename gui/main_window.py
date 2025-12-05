@@ -424,6 +424,21 @@ class ForShapeMainWindow(QMainWindow):
         # Transfer model_combos from temp manager if it exists
         if hasattr(self, '_temp_model_combos'):
             self.model_menu_manager.model_combos = self._temp_model_combos
+
+            # IMPORTANT: Reconnect all signal handlers to the real manager
+            # The old handlers were connected to the temp manager which no longer exists
+            for provider_name, combo_box in self._temp_model_combos.items():
+                try:
+                    # Disconnect old handler (connected to temp manager)
+                    combo_box.currentIndexChanged.disconnect()
+                except:
+                    pass
+
+                # Connect to the real manager's handler
+                combo_box.currentIndexChanged.connect(
+                    self.model_menu_manager._create_model_change_handler(provider_name)
+                )
+
             del self._temp_model_combos
 
         # Display welcome message
@@ -643,11 +658,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             saved_provider = self.ui_config_manager.get('selected_provider')
             saved_model = self.ui_config_manager.get('selected_model')
 
+            restored = False
             if saved_provider and saved_model:
                 # Apply saved model selection to AI client
-                self.model_menu_manager.restore_saved_model(saved_provider, saved_model)
-            else:
-                # No saved selection, sync dropdown with AI client's default
+                restored = self.model_menu_manager.restore_saved_model(saved_provider, saved_model)
+
+            if not restored:
+                # Restoration failed or no saved selection, sync dropdown with AI client's current state
                 self.model_menu_manager.sync_model_dropdown()
 
     def handle_prestart_input(self, user_input: str):

@@ -205,16 +205,36 @@ class ForShapeAI:
 
         # Initialize AI agent with API key from keyring
         api_key_manager = ApiKeyManager()
+        from gui.provider_config_loader import ProviderConfigLoader
 
-        # Default to OpenAI provider
-        provider = "openai"
-        api_key = api_key_manager.get_api_key(provider)
+        # Find the first provider with an API key
+        provider_loader = ProviderConfigLoader()
+        configured_providers = provider_loader.get_providers()
+
+        provider = None
+        api_key = None
+        provider_config = None
+
+        for prov_config in configured_providers:
+            key = api_key_manager.get_api_key(prov_config.name)
+            if key:
+                provider = prov_config.name
+                api_key = key
+                provider_config = prov_config
+                self.logger.info(f"Using provider: {prov_config.display_name} ({prov_config.name})")
+                break
 
         if not api_key:
-            self.logger.warning("No OpenAI API key found in system keyring. AI features will not work.")
+            self.logger.warning("No API keys found for any configured provider. AI features will not work.")
+            # Default to openai for backwards compatibility
+            provider = "openai"
 
-        # Use gpt-5.1 for tool calling support, fallback to user's model choice
-        agent_model = self.model if self.model else "gpt-5.1"
+        # Determine the model to use
+        if provider_config and provider_config.default_model:
+            agent_model = provider_config.default_model
+        else:
+            agent_model = self.model if self.model else "gpt-5.1"
+
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
@@ -225,7 +245,8 @@ class ForShapeAI:
             api_debugger=self.api_debugger,
             provider=provider,
             edit_history=self.edit_history,
-            config_manager=self.config
+            config_manager=self.config,
+            provider_config=provider_config
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 

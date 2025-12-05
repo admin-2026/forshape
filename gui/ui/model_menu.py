@@ -46,6 +46,20 @@ class ModelMenuManager:
         self.completion_callback = completion_callback
         self.enable_ai_mode_callback = enable_ai_mode_callback
 
+    def _create_model_change_handler(self, provider_name):
+        """
+        Create a handler for model selection change.
+
+        Args:
+            provider_name: The provider name to bind to the handler
+
+        Returns:
+            Handler function
+        """
+        def handler(idx):
+            self.on_model_changed(idx, provider_name)
+        return handler
+
     def create_model_menu_items(self, model_menu, parent_window):
         """
         Dynamically create model menu items from provider configuration.
@@ -106,9 +120,8 @@ class ModelMenuManager:
                     model_combo.setCurrentIndex(default_index)
 
                 # Connect change event
-                model_combo.currentIndexChanged.connect(
-                    lambda idx, prov=provider.name: self.on_model_changed(idx, prov)
-                )
+                handler = self._create_model_change_handler(provider.name)
+                model_combo.currentIndexChanged.connect(handler)
 
                 # Store the combo box for later access
                 self.model_combos[provider.name] = model_combo
@@ -160,6 +173,8 @@ class ModelMenuManager:
             provider: The provider name (e.g., "openai", "fireworks")
         """
         if not self.ai_client:
+            if self.message_handler:
+                self.message_handler.append_message("System", "AI client not ready. Please wait for initialization to complete.")
             return
 
         # Get the combo box for this provider
@@ -178,15 +193,10 @@ class ModelMenuManager:
         # Clear all other providers' selections
         for other_provider, other_combo in self.model_combos.items():
             if other_provider != provider:
-                try:
-                    other_combo.currentIndexChanged.disconnect()
-                except:
-                    pass
+                # Block signals to prevent triggering handler while resetting
+                other_combo.blockSignals(True)
                 other_combo.setCurrentIndex(0)  # Reset to placeholder
-                # Reconnect the signal
-                other_combo.currentIndexChanged.connect(
-                    lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
-                )
+                other_combo.blockSignals(False)
 
         # Get provider-specific API key from keyring
         from ..api_key_manager import ApiKeyManager
@@ -205,6 +215,7 @@ class ModelMenuManager:
         provider_config = self.provider_config_loader.get_provider(provider)
 
         # Reinitialize the AI agent with the new provider
+
         from ..api_provider import create_api_provider_from_config
         if provider_config:
             new_provider = create_api_provider_from_config(provider_config, api_key)
@@ -345,16 +356,21 @@ class ModelMenuManager:
         Args:
             provider: The provider name (e.g., "openai", "deepseek")
             model: The model identifier (e.g., "gpt-4o", "deepseek-chat")
+
+        Returns:
+            bool: True if restoration was successful, False otherwise
         """
         if not self.ai_client:
-            return
+            if self.logger:
+                self.logger.warn("Cannot restore model: AI client not initialized")
+            return False
 
         # Get the combo box for this provider
         combo_box = self.model_combos.get(provider)
         if not combo_box:
             if self.logger:
                 self.logger.warn(f"Cannot restore model: provider '{provider}' not found in menu")
-            return
+            return False
 
         # Check if the model exists in the combo box
         model_index = None
@@ -366,7 +382,7 @@ class ModelMenuManager:
         if model_index is None or model_index == 0:
             if self.logger:
                 self.logger.warn(f"Cannot restore model: model '{model}' not found for provider '{provider}'")
-            return
+            return False
 
         # Get provider-specific API key from keyring
         from ..api_key_manager import ApiKeyManager
@@ -376,7 +392,7 @@ class ModelMenuManager:
         if not api_key:
             if self.logger:
                 self.logger.warn(f"Cannot restore model: no API key for provider '{provider}'")
-            return
+            return False
 
         # Get provider config for base_url and other settings
         provider_config = self.provider_config_loader.get_provider(provider)
@@ -400,30 +416,24 @@ class ModelMenuManager:
             # Reset all other providers' dropdowns to placeholder
             for other_provider, other_combo in self.model_combos.items():
                 if other_provider != provider:
-                    try:
-                        other_combo.currentIndexChanged.disconnect()
-                    except:
-                        pass
+                    other_combo.blockSignals(True)
                     other_combo.setCurrentIndex(0)  # Reset to placeholder
-                    # Reconnect signal
-                    other_combo.currentIndexChanged.connect(
-                        lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
-                    )
+                    other_combo.blockSignals(False)
 
             # Set the current provider's dropdown to the saved model
-            try:
-                combo_box.currentIndexChanged.disconnect()
-            except:
-                pass
+            combo_box.blockSignals(True)
             combo_box.setCurrentIndex(model_index)
-            # Reconnect signal
-            combo_box.currentIndexChanged.connect(
-                lambda idx, prov=provider: self.on_model_changed(idx, prov)
-            )
+            combo_box.blockSignals(False)
 
             # Log the restoration
             if self.logger:
                 self.logger.info(f"Restored saved model: {provider}/{model}")
+
+            return True
+        else:
+            if self.logger:
+                self.logger.error(f"Failed to initialize provider for restoration: {provider}")
+            return False
 
     def sync_model_dropdown(self):
         """Sync the model dropdown selection with the AI client's current model and provider."""
@@ -442,29 +452,17 @@ class ModelMenuManager:
         # Reset all other providers' dropdowns to placeholder
         for other_provider, other_combo in self.model_combos.items():
             if other_provider != current_provider:
-                try:
-                    other_combo.currentIndexChanged.disconnect()
-                except:
-                    pass
+                other_combo.blockSignals(True)
                 other_combo.setCurrentIndex(0)  # Reset to placeholder
-                # Reconnect signal
-                other_combo.currentIndexChanged.connect(
-                    lambda idx, prov=other_provider: self.on_model_changed(idx, prov)
-                )
+                other_combo.blockSignals(False)
 
         # Find and select the matching model in the current provider's dropdown
         for i in range(combo_box.count()):
             if combo_box.itemData(i) == current_model:
-                # Temporarily disconnect signal to avoid triggering on_model_changed
-                try:
-                    combo_box.currentIndexChanged.disconnect()
-                except:
-                    pass
+                # Block signals to avoid triggering on_model_changed
+                combo_box.blockSignals(True)
                 combo_box.setCurrentIndex(i)
-                # Reconnect signal
-                combo_box.currentIndexChanged.connect(
-                    lambda idx, prov=current_provider: self.on_model_changed(idx, prov)
-                )
+                combo_box.blockSignals(False)
                 return
 
         # If model not found in dropdown, it might be a custom model

@@ -147,10 +147,7 @@ class ForShapeAI:
 
         # Initialize prestart checker (will setup directories and check API key)
         # Create a minimal logger before directories exist
-        import tempfile
-        from pathlib import Path
-        temp_log = Path(tempfile.gettempdir()) / "forshape_init.log"
-        self.logger = Logger(log_file=temp_log, min_level=LogLevel.INFO)
+        self.logger = Logger(min_level=LogLevel.INFO)
         self.prestart_checker = PrestartChecker(self.context_provider, self.config, self.logger)
 
         # Store model preference for later
@@ -173,9 +170,8 @@ class ForShapeAI:
         This creates the AI agent, history logger, and other components that
         require the configuration directories and API key to exist.
         """
-        # Reinitialize logger with proper log file in .forshape directory
-        log_file = self.config.get_history_dir() / "system.log"
-        self.logger = Logger(log_file=log_file, min_level=LogLevel.INFO)
+        # Reinitialize logger for terminal output
+        self.logger = Logger(min_level=LogLevel.INFO)
         self.logger.info("ForShape AI initialization completed")
 
         # Initialize history logger

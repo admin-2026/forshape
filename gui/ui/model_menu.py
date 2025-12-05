@@ -12,14 +12,14 @@ from PySide2.QtGui import QFont
 class ModelMenuManager:
     """Handles model and provider menu creation and management."""
 
-    def __init__(self, provider_config_loader, message_handler, logger=None, ui_config_manager=None):
+    def __init__(self, provider_config_loader, message_handler, logger, ui_config_manager=None):
         """
         Initialize the model menu manager.
 
         Args:
             provider_config_loader: ProviderConfigLoader instance
             message_handler: MessageHandler instance for displaying messages
-            logger: Optional Logger instance
+            logger: Logger instance
             ui_config_manager: Optional UIConfigManager instance for persisting selections
         """
         self.provider_config_loader = provider_config_loader
@@ -287,8 +287,7 @@ class ModelMenuManager:
                                 if self.enable_ai_mode_callback:
                                     self.enable_ai_mode_callback()
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error adding API key: {e}")
+            self.logger.error(f"Error adding API key: {e}")
             if self.message_handler:
                 self.message_handler.append_message("System", f"❌ Failed to add API key: {str(e)}")
 
@@ -323,8 +322,7 @@ class ModelMenuManager:
             self.refresh_model_menu(parent_window)
 
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error deleting API key: {e}")
+            self.logger.error(f"Error deleting API key: {e}")
             if self.message_handler:
                 self.message_handler.append_message("System", f"❌ Failed to delete API key: {str(e)}")
 
@@ -361,15 +359,13 @@ class ModelMenuManager:
             bool: True if restoration was successful, False otherwise
         """
         if not self.ai_client:
-            if self.logger:
-                self.logger.warn("Cannot restore model: AI client not initialized")
+            self.logger.warn("Cannot restore model: AI client not initialized")
             return False
 
         # Get the combo box for this provider
         combo_box = self.model_combos.get(provider)
         if not combo_box:
-            if self.logger:
-                self.logger.warn(f"Cannot restore model: provider '{provider}' not found in menu")
+            self.logger.warn(f"Cannot restore model: provider '{provider}' not found in menu")
             return False
 
         # Check if the model exists in the combo box
@@ -380,8 +376,7 @@ class ModelMenuManager:
                 break
 
         if model_index is None or model_index == 0:
-            if self.logger:
-                self.logger.warn(f"Cannot restore model: model '{model}' not found for provider '{provider}'")
+            self.logger.warn(f"Cannot restore model: model '{model}' not found for provider '{provider}'")
             return False
 
         # Get provider-specific API key from keyring
@@ -390,8 +385,7 @@ class ModelMenuManager:
         api_key = api_key_manager.get_api_key(provider)
 
         if not api_key:
-            if self.logger:
-                self.logger.warn(f"Cannot restore model: no API key for provider '{provider}'")
+            self.logger.warn(f"Cannot restore model: no API key for provider '{provider}'")
             return False
 
         # Get provider config for base_url and other settings
@@ -426,13 +420,11 @@ class ModelMenuManager:
             combo_box.blockSignals(False)
 
             # Log the restoration
-            if self.logger:
-                self.logger.info(f"Restored saved model: {provider}/{model}")
+            self.logger.info(f"Restored saved model: {provider}/{model}")
 
             return True
         else:
-            if self.logger:
-                self.logger.error(f"Failed to initialize provider for restoration: {provider}")
+            self.logger.error(f"Failed to initialize provider for restoration: {provider}")
             return False
 
     def sync_model_dropdown(self):

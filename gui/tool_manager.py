@@ -33,7 +33,7 @@ class ToolManager:
     def __init__(
         self,
         working_dir: str,
-        logger: Optional[Logger] = None,
+        logger: Logger,
         permission_manager: Optional[PermissionManager] = None,
         image_context: Optional[ImageContext] = None,
         edit_history: Optional[EditHistory] = None,
@@ -44,7 +44,7 @@ class ToolManager:
 
         Args:
             working_dir: Working directory for file operations
-            logger: Optional logger for tool call logging
+            logger: Logger instance for tool call logging
             permission_manager: Optional permission manager for access control
             image_context: Optional ImageContext instance for screenshot capture
             edit_history: Optional EditHistory instance for tracking file edits
@@ -605,11 +605,10 @@ class ToolManager:
                 # Track file creation in edit history (for deletion during rewind)
                 if self.edit_history:
                     creation_tracked = self.edit_history.track_file_creation(resolved_path)
-                    if self.logger:
-                        if creation_tracked:
-                            self.logger.info(f"File creation tracked in edit history: {resolved_path}")
-                        else:
-                            self.logger.warn(f"Failed to track file creation in edit history: {resolved_path}")
+                    if creation_tracked:
+                        self.logger.info(f"File creation tracked in edit history: {resolved_path}")
+                    else:
+                        self.logger.warn(f"Failed to track file creation in edit history: {resolved_path}")
 
                 return self._json_success(
                     file=str(resolved_path),
@@ -622,11 +621,10 @@ class ToolManager:
             # Backup the file before editing (if edit history is enabled)
             if self.edit_history:
                 backup_success = self.edit_history.backup_file(resolved_path)
-                if self.logger:
-                    if backup_success:
-                        self.logger.info(f"File backed up to edit history: {resolved_path}")
-                    else:
-                        self.logger.warn(f"Failed to backup file to edit history: {resolved_path}")
+                if backup_success:
+                    self.logger.info(f"File backed up to edit history: {resolved_path}")
+                else:
+                    self.logger.warn(f"Failed to backup file to edit history: {resolved_path}")
 
             # Read current content
             with open(resolved_path, 'r', encoding='utf-8') as f:
@@ -1027,14 +1025,12 @@ class ToolManager:
         """
         if tool_name not in self.tool_functions:
             error_msg = f"Unknown tool: {tool_name}"
-            if self.logger:
-                self.logger.error(error_msg)
+            self.logger.error(error_msg)
             return json.dumps({"error": error_msg})
 
         # Log the tool call
         args_str = ", ".join([f"{k}={repr(v)}" for k, v in tool_arguments.items()])
-        if self.logger:
-            self.logger.info(f"Tool call: {tool_name}({args_str})")
+        self.logger.info(f"Tool call: {tool_name}({args_str})")
 
         tool_func = self.tool_functions[tool_name]
         try:
@@ -1044,16 +1040,14 @@ class ToolManager:
             try:
                 result_dict = json.loads(result)
                 if "error" in result_dict:
-                    if self.logger:
-                        self.logger.warn(f"Tool {tool_name} failed: {result_dict['error']}")
+                    self.logger.warn(f"Tool {tool_name} failed: {result_dict['error']}")
             except (json.JSONDecodeError, TypeError):
                 pass  # Result is not JSON, which is fine
 
             return result
         except Exception as e:
             error_msg = f"Tool execution error: {str(e)}"
-            if self.logger:
-                self.logger.error(f"Tool {tool_name} error: {error_msg}")
+            self.logger.error(f"Tool {tool_name} error: {error_msg}")
             return json.dumps({"error": error_msg})
 
     def get_tools(self) -> List[Dict]:

@@ -11,7 +11,7 @@ from PySide2.QtGui import QTextCursor
 class MessageHandler:
     """Handles message display, formatting, and log management."""
 
-    def __init__(self, conversation_display, log_display, message_formatter, logger=None):
+    def __init__(self, conversation_display, log_display, message_formatter, logger):
         """
         Initialize the message handler.
 
@@ -19,7 +19,7 @@ class MessageHandler:
             conversation_display: QTextEdit widget for conversation display
             log_display: QTextEdit widget for log display
             message_formatter: MessageFormatter instance
-            logger: Optional Logger instance
+            logger: Logger instance
         """
         self.conversation_display = conversation_display
         self.log_display = log_display
@@ -172,5 +172,4 @@ class MessageHandler:
                 print('\a')  # ASCII bell character
         except Exception as e:
             # If sound fails, just log it and continue
-            if self.logger:
-                self.logger.debug(f"Could not play notification sound: {e}")
+            self.logger.debug(f"Could not play notification sound: {e}")

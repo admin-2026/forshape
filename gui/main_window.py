@@ -385,8 +385,7 @@ class ForShapeMainWindow(QMainWindow):
         )
 
         # Connect logger signal to message handler
-        if self.logger:
-            self.logger.log_message.connect(self.message_handler.on_log_message)
+        self.logger.log_message.connect(self.message_handler.on_log_message)
 
         self.file_executor = FileExecutor(
             self.context_provider,
@@ -396,8 +395,8 @@ class ForShapeMainWindow(QMainWindow):
 
         self.drag_drop_handler = DragDropHandler(
             self.message_handler,
-            self.image_context,
-            self.logger
+            self.logger,
+            self.image_context
         )
         # Set state references for drag drop handler
         self.drag_drop_handler.set_state_references(
@@ -584,12 +583,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         if success:
             self.append_message("System", f"✓ {message}")
-            if self.logger:
-                self.logger.info(f"Restored checkpoint: {conversation_id}")
+            self.logger.info(f"Restored checkpoint: {conversation_id}")
         else:
             self.append_message("[ERROR]", f"Failed to restore checkpoint:\n{message}")
-            if self.logger:
-                self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
+            self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
     def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None, api_debugger=None):
         """
@@ -625,11 +622,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Update logger if provided
         if logger is not None:
             # Disconnect old logger
-            if self.logger and hasattr(self.logger, 'log_message'):
-                try:
-                    self.logger.log_message.disconnect(self.message_handler.on_log_message if self.message_handler else lambda: None)
-                except:
-                    pass
+            try:
+                self.logger.log_message.disconnect(self.message_handler.on_log_message if self.message_handler else lambda: None)
+            except:
+                pass
 
             # Update to new logger
             self.logger = logger
@@ -645,8 +641,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 self.model_menu_manager.logger = logger
 
             # Connect new logger
-            if self.logger and hasattr(self.logger, 'log_message') and self.message_handler:
-                self.logger.log_message.connect(self.message_handler.on_log_message)
+            self.logger.log_message.connect(self.message_handler.on_log_message)
 
         # Update model menu manager's AI client
         if self.model_menu_manager:
@@ -946,12 +941,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if new_state:
             dump_dir = self.api_debugger.output_dir
             self.append_message("System", f"API data dumping enabled. Data will be saved to: {dump_dir}")
-            if self.logger:
-                self.logger.info(f"API data dumping enabled - output: {dump_dir}")
+            self.logger.info(f"API data dumping enabled - output: {dump_dir}")
         else:
             self.append_message("System", "API data dumping disabled.")
-            if self.logger:
-                self.logger.info("API data dumping disabled")
+            self.logger.info("API data dumping disabled")
 
     def dump_history(self):
         """Dump the conversation history to a file."""
@@ -973,15 +966,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             dump_path = history_manager.dump_history(history_dir, model_name)
 
             self.append_message("System", f"Conversation history dumped successfully!\nSaved to: {dump_path}")
-            if self.logger:
-                self.logger.info(f"History dumped to: {dump_path}")
+            self.logger.info(f"History dumped to: {dump_path}")
 
         except Exception as e:
             import traceback
             error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
             self.append_message("[ERROR]", error_msg)
-            if self.logger:
-                self.logger.error(f"Failed to dump history: {str(e)}")
+            self.logger.error(f"Failed to dump history: {str(e)}")
 
     def on_log_level_changed(self, index: int):
         """
@@ -990,9 +981,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         Args:
             index: The index of the selected item in the combo box
         """
-        if not self.logger:
-            return
-
         # Get the LogLevel enum value from the combo box data
         log_level = self.log_level_combo.itemData(index)
 

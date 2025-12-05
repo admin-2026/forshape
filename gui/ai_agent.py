@@ -32,8 +32,8 @@ class AIAgent:
         api_key: Optional[str],
         context_provider: ContextProvider,
         model: str,
+        logger: Logger,
         max_iterations: int = 50,
-        logger: Optional[Logger] = None,
         permission_manager: Optional[PermissionManager] = None,
         image_context = None,
         api_debugger: Optional[APIDebugger] = None,
@@ -49,8 +49,8 @@ class AIAgent:
             api_key: API key for the selected provider
             context_provider: ContextProvider instance for file operations and context
             model: Model identifier to use
+            logger: Logger instance for tool call logging
             max_iterations: Maximum number of tool calling iterations (default: 50)
-            logger: Optional logger for tool call logging
             permission_manager: Optional PermissionManager instance for access control
             image_context: Optional ImageContext instance for screenshot capture
             api_debugger: Optional APIDebugger instance for dumping API data
@@ -158,8 +158,7 @@ class AIAgent:
             conversation_id = self._generate_conversation_id()
             self.tool_manager.start_conversation(conversation_id, user_request=user_input)
             self.history_manager.set_conversation_id(conversation_id)
-            if self.logger:
-                self.logger.info(f"Started new conversation: {conversation_id}")
+            self.logger.info(f"Started new conversation: {conversation_id}")
 
             # Get system message from context provider (only once, then cache it)
             if self._system_message_cache is None:
@@ -470,8 +469,7 @@ class AIAgent:
                     })
 
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error adding screenshot to conversation: {str(e)}")
+            self.logger.error(f"Error adding screenshot to conversation: {str(e)}")
 
     def get_history(self) -> List[Dict]:
         """
@@ -530,8 +528,7 @@ class AIAgent:
             model: Model identifier string
         """
         self.model = model
-        if self.logger:
-            self.logger.info(f"Model changed to: {model}")
+        self.logger.info(f"Model changed to: {model}")
 
     def get_last_token_usage(self) -> Optional[Dict]:
         """

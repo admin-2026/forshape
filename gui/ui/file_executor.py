@@ -19,14 +19,14 @@ from ..dialogs import PythonFileSelector
 class FileExecutor:
     """Handles Python file scanning and execution."""
 
-    def __init__(self, context_provider, message_handler, logger=None):
+    def __init__(self, context_provider, message_handler, logger):
         """
         Initialize the file executor.
 
         Args:
             context_provider: ContextProvider instance for accessing working directory
             message_handler: MessageHandler instance for displaying messages
-            logger: Optional Logger instance
+            logger: Logger instance
         """
         self.context_provider = context_provider
         self.message_handler = message_handler
@@ -93,8 +93,7 @@ class FileExecutor:
                         runnable_files.append(rel_path)
             except Exception as e:
                 # Skip files that can't be read
-                if self.logger:
-                    self.logger.debug(f"Could not read {file_path}: {e}")
+                self.logger.debug(f"Could not read {file_path}: {e}")
                 continue
 
         # Sort alphabetically

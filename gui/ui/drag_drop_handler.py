@@ -13,14 +13,14 @@ from PySide2.QtGui import QDragEnterEvent, QDropEvent
 class DragDropHandler:
     """Handles drag and drop operations for images and Python files."""
 
-    def __init__(self, message_handler, image_context=None, logger=None):
+    def __init__(self, message_handler, logger, image_context=None):
         """
         Initialize the drag and drop handler.
 
         Args:
             message_handler: MessageHandler instance for displaying messages
+            logger: Logger instance
             image_context: Optional ImageContext instance for saving images
-            logger: Optional Logger instance
         """
         self.message_handler = message_handler
         self.image_context = image_context

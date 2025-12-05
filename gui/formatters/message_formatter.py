@@ -8,12 +8,12 @@ import html as html_module
 class MessageFormatter:
     """Utility class for formatting messages with markdown support."""
 
-    def __init__(self, logger=None):
+    def __init__(self, logger):
         """
         Initialize the message formatter.
 
         Args:
-            logger: Optional logger instance for debugging
+            logger: Logger instance for debugging
         """
         self.logger = logger
 
@@ -42,19 +42,16 @@ class MessageFormatter:
             try:
                 html_output = md.markdown(text, extensions=extensions)
                 # Debug: Log that markdown conversion succeeded
-                if self.logger:
-                    self.logger.debug(f"Markdown converted to HTML: {html_output[:100]}...")
+                self.logger.debug(f"Markdown converted to HTML: {html_output[:100]}...")
                 return html_output
             except Exception as e:
                 # Fallback if conversion fails
-                if self.logger:
-                    self.logger.warn(f"Markdown conversion failed: {e}, using fallback")
+                self.logger.warn(f"Markdown conversion failed: {e}, using fallback")
                 return self._fallback_format(text)
 
         except ImportError:
             # Fallback: basic HTML escaping and line break conversion if markdown not available
-            if self.logger:
-                self.logger.warn("Markdown library not available, using fallback rendering")
+            self.logger.warn("Markdown library not available, using fallback rendering")
             return self._fallback_format(text)
 
     def _fallback_format(self, text: str) -> str:

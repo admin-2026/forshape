@@ -206,13 +206,13 @@ class EditHistory:
             self.logger.error(f"Failed to save metadata: {str(e)}")
 
     @staticmethod
-    def _load_metadata(session_folder: Path, logger: Optional[Logger] = None) -> Dict:
+    def _load_metadata(session_folder: Path, logger: Logger = None) -> Dict:
         """
         Load session metadata from disk.
 
         Args:
             session_folder: Path to the session folder
-            logger: Optional logger for error reporting
+            logger: Logger instance for error reporting (None for static calls without logger)
 
         Returns:
             Dictionary with metadata, or empty dict if not found
@@ -314,7 +314,7 @@ class EditHistory:
         }
 
     @staticmethod
-    def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Optional[Logger] = None) -> tuple[bool, str]:
+    def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Logger) -> tuple[bool, str]:
         """
         Restore files from a specific checkpoint session.
         - Restores backed up files (edited files)
@@ -324,7 +324,7 @@ class EditHistory:
             edits_dir: Directory where edit history is stored
             session_name: Name of the session folder to restore from
             working_dir: Working directory to restore files to
-            logger: Optional logger for operation reporting
+            logger: Logger instance for operation reporting
 
         Returns:
             Tuple of (success: bool, message: str)

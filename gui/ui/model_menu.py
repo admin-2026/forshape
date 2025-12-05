@@ -120,6 +120,18 @@ class ModelMenuManager:
                 provider_action = QWidgetAction(parent_window)
                 provider_action.setDefaultWidget(provider_widget)
                 model_menu.addAction(provider_action)
+
+                # Add "Delete API Key" action below the dropdown
+                delete_key_action = QAction(f"      → Delete API Key", parent_window)
+
+                # Use a closure-safe connection
+                def make_delete_handler(prov, disp, parent):
+                    def handler():
+                        self.on_delete_api_key(prov, disp, parent)
+                    return handler
+
+                delete_key_action.triggered.connect(make_delete_handler(provider.name, provider.display_name, parent_window))
+                model_menu.addAction(delete_key_action)
             else:
                 # API key missing - show a clickable menu action instead of a button widget
                 # First add the label as a widget
@@ -268,6 +280,42 @@ class ModelMenuManager:
                 self.logger.error(f"Error adding API key: {e}")
             if self.message_handler:
                 self.message_handler.append_message("System", f"❌ Failed to add API key: {str(e)}")
+
+    def on_delete_api_key(self, provider_name: str, display_name: str, parent_window):
+        """
+        Handle "Delete API Key" action click for a provider.
+
+        Args:
+            provider_name: Internal provider name (e.g., "openai", "fireworks")
+            display_name: Display name for the provider (e.g., "OpenAI", "Fireworks")
+            parent_window: Parent window for the dialog
+        """
+        try:
+            from ..api_key_manager import ApiKeyManager
+
+            # Delete the API key using ApiKeyManager
+            api_key_manager = ApiKeyManager()
+            api_key_manager.delete_api_key(provider_name)
+
+            # Show success message
+            if self.message_handler:
+                self.message_handler.append_message("System", f"API key for {display_name} has been deleted successfully!")
+
+            # If the AI client is using this provider, reset it
+            if self.ai_client and self.ai_client.provider_name == provider_name:
+                self.ai_client.provider = None
+                self.ai_client.provider_name = None
+                if self.message_handler:
+                    self.message_handler.append_message("System", f"AI client reset. Please select a new provider and model.")
+
+            # Refresh the Model menu to show "Add API Key" instead of the dropdown
+            self.refresh_model_menu(parent_window)
+
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error deleting API key: {e}")
+            if self.message_handler:
+                self.message_handler.append_message("System", f"❌ Failed to delete API key: {str(e)}")
 
     def refresh_model_menu(self, parent_window):
         """

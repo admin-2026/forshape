@@ -93,6 +93,38 @@ class ForShapeMainWindow(QMainWindow):
 
         self.setup_ui()
 
+    def _pluralize(self, word: str, count: int) -> str:
+        """
+        Return singular or plural form of a word based on count.
+
+        Args:
+            word: The singular form of the word
+            count: The count to determine singular/plural
+
+        Returns:
+            The word with 's' appended if count != 1, otherwise the original word
+        """
+        return word if count == 1 else f"{word}s"
+
+    def _set_log_panel_visibility(self, visible: bool):
+        """
+        Set the visibility of the log panel and update the action text.
+
+        Args:
+            visible: True to show the log panel, False to hide it
+        """
+        if visible:
+            self.log_widget.show()
+        else:
+            self.log_widget.hide()
+
+        # Always set text to "Show Logs" as requested
+        self.toggle_logs_action.setText("Show Logs")
+        self.toggle_logs_action.setChecked(visible)
+
+        # Save to config
+        self.ui_config_manager.set('show_logs', visible)
+
     def setup_ui(self):
         """Setup the user interface components."""
         self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
@@ -241,14 +273,7 @@ class ForShapeMainWindow(QMainWindow):
 
         # Restore show_logs state from config, default to hidden
         show_logs = self.ui_config_manager.get('show_logs', False)
-        if show_logs:
-            self.log_widget.show()
-            self.toggle_logs_action.setText("Hide Logs")
-            self.toggle_logs_action.setChecked(True)
-        else:
-            self.log_widget.hide()
-            self.toggle_logs_action.setText("Show Logs")
-            self.toggle_logs_action.setChecked(False)
+        self._set_log_panel_visibility(show_logs)
 
         main_layout.addWidget(splitter, stretch=1)
 
@@ -764,15 +789,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             augmented_input = "\n".join(file_parts) + f"\n[User message]\n{user_input}"
 
             file_count = len(self.attached_files)
-            file_word = "file" if file_count == 1 else "files"
-            self.append_message("System", f"📎 Attaching {file_count} Python {file_word} to message...")
+            self.append_message("System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message...")
 
         # Check if there are captured images to attach
         has_images = len(self.captured_images) > 0
         if has_images:
             image_count = len(self.captured_images)
-            image_word = "image" if image_count == 1 else "images"
-            self.append_message("System", f"📷 Attaching {image_count} {image_word} to message...")
+            self.append_message("System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message...")
 
         # Show in-progress indicator
         self.append_message("AI", "⏳ Processing...")
@@ -911,18 +934,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
     def toggle_log_panel(self):
         """Toggle the visibility of the log panel."""
-        if self.log_widget.isVisible():
-            self.log_widget.hide()
-            self.toggle_logs_action.setText("Show Logs")
-            self.toggle_logs_action.setChecked(False)
-            # Save to config
-            self.ui_config_manager.set('show_logs', False)
-        else:
-            self.log_widget.show()
-            self.toggle_logs_action.setText("Hide Logs")
-            self.toggle_logs_action.setChecked(True)
-            # Save to config
-            self.ui_config_manager.set('show_logs', True)
+        self._set_log_panel_visibility(not self.log_widget.isVisible())
 
     def toggle_api_dump(self):
         """Toggle API data dumping."""
@@ -1027,8 +1039,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             image_count = len(self.captured_images)
             self.captured_images = []
             self.update_capture_button_state()
-            image_word = "image" if image_count == 1 else "images"
-            self.append_message("System", f"All {image_count} captured {image_word} discarded. No images will be attached.")
+            self.append_message("System", f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.")
             return
 
         if not self.image_context:
@@ -1079,11 +1090,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
                     # Show success message
                     image_count = len(self.captured_images)
-                    image_word = "image" if image_count == 1 else "images"
                     self.append_message("System",
                         f"Screenshot confirmed!\n"
                         f"Saved to: {file_path}\n"
-                        f"{image_count} {image_word} ready to attach to your next message.")
+                        f"{image_count} {self._pluralize('image', image_count)} ready to attach to your next message.")
                 except Exception as e:
                     self.append_message("[SYSTEM]", f"Error encoding annotated image: {str(e)}")
             else:

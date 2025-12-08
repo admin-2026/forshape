@@ -30,6 +30,9 @@ class ModelMenuManager:
         # Dictionary to store model combo boxes for each provider
         self.model_combos = {}
 
+        # Cached API key manager instance
+        self._api_key_manager = None
+
         # These will be set by main window
         self.ai_client = None
         self.prestart_checker = None
@@ -45,6 +48,118 @@ class ModelMenuManager:
         self.prestart_checker = prestart_checker
         self.completion_callback = completion_callback
         self.enable_ai_mode_callback = enable_ai_mode_callback
+
+    def _get_api_key_manager(self):
+        """Get or create the API key manager instance."""
+        if self._api_key_manager is None:
+            from ..api_key_manager import ApiKeyManager
+            self._api_key_manager = ApiKeyManager()
+        return self._api_key_manager
+
+    def _get_provider_display_name(self, provider_name):
+        """Get the display name for a provider."""
+        provider_config = self.provider_config_loader.get_provider(provider_name)
+        return provider_config.display_name if provider_config else provider_name.capitalize()
+
+    def _reset_other_provider_dropdowns(self, current_provider):
+        """Reset all other providers' dropdowns to placeholder."""
+        for other_provider, other_combo in self.model_combos.items():
+            if other_provider != current_provider:
+                other_combo.blockSignals(True)
+                other_combo.setCurrentIndex(0)  # Reset to placeholder
+                other_combo.blockSignals(False)
+
+    def _initialize_provider(self, provider_name, api_key):
+        """
+        Initialize a provider with the given API key.
+
+        Args:
+            provider_name: The provider name
+            api_key: The API key for the provider
+
+        Returns:
+            Initialized provider instance or None if failed
+        """
+        from ..api_provider import create_api_provider_from_config, create_api_provider
+
+        provider_config = self.provider_config_loader.get_provider(provider_name)
+        if provider_config:
+            return create_api_provider_from_config(provider_config, api_key)
+        else:
+            return create_api_provider(provider_name, api_key)
+
+    def _switch_to_provider_model(self, provider_name, model, model_name=None):
+        """
+        Switch AI client to use the specified provider and model.
+
+        Args:
+            provider_name: The provider name
+            model: The model identifier
+            model_name: Optional display name for the model
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        api_key_manager = self._get_api_key_manager()
+        api_key = api_key_manager.get_api_key(provider_name)
+
+        if not api_key:
+            display_name = self._get_provider_display_name(provider_name)
+            if self.message_handler:
+                self.message_handler.append_message("System", f"No API key configured for {display_name}.")
+            return False
+
+        new_provider = self._initialize_provider(provider_name, api_key)
+
+        if new_provider and new_provider.is_available():
+            self.ai_client.provider = new_provider
+            self.ai_client.provider_name = provider_name
+            self.ai_client.set_model(model)
+
+            # Save to config
+            if self.ui_config_manager:
+                self.ui_config_manager.update({
+                    'selected_provider': provider_name,
+                    'selected_model': model
+                })
+
+            # Show confirmation message
+            if self.message_handler and model_name:
+                display_name = self._get_provider_display_name(provider_name)
+                self.message_handler.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
+
+            return True
+        else:
+            display_name = self._get_provider_display_name(provider_name)
+            if self.message_handler:
+                self.message_handler.append_message("System", f"Failed to initialize {display_name} provider.")
+            return False
+
+    def _select_first_available_provider(self):
+        """
+        Find and select the first provider with an API key and available models.
+
+        Returns:
+            bool: True if a provider was selected, False otherwise
+        """
+        api_key_manager = self._get_api_key_manager()
+        providers = self.provider_config_loader.get_providers()
+
+        for provider in providers:
+            api_key = api_key_manager.get_api_key(provider.name)
+            if api_key and provider.models:
+                # Use the default model or the first model
+                model_to_select = provider.default_model or (provider.models[0].name if provider.models else None)
+
+                if model_to_select:
+                    combo_box = self.model_combos.get(provider.name)
+                    if combo_box:
+                        # Find the index of the model
+                        for i in range(combo_box.count()):
+                            if combo_box.itemData(i) == model_to_select:
+                                combo_box.setCurrentIndex(i)
+                                return True
+        return False
 
     def _create_model_change_handler(self, provider_name):
         """
@@ -69,8 +184,6 @@ class ModelMenuManager:
             model_menu: The QMenu to add model selection widgets to
             parent_window: Parent window for dialogs
         """
-        from ..api_key_manager import ApiKeyManager
-
         providers = self.provider_config_loader.get_providers()
 
         if not providers:
@@ -81,7 +194,7 @@ class ModelMenuManager:
             return
 
         # Check API keys for all providers
-        api_key_manager = ApiKeyManager()
+        api_key_manager = self._get_api_key_manager()
 
         # Create a section for each provider
         for provider in providers:
@@ -191,61 +304,10 @@ class ModelMenuManager:
             return
 
         # Clear all other providers' selections
-        for other_provider, other_combo in self.model_combos.items():
-            if other_provider != provider:
-                # Block signals to prevent triggering handler while resetting
-                other_combo.blockSignals(True)
-                other_combo.setCurrentIndex(0)  # Reset to placeholder
-                other_combo.blockSignals(False)
+        self._reset_other_provider_dropdowns(provider)
 
-        # Get provider-specific API key from keyring
-        from ..api_key_manager import ApiKeyManager
-        api_key_manager = ApiKeyManager()
-        api_key = api_key_manager.get_api_key(provider)
-
-        # Check if API key exists for this provider
-        if not api_key:
-            provider_config = self.provider_config_loader.get_provider(provider)
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-            if self.message_handler:
-                self.message_handler.append_message("System", f"No API key configured for {display_name}. Please add the API key to the system keyring using ApiKeyManager.")
-            return
-
-        # Get provider config for base_url and other settings
-        provider_config = self.provider_config_loader.get_provider(provider)
-
-        # Reinitialize the AI agent with the new provider
-
-        from ..api_provider import create_api_provider_from_config
-        if provider_config:
-            new_provider = create_api_provider_from_config(provider_config, api_key)
-        else:
-            # Fallback to basic provider creation if config not found
-            from ..api_provider import create_api_provider
-            new_provider = create_api_provider(provider, api_key)
-
-        if new_provider and new_provider.is_available():
-            self.ai_client.provider = new_provider
-            self.ai_client.provider_name = provider
-            self.ai_client.set_model(model)
-
-            # Save to config
-            if self.ui_config_manager:
-                self.ui_config_manager.update({
-                    'selected_provider': provider,
-                    'selected_model': model
-                })
-
-            # Get display name from config
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-
-            # Show a confirmation message
-            if self.message_handler:
-                self.message_handler.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
-        else:
-            display_name = provider_config.display_name if provider_config else provider.capitalize()
-            if self.message_handler:
-                self.message_handler.append_message("System", f"Failed to initialize {display_name} provider. Please check your API key configuration.")
+        # Switch to the selected provider and model
+        self._switch_to_provider_model(provider, model, model_name)
 
     def on_add_api_key(self, provider_name: str, display_name: str, parent_window):
         """
@@ -264,9 +326,8 @@ class ModelMenuManager:
             if dialog.exec_() == QDialog.Accepted:
                 api_key = dialog.get_api_key()
                 if api_key:
-                    # Save the API key using ApiKeyManager
-                    from ..api_key_manager import ApiKeyManager
-                    api_key_manager = ApiKeyManager()
+                    # Save the API key
+                    api_key_manager = self._get_api_key_manager()
                     api_key_manager.set_api_key(provider_name, api_key)
 
                     # Show success message
@@ -274,42 +335,22 @@ class ModelMenuManager:
                         self.message_handler.append_message("System", f"API key for {display_name} has been saved successfully!")
 
                     # Check if this is the first API key being added
-                    providers = self.provider_config_loader.get_providers()
-                    other_providers_with_keys = False
-                    for provider in providers:
-                        if provider.name != provider_name:
-                            other_key = api_key_manager.get_api_key(provider.name)
-                            if other_key:
-                                other_providers_with_keys = True
-                                break
+                    is_first_key = not any(
+                        api_key_manager.get_api_key(p.name)
+                        for p in self.provider_config_loader.get_providers()
+                        if p.name != provider_name
+                    )
 
                     # Refresh the Model menu to show the dropdown instead of the button
                     self.refresh_model_menu(parent_window)
 
                     # If this is the first API key, automatically select a model from this provider
-                    if not other_providers_with_keys and self.ai_client:
-                        provider_config = self.provider_config_loader.get_provider(provider_name)
-                        if provider_config and provider_config.models:
-                            # Use the default model or the first model
-                            model_to_select = provider_config.default_model
-                            if not model_to_select and provider_config.models:
-                                model_to_select = provider_config.models[0].name
-
-                            if model_to_select:
-                                # Find the combo box for this provider and trigger selection
-                                combo_box = self.model_combos.get(provider_name)
-                                if combo_box:
-                                    # Find the index of the model
-                                    for i in range(combo_box.count()):
-                                        if combo_box.itemData(i) == model_to_select:
-                                            combo_box.setCurrentIndex(i)
-                                            # The signal will trigger on_model_changed automatically
-                                            break
+                    if is_first_key and self.ai_client:
+                        self._select_first_available_provider()
 
                     # If this is the first API key and AI client is not initialized yet,
                     # we might need to trigger completion callback
                     if self.completion_callback and not self.ai_client:
-                        # Re-run prestart checks which should now pass
                         if self.prestart_checker:
                             status = self.prestart_checker.check(parent_window)
                             if status == "ready":
@@ -331,10 +372,8 @@ class ModelMenuManager:
             parent_window: Parent window for the dialog
         """
         try:
-            from ..api_key_manager import ApiKeyManager
-
-            # Delete the API key using ApiKeyManager
-            api_key_manager = ApiKeyManager()
+            # Delete the API key
+            api_key_manager = self._get_api_key_manager()
             api_key_manager.delete_api_key(provider_name)
 
             # Show success message
@@ -354,32 +393,10 @@ class ModelMenuManager:
 
             # If the deleted key was for the active provider, try to switch to another provider
             if was_active_provider:
-                # Find another provider with an API key
-                providers = self.provider_config_loader.get_providers()
-                for provider in providers:
-                    if provider.name != provider_name:
-                        other_key = api_key_manager.get_api_key(provider.name)
-                        if other_key and provider.models:
-                            # Use the default model or the first model
-                            model_to_select = provider.default_model
-                            if not model_to_select and provider.models:
-                                model_to_select = provider.models[0].name
-
-                            if model_to_select:
-                                # Find the combo box for this provider and trigger selection
-                                combo_box = self.model_combos.get(provider.name)
-                                if combo_box:
-                                    # Find the index of the model
-                                    for i in range(combo_box.count()):
-                                        if combo_box.itemData(i) == model_to_select:
-                                            combo_box.setCurrentIndex(i)
-                                            # The signal will trigger on_model_changed automatically
-                                            # Exit after finding the first available provider
-                                            return
-
-                # No other providers with API keys found
-                if self.message_handler:
-                    self.message_handler.append_message("System", f"AI client reset. Please select a new provider and model.")
+                if not self._select_first_available_provider():
+                    # No other providers with API keys found
+                    if self.message_handler:
+                        self.message_handler.append_message("System", "AI client reset. Please select a new provider and model.")
 
         except Exception as e:
             self.logger.error(f"Error deleting API key: {e}")
@@ -439,53 +456,35 @@ class ModelMenuManager:
             self.logger.warn(f"Cannot restore model: model '{model}' not found for provider '{provider}'")
             return False
 
-        # Get provider-specific API key from keyring
-        from ..api_key_manager import ApiKeyManager
-        api_key_manager = ApiKeyManager()
-        api_key = api_key_manager.get_api_key(provider)
-
+        # Get API key for this provider
+        api_key = self._get_api_key_manager().get_api_key(provider)
         if not api_key:
             self.logger.warn(f"Cannot restore model: no API key for provider '{provider}'")
             return False
 
-        # Get provider config for base_url and other settings
-        provider_config = self.provider_config_loader.get_provider(provider)
-
-        # Reinitialize the AI agent with the saved provider
-        from ..api_provider import create_api_provider_from_config
-        if provider_config:
-            new_provider = create_api_provider_from_config(provider_config, api_key)
-        else:
-            # Fallback to basic provider creation if config not found
-            from ..api_provider import create_api_provider
-            new_provider = create_api_provider(provider, api_key)
-
-        if new_provider and new_provider.is_available():
-            # Update AI client
-            self.ai_client.provider = new_provider
-            self.ai_client.provider_name = provider
-            self.ai_client.set_model(model)
-
-            # Update dropdown to reflect the restored selection
-            # Reset all other providers' dropdowns to placeholder
-            for other_provider, other_combo in self.model_combos.items():
-                if other_provider != provider:
-                    other_combo.blockSignals(True)
-                    other_combo.setCurrentIndex(0)  # Reset to placeholder
-                    other_combo.blockSignals(False)
-
-            # Set the current provider's dropdown to the saved model
-            combo_box.blockSignals(True)
-            combo_box.setCurrentIndex(model_index)
-            combo_box.blockSignals(False)
-
-            # Log the restoration
-            self.logger.info(f"Restored saved model: {provider}/{model}")
-
-            return True
-        else:
+        # Initialize the provider
+        new_provider = self._initialize_provider(provider, api_key)
+        if not new_provider or not new_provider.is_available():
             self.logger.error(f"Failed to initialize provider for restoration: {provider}")
             return False
+
+        # Update AI client
+        self.ai_client.provider = new_provider
+        self.ai_client.provider_name = provider
+        self.ai_client.set_model(model)
+
+        # Update dropdown to reflect the restored selection
+        self._reset_other_provider_dropdowns(provider)
+
+        # Set the current provider's dropdown to the saved model
+        combo_box.blockSignals(True)
+        combo_box.setCurrentIndex(model_index)
+        combo_box.blockSignals(False)
+
+        # Log the restoration
+        self.logger.info(f"Restored saved model: {provider}/{model}")
+
+        return True
 
     def sync_model_dropdown(self):
         """Sync the model dropdown selection with the AI client's current model and provider."""
@@ -502,11 +501,7 @@ class ModelMenuManager:
             return
 
         # Reset all other providers' dropdowns to placeholder
-        for other_provider, other_combo in self.model_combos.items():
-            if other_provider != current_provider:
-                other_combo.blockSignals(True)
-                other_combo.setCurrentIndex(0)  # Reset to placeholder
-                other_combo.blockSignals(False)
+        self._reset_other_provider_dropdowns(current_provider)
 
         # Find and select the matching model in the current provider's dropdown
         for i in range(combo_box.count()):

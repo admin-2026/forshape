@@ -445,24 +445,13 @@ class ForShapeMainWindow(QMainWindow):
             self.enable_ai_mode
         )
 
-        # Transfer model_combos from temp manager if it exists
+        # IMPORTANT: Refresh the entire Model menu to use the real manager
+        # The menu was created with a temp manager, and Add/Delete API Key actions
+        # are still bound to that temp manager. Refreshing recreates everything.
+        self.model_menu_manager.refresh_model_menu(self)
+
+        # Clean up temp manager references
         if hasattr(self, '_temp_model_combos'):
-            self.model_menu_manager.model_combos = self._temp_model_combos
-
-            # IMPORTANT: Reconnect all signal handlers to the real manager
-            # The old handlers were connected to the temp manager which no longer exists
-            for provider_name, combo_box in self._temp_model_combos.items():
-                try:
-                    # Disconnect old handler (connected to temp manager)
-                    combo_box.currentIndexChanged.disconnect()
-                except:
-                    pass
-
-                # Connect to the real manager's handler
-                combo_box.currentIndexChanged.connect(
-                    self.model_menu_manager._create_model_change_handler(provider_name)
-                )
-
             del self._temp_model_combos
 
         # Display welcome message

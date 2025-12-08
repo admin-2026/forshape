@@ -114,9 +114,9 @@ class ModelMenuManager:
                     if model.name == provider.default_model:
                         default_index = idx
 
-                # Set the default model if configured
-                # (The actual saved model will be restored later via restore_saved_model)
-                if default_index > 0:
+                # Set the default model only if this provider is currently active
+                # Otherwise, keep it at placeholder to ensure only one active model
+                if default_index > 0 and self.ai_client and self.ai_client.provider_name == provider.name:
                     model_combo.setCurrentIndex(default_index)
 
                 # Connect change event
@@ -273,8 +273,38 @@ class ModelMenuManager:
                     if self.message_handler:
                         self.message_handler.append_message("System", f"API key for {display_name} has been saved successfully!")
 
+                    # Check if this is the first API key being added
+                    providers = self.provider_config_loader.get_providers()
+                    other_providers_with_keys = False
+                    for provider in providers:
+                        if provider.name != provider_name:
+                            other_key = api_key_manager.get_api_key(provider.name)
+                            if other_key:
+                                other_providers_with_keys = True
+                                break
+
                     # Refresh the Model menu to show the dropdown instead of the button
                     self.refresh_model_menu(parent_window)
+
+                    # If this is the first API key, automatically select a model from this provider
+                    if not other_providers_with_keys and self.ai_client:
+                        provider_config = self.provider_config_loader.get_provider(provider_name)
+                        if provider_config and provider_config.models:
+                            # Use the default model or the first model
+                            model_to_select = provider_config.default_model
+                            if not model_to_select and provider_config.models:
+                                model_to_select = provider_config.models[0].name
+
+                            if model_to_select:
+                                # Find the combo box for this provider and trigger selection
+                                combo_box = self.model_combos.get(provider_name)
+                                if combo_box:
+                                    # Find the index of the model
+                                    for i in range(combo_box.count()):
+                                        if combo_box.itemData(i) == model_to_select:
+                                            combo_box.setCurrentIndex(i)
+                                            # The signal will trigger on_model_changed automatically
+                                            break
 
                     # If this is the first API key and AI client is not initialized yet,
                     # we might need to trigger completion callback
@@ -311,15 +341,45 @@ class ModelMenuManager:
             if self.message_handler:
                 self.message_handler.append_message("System", f"API key for {display_name} has been deleted successfully!")
 
+            # Check if the deleted key was for the active provider
+            was_active_provider = self.ai_client and self.ai_client.provider_name == provider_name
+
             # If the AI client is using this provider, reset it
-            if self.ai_client and self.ai_client.provider_name == provider_name:
+            if was_active_provider:
                 self.ai_client.provider = None
                 self.ai_client.provider_name = None
-                if self.message_handler:
-                    self.message_handler.append_message("System", f"AI client reset. Please select a new provider and model.")
 
             # Refresh the Model menu to show "Add API Key" instead of the dropdown
             self.refresh_model_menu(parent_window)
+
+            # If the deleted key was for the active provider, try to switch to another provider
+            if was_active_provider:
+                # Find another provider with an API key
+                providers = self.provider_config_loader.get_providers()
+                for provider in providers:
+                    if provider.name != provider_name:
+                        other_key = api_key_manager.get_api_key(provider.name)
+                        if other_key and provider.models:
+                            # Use the default model or the first model
+                            model_to_select = provider.default_model
+                            if not model_to_select and provider.models:
+                                model_to_select = provider.models[0].name
+
+                            if model_to_select:
+                                # Find the combo box for this provider and trigger selection
+                                combo_box = self.model_combos.get(provider.name)
+                                if combo_box:
+                                    # Find the index of the model
+                                    for i in range(combo_box.count()):
+                                        if combo_box.itemData(i) == model_to_select:
+                                            combo_box.setCurrentIndex(i)
+                                            # The signal will trigger on_model_changed automatically
+                                            # Exit after finding the first available provider
+                                            return
+
+                # No other providers with API keys found
+                if self.message_handler:
+                    self.message_handler.append_message("System", f"AI client reset. Please select a new provider and model.")
 
         except Exception as e:
             self.logger.error(f"Error deleting API key: {e}")

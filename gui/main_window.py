@@ -736,6 +736,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 f"**Context:** {context_status}\n\n"
                 f"You can now chat with the AI to generate 3D shapes!")
 
+        # Bring window to front after initialization completes
+        self.raise_()
+        self.activateWindow()
+        # Restore window if minimized
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
         user_input = self.input_field.toPlainText().strip()

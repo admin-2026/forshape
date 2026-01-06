@@ -289,28 +289,28 @@ class ToolManager:
                         "required": []
                     }
                 }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "run_python_script",
-                    "description": "Load and execute a Python script from the working directory. The script will be executed in the FreeCAD Python environment with access to FreeCAD modules and the Context class. Requires user permission before execution. Automatically runs in teardown mode first to clean up existing objects before running in normal mode.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "script_path": {
-                                "type": "string",
-                                "description": "The path to the Python script to execute. Can be relative to the working directory or absolute."
-                            },
-                            "description": {
-                                "type": "string",
-                                "description": "A brief description of what the script does (shown to user in permission request)."
-                            }
-                        },
-                        "required": ["script_path", "description"]
-                    }
-                }
             }
+            # {
+            #     "type": "function",
+            #     "function": {
+            #         "name": "run_python_script",
+            #         "description": "Load and execute a Python script from the working directory. The script will be executed in the FreeCAD Python environment with access to FreeCAD modules and the Context class. Requires user permission before execution. Automatically runs in teardown mode first to clean up existing objects before running in normal mode.",
+            #         "parameters": {
+            #             "type": "object",
+            #             "properties": {
+            #                 "script_path": {
+            #                     "type": "string",
+            #                     "description": "The path to the Python script to execute. Can be relative to the working directory or absolute."
+            #                 },
+            #                 "description": {
+            #                     "type": "string",
+            #                     "description": "A brief description of what the script does (shown to user in permission request)."
+            #                 }
+            #             },
+            #             "required": ["script_path", "description"]
+            #         }
+            #     }
+            # }
         ]
 
     def _register_tool_functions(self) -> Dict[str, Callable]:
@@ -331,7 +331,7 @@ class ToolManager:
             "remove_object": self._tool_remove_object,
             "search_python_files": self._tool_search_python_files,
             "capture_screenshot": self._tool_capture_screenshot,
-            "run_python_script": self._tool_run_python_script
+            # "run_python_script": self._tool_run_python_script
         }
 
     def _resolve_path(self, path: str) -> Path:
@@ -486,10 +486,12 @@ class ToolManager:
 
             # Get the forshape folder name from config_manager, fallback to ".forshape"
             forshape_folder = self.config_manager.get_forshape_folder_name() if self.config_manager else ".forshape"
-
+            self.logger.warn(forshape_folder)
             for item in resolved_path.iterdir():
                 # Skip files/directories in the forshape folder
+                self.logger.warn(f'item: {item} | item.parts: {item.parts} | item.name: {item.name}')
                 if forshape_folder in item.parts:
+                    self.logger.warn('skip')
                     continue
 
                 # Skip __pycache__ directories
@@ -822,6 +824,9 @@ class ToolManager:
             except re.error as e:
                 return self._json_error(f"Invalid regex pattern: {str(e)}")
 
+            # Get the forshape folder name from config_manager, fallback to ".forshape"
+            forshape_folder = self.config_manager.get_forshape_folder_name() if self.config_manager else ".forshape"
+
             # Find all Python files
             if recursive:
                 python_files = list(search_path.rglob("*.py"))
@@ -833,6 +838,9 @@ class ToolManager:
             working_dir = Path(self.working_dir)
 
             for py_file in python_files:
+                # Skip files inside the forshape folder
+                if forshape_folder in py_file.parts:
+                    continue
                 # Check read permission for each file
                 if self.permission_manager:
                     if not self.permission_manager.request_permission(
@@ -925,92 +933,92 @@ class ToolManager:
         except Exception as e:
             return self._json_error(f"Error capturing screenshot: {str(e)}")
 
-    def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
-        """
-        Implementation of the run_python_script tool.
-        Executes a Python script from the working directory with user permission.
-        Always runs teardown first to clean up existing objects before normal execution.
+    # def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
+    #     """
+    #     Implementation of the run_python_script tool.
+    #     Executes a Python script from the working directory with user permission.
+    #     Always runs teardown first to clean up existing objects before normal execution.
 
-        Args:
-            script_path: Path to the Python script to execute
-            description: Description of what the script does (for permission request)
-            teardown_first: Internal parameter to control teardown behavior (defaults to True)
+    #     Args:
+    #         script_path: Path to the Python script to execute
+    #         description: Description of what the script does (for permission request)
+    #         teardown_first: Internal parameter to control teardown behavior (defaults to True)
 
-        Returns:
-            JSON string with execution results or error message
-        """
-        try:
-            resolved_path = self._resolve_path(script_path)
+    #     Returns:
+    #         JSON string with execution results or error message
+    #     """
+    #     try:
+    #         resolved_path = self._resolve_path(script_path)
 
-            # Validate that it's a Python file
-            if not str(resolved_path).endswith('.py'):
-                return self._json_error(f"File must be a Python script (.py): {resolved_path}")
+    #         # Validate that it's a Python file
+    #         if not str(resolved_path).endswith('.py'):
+    #             return self._json_error(f"File must be a Python script (.py): {resolved_path}")
 
-            # Validate file exists
-            file_error = self._validate_file_exists(resolved_path)
-            if file_error:
-                return file_error
+    #         # Validate file exists
+    #         file_error = self._validate_file_exists(resolved_path)
+    #         if file_error:
+    #             return file_error
 
-            # Check permission
-            perm_error = self._check_permission(str(resolved_path), "execute", is_directory=False)
-            if perm_error:
-                # Add description to permission error
-                error_dict = json.loads(perm_error)
-                error_dict["description"] = description
-                return json.dumps(error_dict)
+    #         # Check permission
+    #         perm_error = self._check_permission(str(resolved_path), "execute", is_directory=False)
+    #         if perm_error:
+    #             # Add description to permission error
+    #             error_dict = json.loads(perm_error)
+    #             error_dict["description"] = description
+    #             return json.dumps(error_dict)
 
-            # Read the script content
-            with open(resolved_path, 'r', encoding='utf-8') as f:
-                script_content = f.read()
+    #         # Read the script content
+    #         with open(resolved_path, 'r', encoding='utf-8') as f:
+    #             script_content = f.read()
 
-            # Execute the script using ScriptExecutor
-            if teardown_first:
-                # Run in teardown mode first, then normal mode
-                teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
-                    script_content, resolved_path, import_freecad=True
-                )
-                success = normal_result.success
-                output = normal_result.output
-                error_msg = normal_result.error
-                teardown_output = teardown_result.output
-            else:
-                # Run in normal mode only
-                result = ScriptExecutor.execute(
-                    script_content, resolved_path, teardown_mode=False, import_freecad=True
-                )
-                success = result.success
-                output = result.output
-                error_msg = result.error
-                teardown_output = None
+    #         # Execute the script using ScriptExecutor
+    #         if teardown_first:
+    #             # Run in teardown mode first, then normal mode
+    #             teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
+    #                 script_content, resolved_path, import_freecad=True
+    #             )
+    #             success = normal_result.success
+    #             output = normal_result.output
+    #             error_msg = normal_result.error
+    #             teardown_output = teardown_result.output
+    #         else:
+    #             # Run in normal mode only
+    #             result = ScriptExecutor.execute(
+    #                 script_content, resolved_path, teardown_mode=False, import_freecad=True
+    #             )
+    #             success = result.success
+    #             output = result.output
+    #             error_msg = result.error
+    #             teardown_output = None
 
-            if success:
-                result = {
-                    "success": True,
-                    "script": str(resolved_path),
-                    "description": description,
-                    "output": output.strip() if output else "(no output)",
-                    "message": "Script executed successfully"
-                }
-                if teardown_first and teardown_output is not None:
-                    result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
-                    result["message"] = "Script executed successfully (with teardown first)"
-                return json.dumps(result, indent=2)
-            else:
-                result = {
-                    "success": False,
-                    "script": str(resolved_path),
-                    "description": description,
-                    "error": error_msg,
-                    "output": output.strip() if output else "(no output)"
-                }
-                if teardown_first and teardown_output is not None:
-                    result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
-                return json.dumps(result, indent=2)
+    #         if success:
+    #             result = {
+    #                 "success": True,
+    #                 "script": str(resolved_path),
+    #                 "description": description,
+    #                 "output": output.strip() if output else "(no output)",
+    #                 "message": "Script executed successfully"
+    #             }
+    #             if teardown_first and teardown_output is not None:
+    #                 result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
+    #                 result["message"] = "Script executed successfully (with teardown first)"
+    #             return json.dumps(result, indent=2)
+    #         else:
+    #             result = {
+    #                 "success": False,
+    #                 "script": str(resolved_path),
+    #                 "description": description,
+    #                 "error": error_msg,
+    #                 "output": output.strip() if output else "(no output)"
+    #             }
+    #             if teardown_first and teardown_output is not None:
+    #                 result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
+    #             return json.dumps(result, indent=2)
 
-        except UnicodeDecodeError:
-            return self._json_error(f"Cannot read script file (encoding issue): {script_path}")
-        except Exception as e:
-            return self._json_error(f"Error executing script: {str(e)}")
+    #     except UnicodeDecodeError:
+    #         return self._json_error(f"Cannot read script file (encoding issue): {script_path}")
+    #     except Exception as e:
+    #         return self._json_error(f"Error executing script: {str(e)}")
 
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
@@ -1078,9 +1086,6 @@ You have access to the following tools:
 2. **read_file** - Read the contents of any file
 3. **edit_file** - Edit files by replacing content
 4. **search_python_files** - Search for regex patterns in Python files within the working directory
-
-### Script Execution Tools
-5. **run_python_script** - Load and execute a Python script from the working directory (requires user permission)
 
 ### FreeCAD Object Tools
 6. **print_object** - Print information about a FreeCAD object by label or name
@@ -1158,14 +1163,5 @@ When users ask about objects in their FreeCAD document:
 
 **User says: "Show me what the object looks like"**
 → Use capture_screenshot to capture an image of the object and return the image
-
-**User says: "Run the generate_box.py script"**
-→ Use run_python_script with script_path="generate_box.py" and description="Generate a box shape in FreeCAD"
-
-**User says: "Execute the script I just created"**
-→ First list_files to find the script, then use run_python_script with an appropriate description
-
-**User says: "Test the shape generation script"**
-→ Use run_python_script to execute the script and return the results
 
 Use these tools proactively to provide a better user experience!"""

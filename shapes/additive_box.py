@@ -10,6 +10,60 @@ from .context import Context
 
 class AdditiveBox(Shape):
     @staticmethod
+    def _resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size):
+        """
+        Resolve final dimensions based on plane orientation and size parameters.
+
+        x_size, y_size, z_size overwrite length, width, height based on plane:
+        - XY plane: x_size → length, y_size → width, z_size → height
+        - YZ plane: x_size → height, y_size → length, z_size → width
+        - XZ plane: x_size → length, y_size → height, z_size → width
+
+        Args:
+            plane_label: The plane orientation ('XY_Plane', 'YZ_Plane', 'XZ_Plane')
+            length, width, height: Original dimensions
+            x_size, y_size, z_size: Alternative size parameters
+
+        Returns:
+            tuple: (final_length, final_width, final_height)
+        """
+        # Check if both dimension systems are provided
+        has_lwh = length is not None or width is not None or height is not None
+        has_xyz = x_size is not None or y_size is not None or z_size is not None
+
+        if has_lwh and has_xyz:
+            print("Warning: Both (length/width/height) and (x_size/y_size/z_size) provided. Using x_size/y_size/z_size.")
+
+        # If x_size/y_size/z_size provided, map based on plane
+        if has_xyz:
+            if plane_label == 'XY_Plane':
+                # x_size → length, y_size → width, z_size → height
+                if x_size is not None:
+                    length = x_size
+                if y_size is not None:
+                    width = y_size
+                if z_size is not None:
+                    height = z_size
+            elif plane_label == 'YZ_Plane':
+                # x_size → height, y_size → length, z_size → width
+                if x_size is not None:
+                    height = x_size
+                if y_size is not None:
+                    length = y_size
+                if z_size is not None:
+                    width = z_size
+            elif plane_label == 'XZ_Plane':
+                # x_size → length, y_size → height, z_size → width
+                if x_size is not None:
+                    length = x_size
+                if y_size is not None:
+                    height = y_size
+                if z_size is not None:
+                    width = z_size
+
+        return length, width, height
+
+    @staticmethod
     def _calculate_center_based_rotation_offset(length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll):
         """
         Calculate adjusted offset for center-based rotation.
@@ -64,7 +118,10 @@ class AdditiveBox(Shape):
             return radius
 
     @staticmethod
-    def create_box(label, plane_label, length, width, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_box(label, plane_label, length=None, width=None, height=None, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+        # Resolve dimensions based on plane and size parameters
+        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
         if incremental_build_obj is not None:
@@ -131,7 +188,10 @@ class AdditiveBox(Shape):
         return obj
 
     @staticmethod
-    def create_slot(label, plane_label, length, width, height, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_slot(label, plane_label, length=None, width=None, height=None, radius=0, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+        # Resolve dimensions based on plane and size parameters
+        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
         if incremental_build_obj is not None:
@@ -243,7 +303,7 @@ class AdditiveBox(Shape):
         return obj
 
     @staticmethod
-    def create_round_side_box(label, plane_label, length, width, height, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_round_side_box(label, plane_label, length=None, width=None, height=None, radius1=0, radius3=0, radius5=0, radius7=0, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
         """
         Creates a box with individually rounded side edges.
 
@@ -257,12 +317,18 @@ class AdditiveBox(Shape):
             radius3: Fillet radius for Edge3 in mm (0 for no fillet)
             radius5: Fillet radius for Edge5 in mm (0 for no fillet)
             radius7: Fillet radius for Edge7 in mm (0 for no fillet)
+            x_size: Alternative to length/width/height (plane-dependent)
+            y_size: Alternative to length/width/height (plane-dependent)
+            z_size: Alternative to length/width/height (plane-dependent)
             x_offset, y_offset, z_offset: Position offsets
             yaw, pitch, roll: Rotation angles
 
         Returns:
             The created/updated object
         """
+        # Resolve dimensions based on plane and size parameters
+        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
         if incremental_build_obj is not None:

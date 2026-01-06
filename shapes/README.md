@@ -77,17 +77,17 @@ Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
 
-The box is created with the bottom left corner on the plane origin. The height is extruded in the positive normal direction of the plane.
+The box is created with the bottom left corner on the plane origin. The box dimensions are specified using x_size, y_size, and z_size.
 
 **Public Methods:**
 
-`AdditiveBox.create_box(label, plane_label, length, width, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveBox.create_box(label, plane_label, x_size, y_size, z_size, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
 - **Parameters:**
   - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
-  - `length` (float): Length dimension in mm
-  - `width` (float): Width dimension in mm
-  - `height` (float): Height dimension in mm
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
+  - `x_size` (float): X-axis dimension in mm
+  - `y_size` (float): Y-axis dimension in mm
+  - `z_size` (float): Z-axis dimension in mm
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
@@ -97,20 +97,22 @@ The box is created with the bottom left corner on the plane origin. The height i
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Basic box
-  AdditiveBox.create_box('b1', 'XY_Plane', 10, 20, 5)
+  # Basic box on XY plane: 10mm length, 20mm width, 5mm height
+  AdditiveBox.create_box('b1', 'XY_Plane', x_size=10, y_size=20, z_size=5)
   # Box with offset and rotation
-  AdditiveBox.create_box('b2', 'XY_Plane', 10, 20, 5, x_offset=15, y_offset=10, pitch=30)
+  AdditiveBox.create_box('b2', 'XY_Plane', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
+  # Box on YZ plane: 5mm height, 10mm length, 20mm width
+  AdditiveBox.create_box('b3', 'YZ_Plane', x_size=5, y_size=10, z_size=20)
   ```
 
-`AdditiveBox.create_slot(label, plane_label, length, width, height, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
-- **Description:** Creates a rectangular slot with rounded corners using fillets. Useful for creating elongated holes or slots with smooth edges.
+`AdditiveBox.create_slot(label, plane_label, x_size, y_size, z_size, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular slot with rounded corners using fillets. Useful for creating elongated holes or slots with smooth edges. Dimensions follow the same plane-dependent mapping as create_box.
 - **Parameters:**
   - `label` (str): Name/label for the slot object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
-  - `length` (float): Length dimension in mm
-  - `width` (float): Width dimension in mm
-  - `height` (float): Height dimension in mm
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
+  - `x_size` (float): X-axis dimension in mm
+  - `y_size` (float): Y-axis dimension in mm
+  - `z_size` (float): Z-axis dimension in mm
   - `radius` (float): Fillet radius for rounded corners in mm
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
@@ -121,22 +123,22 @@ The box is created with the bottom left corner on the plane origin. The height i
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Basic slot with rounded corners
-  AdditiveBox.create_slot('slot1', 'XY_Plane', 20, 10, 5, 2)
+  # Basic slot with rounded corners on XY plane: 20mm length, 10mm width, 5mm height
+  AdditiveBox.create_slot('slot1', 'XY_Plane', x_size=20, y_size=10, z_size=5, radius=2)
   # Fully rounded slot (stadium shape) - diameter equals width
-  AdditiveBox.create_slot('slot2', 'XY_Plane', 30, 10, 5, 5, x_offset=25)
+  AdditiveBox.create_slot('slot2', 'XY_Plane', x_size=30, y_size=10, z_size=5, radius=5, x_offset=25)
   # Slot with offset and rotation
-  AdditiveBox.create_slot('slot3', 'XY_Plane', 15, 8, 3, 1.5, x_offset=10, y_offset=15, yaw=45)
+  AdditiveBox.create_slot('slot3', 'XY_Plane', x_size=15, y_size=8, z_size=3, radius=1.5, x_offset=10, y_offset=15, yaw=45)
   ```
 
-`AdditiveBox.create_round_side_box(label, plane_label, length, width, height, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
-- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp.
+`AdditiveBox.create_round_side_box(label, plane_label, x_size, y_size, z_size, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp. Dimensions follow the same plane-dependent mapping as create_box.
 - **Parameters:**
   - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane')
-  - `length` (float): Length dimension in mm
-  - `width` (float): Width dimension in mm
-  - `height` (float): Height dimension in mm
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
+  - `x_size` (float): X-axis dimension in mm
+  - `y_size` (float): Y-axis dimension in mm
+  - `z_size` (float): Z-axis dimension in mm
   - `radius1` (float): Fillet radius for Edge1 in mm (0 for no fillet)
   - `radius3` (float): Fillet radius for Edge3 in mm (0 for no fillet)
   - `radius5` (float): Fillet radius for Edge5 in mm (0 for no fillet)
@@ -150,14 +152,14 @@ The box is created with the bottom left corner on the plane origin. The height i
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Box with all edges rounded with different radiuses
-  AdditiveBox.create_round_side_box('box1', 'XY_Plane', 20, 10, 5, 1, 2, 3, 4)
+  # Box with all edges rounded with different radiuses on XY plane
+  AdditiveBox.create_round_side_box('box1', 'XY_Plane', x_size=20, y_size=10, z_size=5, radius1=1, radius3=2, radius5=3, radius7=4)
   # Box with only some edges rounded (others sharp)
-  AdditiveBox.create_round_side_box('box2', 'XY_Plane', 15, 12, 8, 2, 0, 2, 0, x_offset=25)
+  AdditiveBox.create_round_side_box('box2', 'XY_Plane', x_size=15, y_size=12, z_size=8, radius1=2, radius3=0, radius5=2, radius7=0, x_offset=25)
   # Box with all edges rounded uniformly (similar to uniform fillet)
-  AdditiveBox.create_round_side_box('box3', 'XY_Plane', 10, 10, 10, 1.5, 1.5, 1.5, 1.5, y_offset=20)
+  AdditiveBox.create_round_side_box('box3', 'XY_Plane', x_size=10, y_size=10, z_size=10, radius1=1.5, radius3=1.5, radius5=1.5, radius7=1.5, y_offset=20)
   # Box with asymmetric rounding
-  AdditiveBox.create_round_side_box('box4', 'XY_Plane', 30, 20, 15, 5, 0, 0, 5, x_offset=15, yaw=45)
+  AdditiveBox.create_round_side_box('box4', 'XY_Plane', x_size=30, y_size=20, z_size=15, radius1=5, radius3=0, radius5=0, radius7=5, x_offset=15, yaw=45)
   ```
 
 ### 5. Pad
@@ -201,7 +203,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   from shapes.edge_feature import EdgeFeature
   from shapes.additive_box import AdditiveBox
   # Create a box
-  AdditiveBox.create_box('box1', 'XY_Plane', 10, 10, 10)
+  AdditiveBox.create_box('box1', 'XY_Plane', x_size=10, y_size=10, z_size=10)
   # Add fillet to specific edges
   EdgeFeature.add_fillet('fillet1', 'box1', ['Edge1', 'Edge2', 'Edge3'], 2)
   ```
@@ -382,7 +384,7 @@ Creates a Body object with a Clone feature that references another object. Clone
   from shapes.additive_box import AdditiveBox
 
   # Create original object
-  AdditiveBox.create_box('original', 'XY_Plane', 10, 10, 10)
+  AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
 
   # Create a clone at the origin (default offset and rotation)
   Clone.create_clone('clone1', 'original')
@@ -421,7 +423,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   from shapes.additive_box import AdditiveBox
 
   # Create original object
-  AdditiveBox.create_box('original', 'XY_Plane', 10, 10, 10)
+  AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
 
   # Create an independent copy at the origin
   Copy.create_copy('copy1', 'original')
@@ -512,14 +514,14 @@ from shapes.boolean import Boolean
 from shapes.folder import Folder
 from shapes.export import Export
 
-# Create a box with offset
-AdditiveBox.create_box('main_box', 'XY_Plane', 20, 20, 10)
+# Create a box (20mm x 20mm x 10mm on XY plane)
+AdditiveBox.create_box('main_box', 'XY_Plane', x_size=20, y_size=20, z_size=10)
 
 # Create a cylinder with offset to position it
 AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offset=10)
 
 # Create a rounded slot (stadium shape)
-AdditiveBox.create_slot('slot', 'XY_Plane', 15, 6, 15, 3, x_offset=25)
+AdditiveBox.create_slot('slot', 'XY_Plane', x_size=15, y_size=6, z_size=15, radius=3, x_offset=25)
 
 # Cut the cylinder and slot from the box
 Boolean.cut('box_with_holes', 'main_box', ['hole', 'slot'])

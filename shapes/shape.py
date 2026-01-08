@@ -216,8 +216,16 @@ class Shape:
             obj.MapMode = 'FlatFace'
             needs_recompute = True
 
-        # Update offset and rotation
-        new_offset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
+        # Update offset and rotation based on plane type
+        if 'XY_Plane' in plane_label:
+            new_offset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
+        elif 'YZ_Plane' in plane_label:
+            new_offset = App.Placement(App.Vector(y_offset, z_offset, x_offset), App.Rotation(pitch, roll, yaw))
+        elif 'XZ_Plane' in plane_label:
+            new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch))
+        else:
+            raise ValueError(f"Unknown plane type in plane_label '{plane_label}'. Expected XY_Plane, YZ_Plane, or XZ_Plane.")
+
         if obj.AttachmentOffset != new_offset:
             obj.AttachmentOffset = new_offset
             needs_recompute = True

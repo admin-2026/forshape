@@ -289,6 +289,26 @@ class ToolManager:
                         "required": []
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "ask_user_clarification",
+                    "description": "Ask the user one or more clarification questions and collect their responses. Use this when you need user input to proceed with a task. The user will see a dialog with all questions and can provide responses for each.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "questions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "List of questions to ask the user. Each question should be clear and specific."
+                            }
+                        },
+                        "required": ["questions"]
+                    }
+                }
             }
             # {
             #     "type": "function",
@@ -331,6 +351,7 @@ class ToolManager:
             "remove_object": self._tool_remove_object,
             "search_python_files": self._tool_search_python_files,
             "capture_screenshot": self._tool_capture_screenshot,
+            "ask_user_clarification": self._tool_ask_user_clarification,
             # "run_python_script": self._tool_run_python_script
         }
 
@@ -933,6 +954,53 @@ class ToolManager:
         except Exception as e:
             return self._json_error(f"Error capturing screenshot: {str(e)}")
 
+    def _tool_ask_user_clarification(self, questions: List[str]) -> str:
+        """
+        Implementation of the ask_user_clarification tool.
+        Shows a dialog to ask the user clarification questions.
+
+        Args:
+            questions: List of questions to ask the user
+
+        Returns:
+            JSON string with user responses or error message
+        """
+        try:
+            # Import the dialog here to avoid circular imports
+            from PySide2.QtWidgets import QApplication
+            from .dialogs import ClarificationDialog
+
+            # Validate questions
+            if not questions or not isinstance(questions, list):
+                return self._json_error("questions must be a non-empty list")
+
+            if len(questions) == 0:
+                return self._json_error("At least one question is required")
+
+            # Show the dialog
+            app = QApplication.instance()
+            if app is None:
+                return self._json_error("No QApplication instance found")
+
+            dialog = ClarificationDialog(questions, parent=None)
+            result = dialog.exec_()
+
+            if result == ClarificationDialog.Accepted:
+                responses = dialog.get_responses()
+                return self._json_success(
+                    message="User provided clarification responses",
+                    responses=responses
+                )
+            else:
+                return json.dumps({
+                    "success": False,
+                    "message": "User cancelled the clarification dialog",
+                    "cancelled": True
+                }, indent=2)
+
+        except Exception as e:
+            return self._json_error(f"Error asking user clarification: {str(e)}")
+
     # def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
     #     """
     #     Implementation of the run_python_script tool.
@@ -1097,6 +1165,9 @@ You have access to the following tools:
 ### FreeCAD Visualization Tools
 11. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
 
+### User Interaction Tools
+12. **ask_user_clarification** - Ask the user one or more clarification questions and collect their responses
+
 ### Working with Generated Scripts
 
 When users ask you to generate or modify Python scripts for shapes:
@@ -1163,5 +1234,11 @@ When users ask about objects in their FreeCAD document:
 
 **User says: "Show me what the object looks like"**
 → Use capture_screenshot to capture an image of the object and return the image
+
+**User says: "Create a custom shape"**
+→ Use ask_user_clarification with questions like ["What type of shape do you want?", "What dimensions should it have?", "What color would you like?"]
+
+**AI Agent needs clarification:**
+→ If the user's request is ambiguous or missing key information, use ask_user_clarification to gather the necessary details before proceeding
 
 Use these tools proactively to provide a better user experience!"""

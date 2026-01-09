@@ -23,6 +23,7 @@ from .script_executor import ScriptExecutor, ExecutionMode
 from .provider_config_loader import ProviderConfigLoader
 from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
+from .variables import VariablesView
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
@@ -125,6 +126,25 @@ class ForShapeMainWindow(QMainWindow):
         # Save to config
         self.ui_config_manager.set('show_logs', visible)
 
+    def _set_variables_panel_visibility(self, visible: bool):
+        """
+        Set the visibility of the variables panel and update the action text.
+
+        Args:
+            visible: True to show the variables panel, False to hide it
+        """
+        if visible:
+            self.variables_widget.show()
+        else:
+            self.variables_widget.hide()
+
+        # Always set text to "Show Variables" as requested
+        self.toggle_variables_action.setText("Show Variables")
+        self.toggle_variables_action.setChecked(visible)
+
+        # Save to config
+        self.ui_config_manager.set('show_variables', visible)
+
     def setup_ui(self):
         """Setup the user interface components."""
         self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
@@ -139,6 +159,12 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_logs_action.setCheckable(True)
         self.toggle_logs_action.triggered.connect(self.toggle_log_panel)
         view_menu.addAction(self.toggle_logs_action)
+
+        # Add toggle variables action
+        self.toggle_variables_action = QAction("Show Variables", self)
+        self.toggle_variables_action.setCheckable(True)
+        self.toggle_variables_action.triggered.connect(self.toggle_variables_panel)
+        view_menu.addAction(self.toggle_variables_action)
 
         # Add toggle API dump action
         self.toggle_api_dump_action = QAction("Dump API Data", self)
@@ -264,16 +290,24 @@ class ForShapeMainWindow(QMainWindow):
         self.log_display.setMaximumHeight(600)
         log_layout.addWidget(self.log_display)
 
-        # Add both sides to splitter
+        # Variables area
+        self.variables_widget = VariablesView(working_dir=self.context_provider.working_dir)
+
+        # Add all panels to splitter
         splitter.addWidget(conversation_widget)
         splitter.addWidget(self.log_widget)
+        splitter.addWidget(self.variables_widget)
 
-        # Set initial splitter sizes (70% conversation, 30% logs)
-        splitter.setSizes([700, 300])
+        # Set initial splitter sizes (60% conversation, 20% logs, 20% variables)
+        splitter.setSizes([600, 200, 200])
 
         # Restore show_logs state from config, default to hidden
         show_logs = self.ui_config_manager.get('show_logs', False)
         self._set_log_panel_visibility(show_logs)
+
+        # Restore show_variables state from config, default to visible
+        show_variables = self.ui_config_manager.get('show_variables', True)
+        self._set_variables_panel_visibility(show_variables)
 
         main_layout.addWidget(splitter, stretch=1)
 
@@ -931,6 +965,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
     def toggle_log_panel(self):
         """Toggle the visibility of the log panel."""
         self._set_log_panel_visibility(not self.log_widget.isVisible())
+
+    def toggle_variables_panel(self):
+        """Toggle the visibility of the variables panel."""
+        self._set_variables_panel_visibility(not self.variables_widget.isVisible())
 
     def toggle_api_dump(self):
         """Toggle API data dumping."""

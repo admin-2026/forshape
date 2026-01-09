@@ -17,6 +17,7 @@ from .permission_manager import PermissionManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
+from .user_input_queue import UserInputQueue
 
 
 class AIAgent:
@@ -134,7 +135,7 @@ class AIAgent:
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
 
-    def process_request(self, user_input: str, image_data: Optional[Dict] = None, token_callback=None) -> str:
+    def process_request(self, input_queue: UserInputQueue, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
@@ -142,7 +143,7 @@ class AIAgent:
         that expects an AIClient-like interface.
 
         Args:
-            user_input: The user's input string
+            input_queue: UserInputQueue containing the user's input messages
             image_data: Optional dict containing captured image data (from capture_screenshot tool)
             token_callback: Optional callback function to receive token usage updates after each iteration
 
@@ -153,10 +154,13 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
+            # Get the initial message from the queue
+            initial_message = input_queue.get_initial_message()
+
             # Generate a new conversation ID for this user request
             # Each user request begins a new conversation in the edit history
             conversation_id = self._generate_conversation_id()
-            self.tool_manager.start_conversation(conversation_id, user_request=user_input)
+            self.tool_manager.start_conversation(conversation_id, user_request=initial_message)
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
@@ -169,12 +173,12 @@ class AIAgent:
                 forshape_context = self.context_provider.load_forshape_context()
 
             # Augment user input with FORSHAPE.md context if available
-            augmented_input = user_input
+            augmented_input = initial_message
             if forshape_context:
-                augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{user_input}"
+                augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{initial_message}"
 
-            # Use the run method with the context
-            response = self.run(augmented_input, system_message, image_data, token_callback)
+            # Use the run method with the context and input queue
+            response = self.run(augmented_input, system_message, image_data, token_callback, input_queue)
             return response
 
         except Exception as e:
@@ -189,7 +193,7 @@ class AIAgent:
         """Reset the cancellation flag for new requests."""
         self._cancellation_requested = False
 
-    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None, token_callback=None) -> str:
+    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
@@ -198,6 +202,7 @@ class AIAgent:
             system_message: Optional system message to set context
             image_data: Optional dict or list of dicts containing captured image data (from capture_screenshot tool or dropped images)
             token_callback: Optional callback function to receive token usage updates after each iteration
+            input_queue: Optional UserInputQueue to check for new user input during iterations
 
         Returns:
             Final response from the agent
@@ -245,6 +250,14 @@ class AIAgent:
             # Check for cancellation before each iteration
             if self._cancellation_requested:
                 return "Operation cancelled by user."
+
+            # Check for new user input from the queue
+            if input_queue:
+                pending_input = input_queue.get_next_message()
+                if pending_input:
+                    # Append the new user message to the conversation
+                    messages.append({"role": "user", "content": pending_input})
+                    self.logger.info(f"New user input received during iteration {iteration + 1}: {pending_input}")
 
             try:
                 # Dump request data if debugger is enabled

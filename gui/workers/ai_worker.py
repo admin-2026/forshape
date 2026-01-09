@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..ai_agent import AIAgent
+    from ..user_input_queue import UserInputQueue
 
 
 class AIWorker(QThread):
@@ -18,18 +19,18 @@ class AIWorker(QThread):
     # Signal emitted during processing to update token usage
     token_update = Signal(object)  # (token_data)
 
-    def __init__(self, ai_client: 'AIAgent', user_input: str, image_data=None):
+    def __init__(self, ai_client: 'AIAgent', input_queue: 'UserInputQueue', image_data=None):
         """
         Initialize the AI worker thread.
 
         Args:
             ai_client: The AIAgent instance
-            user_input: The user's input to process
+            input_queue: UserInputQueue containing the initial message and any follow-up messages
             image_data: Optional captured image data to attach
         """
         super().__init__()
         self.ai_client = ai_client
-        self.user_input = user_input
+        self.input_queue = input_queue
         self.image_data = image_data
         self._is_cancelled = False
 
@@ -49,8 +50,8 @@ class AIWorker(QThread):
             def token_callback(token_data):
                 self.token_update.emit(token_data)
 
-            # Process request with token callback
-            response = self.ai_client.process_request(self.user_input, self.image_data, token_callback)
+            # Process request with token callback and input queue
+            response = self.ai_client.process_request(self.input_queue, self.image_data, token_callback)
 
             # Check if cancelled
             if self._is_cancelled:

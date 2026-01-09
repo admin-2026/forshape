@@ -24,6 +24,7 @@ from .provider_config_loader import ProviderConfigLoader
 from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
+from .user_input_queue import UserInputQueue
 
 if TYPE_CHECKING:
     from .ai_agent import AIAgent
@@ -59,7 +60,7 @@ class ForShapeMainWindow(QMainWindow):
         self.image_context = image_context
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
-        self.pending_input = ""  # Store pending user input when AI is busy
+        self.current_input_queue = None  # Store the current UserInputQueue when AI is busy
         self.worker = None  # Current worker thread
         self.captured_images = []  # Store captured images to attach to next message
         self.attached_files = []  # Store attached Python files to include in next message
@@ -794,8 +795,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Check if AI is currently busy
         if self.is_ai_busy:
-            # Show message that AI is busy without clearing the input
-            self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
+            # Add message to the current input queue to be processed during next iteration
+            if self.current_input_queue:
+                self.current_input_queue.add_message(user_input)
+                self.append_message("[SYSTEM]", "✓ Your message will be added to the ongoing conversation...")
+            else:
+                self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
             return
 
         # Log user input
@@ -839,8 +844,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show cancel button when AI starts processing
         self.cancel_button.setVisible(True)
 
-        # Create and start worker thread for AI processing with augmented input and optional images
-        self.worker = AIWorker(self.ai_client, augmented_input, self.captured_images if has_images else None)
+        # Create UserInputQueue with the augmented input
+        input_queue = UserInputQueue(augmented_input)
+        self.current_input_queue = input_queue
+
+        # Create and start worker thread for AI processing with input queue and optional images
+        self.worker = AIWorker(self.ai_client, input_queue, self.captured_images if has_images else None)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.token_update.connect(self.on_token_update)
         self.worker.start()
@@ -873,7 +882,6 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Force UI to update
         QCoreApplication.processEvents()
-
 
     def on_token_update(self, token_data: dict):
         """
@@ -938,6 +946,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Reset busy state
         self.is_ai_busy = False
+
+        # Clear the input queue
+        self.current_input_queue = None
 
         # Hide cancel button when AI finishes
         self.cancel_button.setVisible(False)

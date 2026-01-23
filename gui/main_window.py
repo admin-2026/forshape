@@ -651,6 +651,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.ai_client = ai_client
         self.history_logger = history_logger
 
+        # Connect tool manager's clarification signal to show dialog on main thread
+        if self.ai_client and self.ai_client.tool_manager:
+            self.ai_client.tool_manager.clarification_requested.connect(
+                self._on_clarification_requested
+            )
+
         # Update image_context if provided
         if image_context is not None:
             self.image_context = image_context
@@ -1174,6 +1180,30 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         """Delegate to drag drop handler."""
         if self.drag_drop_handler:
             self.drag_drop_handler.drop_event(event)
+
+    def _on_clarification_requested(self, questions: list):
+        """
+        Handle clarification request from the tool manager.
+
+        This slot is called on the main thread when the AI worker needs to
+        show a clarification dialog. It shows the dialog and sends the response
+        back to the tool manager.
+
+        Args:
+            questions: List of questions to ask the user
+        """
+        from .dialogs import ClarificationDialog
+
+        dialog = ClarificationDialog(questions, parent=self)
+        result = dialog.exec_()
+
+        if result == ClarificationDialog.Accepted:
+            responses = dialog.get_responses()
+            self.logger.info(f"User clarification response: {responses}")
+            self.ai_client.tool_manager.set_clarification_response(responses, cancelled=False)
+        else:
+            self.logger.info("User cancelled clarification dialog")
+            self.ai_client.tool_manager.set_clarification_response(None, cancelled=True)
 
     def closeEvent(self, event):
         """Handle window close event."""

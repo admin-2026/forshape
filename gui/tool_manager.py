@@ -7,8 +7,11 @@ including listing files, reading files, and editing files.
 
 import json
 import re
+import threading
 from typing import List, Dict, Callable, Any, Optional
 from pathlib import Path
+
+from PySide2.QtCore import QObject, Signal
 
 from .logger import Logger
 from .permission_manager import PermissionManager, PermissionResponse
@@ -22,13 +25,17 @@ from shapes.image_context import ImageContext
 LARGE_FILE_SIZE_THRESHOLD = 50000  # 50KB
 
 
-class ToolManager:
+class ToolManager(QObject):
     """
     Manages tools for file system operations.
 
     This class handles tool definitions, registration, and execution
     for file system operations used by the AI agent.
     """
+
+    # Signal to request clarification dialog on the main thread
+    # Emits: list of questions
+    clarification_requested = Signal(list)
 
     def __init__(
         self,
@@ -50,12 +57,17 @@ class ToolManager:
             edit_history: Optional EditHistory instance for tracking file edits
             config_manager: Optional ConfigurationManager instance for configuration
         """
+        super().__init__()
         self.working_dir = working_dir
         self.logger = logger
         self.permission_manager = permission_manager
         self.image_context = image_context
         self.edit_history = edit_history
         self.config_manager = config_manager
+
+        # Threading primitives for clarification dialog
+        self._clarification_event = threading.Event()
+        self._clarification_response = None
 
         self.tools = self._define_tools()
         self.tool_functions = self._register_tool_functions()
@@ -956,6 +968,9 @@ class ToolManager:
         Implementation of the ask_user_clarification tool.
         Shows a dialog to ask the user clarification questions.
 
+        This method emits a signal to request the dialog be shown on the main thread,
+        then waits for the response using a threading event.
+
         Args:
             questions: List of questions to ask the user
 
@@ -963,10 +978,6 @@ class ToolManager:
             JSON string with user responses or error message
         """
         try:
-            # Import the dialog here to avoid circular imports
-            from PySide2.QtWidgets import QApplication
-            from .dialogs import ClarificationDialog
-
             # Validate questions
             if not questions or not isinstance(questions, list):
                 return self._json_error("questions must be a non-empty list")
@@ -974,29 +985,53 @@ class ToolManager:
             if len(questions) == 0:
                 return self._json_error("At least one question is required")
 
-            # Show the dialog
-            app = QApplication.instance()
-            if app is None:
-                return self._json_error("No QApplication instance found")
+            # Reset the event and response before requesting
+            self._clarification_event.clear()
+            self._clarification_response = None
 
-            dialog = ClarificationDialog(questions, parent=None)
-            result = dialog.exec_()
+            # Emit signal to show dialog on main thread
+            self.clarification_requested.emit(questions)
 
-            if result == ClarificationDialog.Accepted:
-                responses = dialog.get_responses()
-                return self._json_success(
-                    message="User provided clarification responses",
-                    responses=responses
-                )
-            else:
+            # Wait for the response (blocking until main thread responds)
+            self._clarification_event.wait()
+
+            # Process the response
+            response = self._clarification_response
+            if response is None:
+                return self._json_error("No response received from clarification dialog")
+
+            if response.get("cancelled", False):
                 return json.dumps({
                     "success": False,
                     "message": "User cancelled the clarification dialog",
                     "cancelled": True
                 }, indent=2)
 
+            return self._json_success(
+                message="User provided clarification responses",
+                responses=response.get("responses", {})
+            )
+
         except Exception as e:
             return self._json_error(f"Error asking user clarification: {str(e)}")
+
+    def set_clarification_response(self, responses: Optional[Dict], cancelled: bool = False) -> None:
+        """
+        Set the clarification response from the main thread.
+
+        This method should be called from the main GUI thread after the
+        clarification dialog is closed.
+
+        Args:
+            responses: Dictionary of responses from the dialog, or None if cancelled
+            cancelled: Whether the user cancelled the dialog
+        """
+        if cancelled:
+            self._clarification_response = {"cancelled": True}
+        else:
+            self._clarification_response = {"responses": responses, "cancelled": False}
+        # Signal the waiting thread that the response is ready
+        self._clarification_event.set()
 
     # def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
     #     """

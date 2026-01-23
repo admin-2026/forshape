@@ -827,9 +827,10 @@ class ToolManager:
         try:
             # Always use working directory
             search_path = Path(self.working_dir)
+            self.logger.info(f"Searching Python files for pattern: '{pattern}' (recursive={recursive}, case_sensitive={case_sensitive})")
 
-            # Check permission
-            perm_error = self._check_permission(str(search_path), "list", is_directory=True)
+            # Check permission for search_python_files tool
+            perm_error = self._check_permission(str(search_path), "search_python_files", is_directory=True)
             if perm_error:
                 return perm_error
 
@@ -862,12 +863,6 @@ class ToolManager:
                 # Skip files inside the forshape folder
                 if forshape_folder in py_file.parts:
                     continue
-                # Check read permission for each file
-                if self.permission_manager:
-                    if not self.permission_manager.request_permission(
-                        str(py_file), "read", is_directory=False
-                    ):
-                        continue  # Skip files without permission
 
                 try:
                     with open(py_file, 'r', encoding='utf-8') as f:
@@ -884,6 +879,8 @@ class ToolManager:
                 except (UnicodeDecodeError, PermissionError):
                     # Skip files that can't be read
                     continue
+
+            self.logger.info(f"Search completed: {len(matches)} matches found in {len(python_files)} files searched")
 
             return self._json_success(
                 pattern=pattern,

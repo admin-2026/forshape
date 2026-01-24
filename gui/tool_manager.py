@@ -1033,92 +1033,92 @@ class ToolManager(QObject):
         # Signal the waiting thread that the response is ready
         self._clarification_event.set()
 
-    # def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
-    #     """
-    #     Implementation of the run_python_script tool.
-    #     Executes a Python script from the working directory with user permission.
-    #     Always runs teardown first to clean up existing objects before normal execution.
+    def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
+        """
+        Implementation of the run_python_script tool.
+        Executes a Python script from the working directory with user permission.
+        Always runs teardown first to clean up existing objects before normal execution.
 
-    #     Args:
-    #         script_path: Path to the Python script to execute
-    #         description: Description of what the script does (for permission request)
-    #         teardown_first: Internal parameter to control teardown behavior (defaults to True)
+        Args:
+            script_path: Path to the Python script to execute
+            description: Description of what the script does (for permission request)
+            teardown_first: Internal parameter to control teardown behavior (defaults to True)
 
-    #     Returns:
-    #         JSON string with execution results or error message
-    #     """
-    #     try:
-    #         resolved_path = self._resolve_path(script_path)
+        Returns:
+            JSON string with execution results or error message
+        """
+        try:
+            resolved_path = self._resolve_path(script_path)
 
-    #         # Validate that it's a Python file
-    #         if not str(resolved_path).endswith('.py'):
-    #             return self._json_error(f"File must be a Python script (.py): {resolved_path}")
+            # Validate that it's a Python file
+            if not str(resolved_path).endswith('.py'):
+                return self._json_error(f"File must be a Python script (.py): {resolved_path}")
 
-    #         # Validate file exists
-    #         file_error = self._validate_file_exists(resolved_path)
-    #         if file_error:
-    #             return file_error
+            # Validate file exists
+            file_error = self._validate_file_exists(resolved_path)
+            if file_error:
+                return file_error
 
-    #         # Check permission
-    #         perm_error = self._check_permission(str(resolved_path), "execute", is_directory=False)
-    #         if perm_error:
-    #             # Add description to permission error
-    #             error_dict = json.loads(perm_error)
-    #             error_dict["description"] = description
-    #             return json.dumps(error_dict)
+            # Check permission
+            perm_error = self._check_permission(str(resolved_path), "execute", is_directory=False)
+            if perm_error:
+                # Add description to permission error
+                error_dict = json.loads(perm_error)
+                error_dict["description"] = description
+                return json.dumps(error_dict)
 
-    #         # Read the script content
-    #         with open(resolved_path, 'r', encoding='utf-8') as f:
-    #             script_content = f.read()
+            # Read the script content
+            with open(resolved_path, 'r', encoding='utf-8') as f:
+                script_content = f.read()
 
-    #         # Execute the script using ScriptExecutor
-    #         if teardown_first:
-    #             # Run in teardown mode first, then normal mode
-    #             teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
-    #                 script_content, resolved_path, import_freecad=True
-    #             )
-    #             success = normal_result.success
-    #             output = normal_result.output
-    #             error_msg = normal_result.error
-    #             teardown_output = teardown_result.output
-    #         else:
-    #             # Run in normal mode only
-    #             result = ScriptExecutor.execute(
-    #                 script_content, resolved_path, teardown_mode=False, import_freecad=True
-    #             )
-    #             success = result.success
-    #             output = result.output
-    #             error_msg = result.error
-    #             teardown_output = None
+            # Execute the script using ScriptExecutor
+            if teardown_first:
+                # Run in teardown mode first, then normal mode
+                teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
+                    script_content, resolved_path, import_freecad=True
+                )
+                success = normal_result.success
+                output = normal_result.output
+                error_msg = normal_result.error
+                teardown_output = teardown_result.output
+            else:
+                # Run in normal mode only
+                result = ScriptExecutor.execute(
+                    script_content, resolved_path, teardown_mode=False, import_freecad=True
+                )
+                success = result.success
+                output = result.output
+                error_msg = result.error
+                teardown_output = None
 
-    #         if success:
-    #             result = {
-    #                 "success": True,
-    #                 "script": str(resolved_path),
-    #                 "description": description,
-    #                 "output": output.strip() if output else "(no output)",
-    #                 "message": "Script executed successfully"
-    #             }
-    #             if teardown_first and teardown_output is not None:
-    #                 result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
-    #                 result["message"] = "Script executed successfully (with teardown first)"
-    #             return json.dumps(result, indent=2)
-    #         else:
-    #             result = {
-    #                 "success": False,
-    #                 "script": str(resolved_path),
-    #                 "description": description,
-    #                 "error": error_msg,
-    #                 "output": output.strip() if output else "(no output)"
-    #             }
-    #             if teardown_first and teardown_output is not None:
-    #                 result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
-    #             return json.dumps(result, indent=2)
+            if success:
+                result = {
+                    "success": True,
+                    "script": str(resolved_path),
+                    "description": description,
+                    "output": output.strip() if output else "(no output)",
+                    "message": "Script executed successfully"
+                }
+                if teardown_first and teardown_output is not None:
+                    result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
+                    result["message"] = "Script executed successfully (with teardown first)"
+                return json.dumps(result, indent=2)
+            else:
+                result = {
+                    "success": False,
+                    "script": str(resolved_path),
+                    "description": description,
+                    "error": error_msg,
+                    "output": output.strip() if output else "(no output)"
+                }
+                if teardown_first and teardown_output is not None:
+                    result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
+                return json.dumps(result, indent=2)
 
-    #     except UnicodeDecodeError:
-    #         return self._json_error(f"Cannot read script file (encoding issue): {script_path}")
-    #     except Exception as e:
-    #         return self._json_error(f"Error executing script: {str(e)}")
+        except UnicodeDecodeError:
+            return self._json_error(f"Cannot read script file (encoding issue): {script_path}")
+        except Exception as e:
+            return self._json_error(f"Error executing script: {str(e)}")
 
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """

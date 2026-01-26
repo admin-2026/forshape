@@ -9,8 +9,37 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
-from .logger import Logger
+from typing import Optional, Dict, List, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class LoggerProtocol(Protocol):
+    """Protocol defining the logger interface needed by EditHistory."""
+
+    def info(self, message: str) -> None:
+        """Log an info message."""
+        ...
+
+    def error(self, message: str) -> None:
+        """Log an error message."""
+        ...
+
+    def warn(self, message: str) -> None:
+        """Log a warning message."""
+        ...
+
+
+class PrintLogger:
+    """Simple print-based logger as fallback when no logger is provided."""
+
+    def info(self, message: str) -> None:
+        print(f"[INFO] {message}")
+
+    def error(self, message: str) -> None:
+        print(f"[ERROR] {message}")
+
+    def warn(self, message: str) -> None:
+        print(f"[WARN] {message}")
 
 
 class EditHistory:
@@ -26,18 +55,18 @@ class EditHistory:
 
     METADATA_FILENAME = "_session_metadata.json"
 
-    def __init__(self, working_dir: str, edits_dir: str, logger: Logger):
+    def __init__(self, working_dir: str, edits_dir: str, logger: Optional[LoggerProtocol] = None):
         """
         Initialize the edit history manager.
 
         Args:
             working_dir: Working directory for file operations
             edits_dir: Directory where edit history should be stored
-            logger: Logger instance for logging operations
+            logger: Logger instance for logging operations (uses PrintLogger if None)
         """
         self.working_dir = Path(working_dir)
         self.history_base = Path(edits_dir)
-        self.logger = logger
+        self.logger = logger or PrintLogger()
         self.conversation_id: Optional[str] = None
         self.session_folder: Optional[Path] = None
         self.file_operations: List[Dict] = []  # Track file operations in current session
@@ -206,7 +235,7 @@ class EditHistory:
             self.logger.error(f"Failed to save metadata: {str(e)}")
 
     @staticmethod
-    def _load_metadata(session_folder: Path, logger: Logger = None) -> Dict:
+    def _load_metadata(session_folder: Path, logger: Optional[LoggerProtocol] = None) -> Dict:
         """
         Load session metadata from disk.
 
@@ -314,7 +343,7 @@ class EditHistory:
         }
 
     @staticmethod
-    def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Logger) -> tuple[bool, str]:
+    def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Optional[LoggerProtocol] = None) -> tuple:
         """
         Restore files from a specific checkpoint session.
         - Restores backed up files (edited files)
@@ -324,7 +353,7 @@ class EditHistory:
             edits_dir: Directory where edit history is stored
             session_name: Name of the session folder to restore from
             working_dir: Working directory to restore files to
-            logger: Logger instance for operation reporting
+            logger: Logger instance for operation reporting (optional)
 
         Returns:
             Tuple of (success: bool, message: str)

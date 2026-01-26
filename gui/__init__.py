@@ -6,15 +6,22 @@ This package contains the GUI-related classes for the ForShape AI application.
 
 from .dependency_manager import DependencyManager
 from .config_manager import ConfigurationManager
-from .history_logger import HistoryLogger
-from .ai_agent import AIAgent
 from .main_window import ForShapeMainWindow
-from .context_provider import ContextProvider
 from .logger import Logger, LogLevel
-from .permission_manager import PermissionManager, PermissionResponse
 from .prestart_checker import PrestartChecker
-from .api_debugger import APIDebugger
-from .api_key_manager import ApiKeyManager
+
+# Re-export agent components for backwards compatibility
+from agent import (
+    AIAgent,
+    ContextProvider,
+    APIDebugger,
+    PermissionManager,
+    PermissionResponse,
+    ApiKeyManager,
+    HistoryLogger,
+    EditHistory,
+    UserInputQueue,
+)
 
 __all__ = [
     'DependencyManager',
@@ -30,4 +37,6 @@ __all__ = [
     'PrestartChecker',
     'APIDebugger',
     'ApiKeyManager',
+    'EditHistory',
+    'UserInputQueue',
 ]

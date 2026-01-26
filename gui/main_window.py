@@ -20,15 +20,15 @@ from .workers import AIWorker
 from .formatters import MessageFormatter
 from .logger import LogLevel
 from .script_executor import ScriptExecutor, ExecutionMode
-from .provider_config_loader import ProviderConfigLoader
+from agent.provider_config_loader import ProviderConfigLoader
 from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
-from .user_input_queue import UserInputQueue
+from agent.user_input_queue import UserInputQueue
 
 if TYPE_CHECKING:
-    from .ai_agent import AIAgent
-    from .history_logger import HistoryLogger
+    from agent.ai_agent import AIAgent
+    from agent.history_logger import HistoryLogger
     from .logger import Logger
 
 
@@ -584,7 +584,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             return
 
         # Get all sessions using EditHistory
-        from .edit_history import EditHistory
+        from agent.edit_history import EditHistory
         session_names = EditHistory.list_all_sessions(edits_dir)
 
         if not session_names:
@@ -627,7 +627,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         edits_dir = os.path.join(working_dir, '.forshape', 'edits')
 
         # Restore using EditHistory
-        from .edit_history import EditHistory
+        from agent.edit_history import EditHistory
         success, message = EditHistory.restore_from_session(edits_dir, session_name, working_dir, self.logger)
 
         if success:

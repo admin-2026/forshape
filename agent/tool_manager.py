@@ -13,10 +13,10 @@ from pathlib import Path
 
 from PySide2.QtCore import QObject, Signal
 
-from .logger import Logger
-from .permission_manager import PermissionManager, PermissionResponse
-from .script_executor import ScriptExecutor
+from gui.logger import Logger
+from gui.script_executor import ScriptExecutor
 from .edit_history import EditHistory
+from .permission_manager import PermissionManager, PermissionResponse
 from shapes.context import Context
 from shapes.image_context import ImageContext
 

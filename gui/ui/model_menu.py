@@ -52,7 +52,7 @@ class ModelMenuManager:
     def _get_api_key_manager(self):
         """Get or create the API key manager instance."""
         if self._api_key_manager is None:
-            from ..api_key_manager import ApiKeyManager
+            from agent.api_key_manager import ApiKeyManager
             self._api_key_manager = ApiKeyManager()
         return self._api_key_manager
 
@@ -80,7 +80,7 @@ class ModelMenuManager:
         Returns:
             Initialized provider instance or None if failed
         """
-        from ..api_provider import create_api_provider_from_config, create_api_provider
+        from agent.api_provider import create_api_provider_from_config, create_api_provider
 
         provider_config = self.provider_config_loader.get_provider(provider_name)
         if provider_config:

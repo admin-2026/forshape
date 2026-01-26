@@ -192,7 +192,7 @@ class ForShapeAI:
         self.api_debugger = APIDebugger(enabled=False)
 
         # Initialize edit history for tracking file changes
-        from gui.edit_history import EditHistory
+        from agent.edit_history import EditHistory
         self.edit_history = EditHistory(
             working_dir=self.context_provider.working_dir,
             edits_dir=str(self.config.get_edits_dir()),
@@ -201,7 +201,7 @@ class ForShapeAI:
 
         # Initialize AI agent with API key from keyring
         api_key_manager = ApiKeyManager()
-        from gui.provider_config_loader import ProviderConfigLoader
+        from agent.provider_config_loader import ProviderConfigLoader
 
         # Find the first provider with an API key
         provider_loader = ProviderConfigLoader()

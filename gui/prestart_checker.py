@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
     from .main_window import ForShapeMainWindow
-    from .context_provider import ContextProvider
+    from agent.context_provider import ContextProvider
     from .config_manager import ConfigurationManager
     from .logger import Logger
 
@@ -118,8 +118,8 @@ class PrestartChecker:
             return "error"
 
         # Check 6: API key availability for all configured providers
-        from .api_key_manager import ApiKeyManager
-        from .provider_config_loader import ProviderConfigLoader
+        from agent.api_key_manager import ApiKeyManager
+        from agent.provider_config_loader import ProviderConfigLoader
 
         api_key_manager = ApiKeyManager()
         provider_loader = ProviderConfigLoader()

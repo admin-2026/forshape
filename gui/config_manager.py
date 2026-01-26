@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .context_provider import ContextProvider
+    from agent.context_provider import ContextProvider
 
 
 class ConfigurationManager:

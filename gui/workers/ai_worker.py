@@ -6,8 +6,8 @@ from PySide2.QtCore import QThread, Signal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..ai_agent import AIAgent
-    from ..user_input_queue import UserInputQueue
+    from agent.ai_agent import AIAgent
+    from agent.user_input_queue import UserInputQueue
 
 
 class AIWorker(QThread):

@@ -3,6 +3,9 @@ Permission Manager for AI Agent file access and object operations.
 
 This module provides a permission manager that requests and tracks user permissions
 for file, directory access, and object deletion during an AI agent session.
+
+The permission callback is injected, allowing GUI or CLI implementations
+to provide their own user interaction method.
 """
 
 from enum import Enum
@@ -23,6 +26,10 @@ class PermissionManager:
 
     This class tracks granted permissions for the current session and
     requests user approval before allowing file/directory operations and object deletion.
+
+    The permission callback is injected to decouple the permission logic from
+    the UI implementation. GUI applications can provide a dialog-based callback,
+    while CLI applications can use the default console-based callback.
     """
 
     def __init__(self, permission_callback: Optional[Callable[[str, str], PermissionResponse]] = None):
@@ -44,6 +51,9 @@ class PermissionManager:
     def _default_permission_callback(self, resource: str, operation: str) -> PermissionResponse:
         """
         Default permission callback that prompts via console.
+
+        This is a fallback for non-GUI usage. GUI applications should provide
+        their own callback that shows a dialog.
 
         Args:
             resource: The resource being accessed (path or object name)

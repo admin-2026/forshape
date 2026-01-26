@@ -11,13 +11,14 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .logger import Logger
 from .tool_manager import ToolManager
-from .permission_manager import PermissionManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
+
+from gui.logger import Logger
 from .user_input_queue import UserInputQueue
+from .permission_manager import PermissionManager
 
 
 class AIAgent:

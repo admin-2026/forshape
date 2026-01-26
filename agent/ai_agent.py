@@ -72,19 +72,48 @@ class AIAgent:
         self.context_provider = context_provider
         self.permission_manager = permission_manager
 
-        self.tool_manager = ToolManager(
-            context_provider.working_dir,
-            logger,
-            self.permission_manager,
-            image_context,
-            edit_history,
-            config_manager
+        self.tool_manager = ToolManager(logger=logger)
+
+        # Register file access tools
+        from .tools.file_access_tools import FileAccessTools
+        file_access_tools = FileAccessTools(
+            working_dir=context_provider.working_dir,
+            logger=logger,
+            permission_manager=self.permission_manager,
+            edit_history=edit_history,
+            config_manager=config_manager
         )
+        self.tool_manager.register_provider(file_access_tools)
+
+        # Inject GUI tools
+        self._inject_gui_tools(image_context)
         self._system_message_cache = None
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger
         self._conversation_counter = 0  # Counter for generating unique conversation IDs
+
+    def _inject_gui_tools(self, image_context=None) -> None:
+        """
+        Inject GUI-specific tools into the tool manager.
+
+        Args:
+            image_context: Optional ImageContext instance for screenshot capture
+        """
+        from gui.tools import FreeCADTools, VisualizationTools, InteractionTools
+
+        # Register interaction tools (for clarification dialogs)
+        interaction_tools = InteractionTools(self.tool_manager)
+        self.tool_manager.register_interaction_tools(interaction_tools)
+
+        # Register FreeCAD object manipulation tools
+        freecad_tools = FreeCADTools(permission_manager=self.permission_manager)
+        self.tool_manager.register_provider(freecad_tools)
+
+        # Register visualization tools if image_context is available
+        if image_context is not None:
+            visualization_tools = VisualizationTools(image_context=image_context)
+            self.tool_manager.register_provider(visualization_tools)
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
         """

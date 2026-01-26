@@ -875,13 +875,15 @@ class ToolManager(QObject):
                 # Skip files inside the forshape folder
                 if forshape_folder in py_file.parts:
                     continue
-
+                self.logger.info(f"Search file: {py_file}")
                 try:
                     with open(py_file, 'r', encoding='utf-8') as f:
                         for line_num, line in enumerate(f, start=1):
                             if regex.search(line):
                                 # Compute relative path for better readability
                                 relative_path = str(py_file.relative_to(working_dir)) if py_file.is_relative_to(working_dir) else str(py_file)
+
+                                self.logger.info(f"Found match in: {py_file}, line: {line_num}, content: {line.rstrip()}")
 
                                 matches.append({
                                     "file": relative_path,

@@ -320,7 +320,16 @@ class AIAgent:
                             return "Operation cancelled by user."
 
                         tool_name = tool_call.function.name
-                        tool_args = json.loads(tool_call.function.arguments)
+                        raw_arguments = tool_call.function.arguments
+                        try:
+                            tool_args = json.loads(raw_arguments)
+                        except json.JSONDecodeError as e:
+                            self.logger.error(f"JSON parsing failed for tool '{tool_name}'")
+                            self.logger.error(f"Error: {e}")
+                            self.logger.error(f"Raw arguments (len={len(raw_arguments)}): {raw_arguments[:500]}...")
+                            if len(raw_arguments) > 500:
+                                self.logger.error(f"...end of raw arguments: ...{raw_arguments[-200:]}")
+                            raise
 
                         # Execute the tool
                         tool_result = self.tool_manager.execute_tool(tool_name, tool_args)

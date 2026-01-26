@@ -13,9 +13,9 @@ from pathlib import Path
 
 from PySide2.QtCore import QObject, Signal
 
-from gui.logger import Logger
-from gui.script_executor import ScriptExecutor
 from .edit_history import EditHistory
+from .logger_protocol import LoggerProtocol
+from gui.script_executor import ScriptExecutor
 from .permission_manager import PermissionManager, PermissionResponse
 from shapes.context import Context
 from shapes.image_context import ImageContext
@@ -40,7 +40,7 @@ class ToolManager(QObject):
     def __init__(
         self,
         working_dir: str,
-        logger: Logger,
+        logger: LoggerProtocol,
         permission_manager: Optional[PermissionManager] = None,
         image_context: Optional[ImageContext] = None,
         edit_history: Optional[EditHistory] = None,
@@ -51,7 +51,7 @@ class ToolManager(QObject):
 
         Args:
             working_dir: Working directory for file operations
-            logger: Logger instance for tool call logging
+            logger: LoggerProtocol instance for tool call logging
             permission_manager: Optional permission manager for access control
             image_context: Optional ImageContext instance for screenshot capture
             edit_history: Optional EditHistory instance for tracking file edits

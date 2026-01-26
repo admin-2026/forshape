@@ -9,37 +9,9 @@ import json
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List, Protocol, runtime_checkable
+from typing import Optional, Dict, List
 
-
-@runtime_checkable
-class LoggerProtocol(Protocol):
-    """Protocol defining the logger interface needed by EditHistory."""
-
-    def info(self, message: str) -> None:
-        """Log an info message."""
-        ...
-
-    def error(self, message: str) -> None:
-        """Log an error message."""
-        ...
-
-    def warn(self, message: str) -> None:
-        """Log a warning message."""
-        ...
-
-
-class PrintLogger:
-    """Simple print-based logger as fallback when no logger is provided."""
-
-    def info(self, message: str) -> None:
-        print(f"[INFO] {message}")
-
-    def error(self, message: str) -> None:
-        print(f"[ERROR] {message}")
-
-    def warn(self, message: str) -> None:
-        print(f"[WARN] {message}")
+from .logger_protocol import LoggerProtocol
 
 
 class EditHistory:
@@ -55,18 +27,18 @@ class EditHistory:
 
     METADATA_FILENAME = "_session_metadata.json"
 
-    def __init__(self, working_dir: str, edits_dir: str, logger: Optional[LoggerProtocol] = None):
+    def __init__(self, working_dir: str, edits_dir: str, logger: LoggerProtocol):
         """
         Initialize the edit history manager.
 
         Args:
             working_dir: Working directory for file operations
             edits_dir: Directory where edit history should be stored
-            logger: Logger instance for logging operations (uses PrintLogger if None)
+            logger: Logger instance for logging operations
         """
         self.working_dir = Path(working_dir)
         self.history_base = Path(edits_dir)
-        self.logger = logger or PrintLogger()
+        self.logger = logger
         self.conversation_id: Optional[str] = None
         self.session_folder: Optional[Path] = None
         self.file_operations: List[Dict] = []  # Track file operations in current session

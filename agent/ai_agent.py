@@ -16,7 +16,7 @@ from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
 
-from gui.logger import Logger
+from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
 from .permission_manager import PermissionManager
 
@@ -34,7 +34,7 @@ class AIAgent:
         api_key: Optional[str],
         context_provider: ContextProvider,
         model: str,
-        logger: Logger,
+        logger: LoggerProtocol,
         max_iterations: int = 50,
         permission_manager: Optional[PermissionManager] = None,
         image_context = None,
@@ -51,7 +51,7 @@ class AIAgent:
             api_key: API key for the selected provider
             context_provider: ContextProvider instance for file operations and context
             model: Model identifier to use
-            logger: Logger instance for tool call logging
+            logger: LoggerProtocol instance for tool call logging
             max_iterations: Maximum number of tool calling iterations (default: 50)
             permission_manager: Optional PermissionManager instance for access control
             image_context: Optional ImageContext instance for screenshot capture

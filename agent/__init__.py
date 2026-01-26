@@ -15,7 +15,8 @@ from .provider_config_loader import ProviderConfigLoader, ProviderConfig, ModelC
 from .permission_manager import PermissionManager, PermissionResponse
 from .api_key_manager import ApiKeyManager
 from .history_logger import HistoryLogger
-from .edit_history import EditHistory, LoggerProtocol
+from .edit_history import EditHistory
+from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
 
 __all__ = [

@@ -83,7 +83,7 @@ class AIAgent:
         self._system_message_cache = None
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
-        self.api_debugger = api_debugger if api_debugger else APIDebugger(enabled=False)
+        self.api_debugger = api_debugger
         self._conversation_counter = 0  # Counter for generating unique conversation IDs
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:

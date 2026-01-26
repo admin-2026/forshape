@@ -69,7 +69,7 @@ class ProviderConfigLoader:
                         If not provided, uses default location at project root.
         """
         if config_path is None:
-            # Default to provider-config.json at project root (same directory as forshape.py)
+            # Default to provider-config.json at project root
             # Go up from agent/ to project root
             install_dir = Path(__file__).parent.parent
             config_path = install_dir / "provider-config.json"

@@ -11,16 +11,16 @@ from typing import Any, Dict, Optional
 class APIDebugger:
     """Handles dumping of API request and response data to files for debugging."""
 
-    def __init__(self, enabled: bool = False, output_dir: Optional[str] = None):
+    def __init__(self, enabled: bool = False, output_dir: str = ""):
         """
         Initialize the API debugger.
 
         Args:
             enabled: Whether data dumping is enabled
-            output_dir: Directory to save dumps (defaults to .forshape/api_dumps)
+            output_dir: Directory to save dumps (required)
         """
         self.enabled = enabled
-        self.output_dir = output_dir or os.path.join(".forshape", "api_dumps")
+        self.output_dir = output_dir
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.request_counter = 0
 

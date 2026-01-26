@@ -46,6 +46,7 @@ class ConfigurationManager:
         self.forshape_dir = self.base_dir / self.FORSHAPE_FOLDER_NAME
         self.history_dir = self.forshape_dir / "history"
         self.edits_dir = self.forshape_dir / "edits"
+        self.api_dumps_dir = self.forshape_dir / "api_dumps"
         self.forshape_md_file = self.base_dir / "FORSHAPE.md"
 
     def setup_directories(self) -> list[str]:
@@ -96,6 +97,10 @@ class ConfigurationManager:
     def get_libs_dir(self) -> Path:
         """Get the local libs directory."""
         return self.libs_dir
+
+    def get_api_dumps_dir(self) -> Path:
+        """Get the API dumps directory."""
+        return self.api_dumps_dir
 
     def get_forshape_md_file(self) -> Path:
         """Get the FORSHAPE.md file path."""

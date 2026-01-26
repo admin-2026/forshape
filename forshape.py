@@ -189,7 +189,7 @@ class ForShapeAI:
         self.image_context = ImageContext(str(images_dir))
 
         # Initialize API debugger (disabled by default)
-        self.api_debugger = APIDebugger(enabled=False)
+        self.api_debugger = APIDebugger(enabled=False, output_dir=str(self.config.get_api_dumps_dir()))
 
         # Initialize edit history for tracking file changes
         from agent.edit_history import EditHistory

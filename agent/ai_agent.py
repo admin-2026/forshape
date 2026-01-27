@@ -18,6 +18,7 @@ from .api_provider import APIProvider, create_api_provider
 
 from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
+from .async_ops import WaitManager
 from .permission_manager import PermissionManager
 
 
@@ -36,7 +37,6 @@ class AIAgent:
         model: str,
         logger: LoggerProtocol,
         max_iterations: int = 50,
-        permission_manager: Optional[PermissionManager] = None,
         image_context = None,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
@@ -53,7 +53,6 @@ class AIAgent:
             model: Model identifier to use
             logger: LoggerProtocol instance for tool call logging
             max_iterations: Maximum number of tool calling iterations (default: 50)
-            permission_manager: Optional PermissionManager instance for access control
             image_context: Optional ImageContext instance for screenshot capture
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
@@ -70,7 +69,13 @@ class AIAgent:
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
         self.context_provider = context_provider
-        self.permission_manager = permission_manager
+
+        # Create the unified wait manager for all user interactions
+        # Providers are registered via UserInputBridge.register_input_type()
+        self.wait_manager = WaitManager()
+
+        # Create permission manager with wait manager
+        self.permission_manager = PermissionManager(wait_manager=self.wait_manager)
 
         self.tool_manager = ToolManager(logger=logger)
 
@@ -100,11 +105,12 @@ class AIAgent:
         Args:
             image_context: Optional ImageContext instance for screenshot capture
         """
-        from gui.tools import FreeCADTools, VisualizationTools, InteractionTools
+        from gui.tools import FreeCADTools, VisualizationTools
+        from .tools.interaction_tools import InteractionTools
 
-        # Register interaction tools (for clarification dialogs)
-        interaction_tools = InteractionTools(self.tool_manager)
-        self.tool_manager.register_interaction_tools(interaction_tools)
+        # Register interaction tools (uses wait_manager for user interaction)
+        interaction_tools = InteractionTools(self.wait_manager)
+        self.tool_manager.register_provider(interaction_tools)
 
         # Register FreeCAD object manipulation tools
         freecad_tools = FreeCADTools(permission_manager=self.permission_manager)

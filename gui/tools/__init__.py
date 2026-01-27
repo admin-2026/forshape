@@ -5,17 +5,14 @@ Contains domain-specific tools that are injected into the ToolManager:
 - FreeCAD object manipulation tools
 - Visualization tools (screenshot capture)
 - Script execution tools
-- User interaction tools (clarification dialogs)
 """
 
 from .freecad_tools import FreeCADTools
 from .visualization_tools import VisualizationTools
 from .execution_tools import ExecutionTools
-from .interaction_tools import InteractionTools
 
 __all__ = [
     "FreeCADTools",
     "VisualizationTools",
     "ExecutionTools",
-    "InteractionTools",
 ]

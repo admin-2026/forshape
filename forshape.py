@@ -17,7 +17,6 @@ Usage from Python REPL:
 import sys
 from typing import Optional
 from PySide2.QtWidgets import QApplication
-from PySide2.QtCore import QObject, Signal, QMutex, QWaitCondition
 
 from gui import (
     DependencyManager,
@@ -28,83 +27,10 @@ from gui import (
     ForShapeMainWindow,
     Logger,
     LogLevel,
-    PermissionManager,
-    PermissionResponse,
     PrestartChecker,
     APIDebugger,
     ApiKeyManager
 )
-
-
-class PermissionDialogHelper(QObject):
-    """Helper class to show permission dialogs on the main thread using signals."""
-
-    # Signal to request permission dialog on main thread
-    request_permission = Signal(str, str)  # path, operation
-
-    def __init__(self, logger):
-        """Initialize the helper.
-
-        Args:
-            logger: Logger instance for logging
-        """
-        super().__init__()
-        self.logger = logger
-        self.mutex = QMutex()
-        self.wait_condition = QWaitCondition()
-        self.permission_choice = None  # PermissionResponse enum value
-
-        # Connect signal to slot
-        self.request_permission.connect(self._show_dialog_slot)
-
-    def _show_dialog_slot(self, path: str, operation: str):
-        """Slot that shows the dialog on the main thread.
-
-        Args:
-            path: The path being accessed
-            operation: The operation being performed
-        """
-        from PySide2.QtWidgets import QMessageBox
-        from PySide2.QtCore import Qt
-
-        try:
-            msg = QMessageBox()
-            msg.setWindowTitle("Permission Request")
-            msg.setWindowFlags(msg.windowFlags() | Qt.WindowStaysOnTopHint)
-            msg.setText(f"The AI agent is requesting permission to {operation} a file/directory.")
-            msg.setInformativeText(f"Path: {path}")
-            msg.setIcon(QMessageBox.Question)
-
-            # Add buttons
-            allow_once = msg.addButton("Allow Once", QMessageBox.AcceptRole)
-            allow_session = msg.addButton("Allow for Session", QMessageBox.AcceptRole)
-            deny = msg.addButton("Deny", QMessageBox.RejectRole)
-
-            msg.exec_()
-            clicked = msg.clickedButton()
-
-            # Store the user's choice as a PermissionResponse enum
-            self.mutex.lock()
-            if clicked == allow_once:
-                self.permission_choice = PermissionResponse.ALLOW_ONCE
-                self.logger.info(f"Permission granted (once): {operation} on {path}")
-            elif clicked == allow_session:
-                self.permission_choice = PermissionResponse.ALLOW_SESSION
-                self.logger.info(f"Permission granted (session): {operation} on {path}")
-            else:
-                self.permission_choice = PermissionResponse.DENY
-                self.logger.info(f"Permission denied: {operation} on {path}")
-
-            # Wake up the waiting thread
-            self.wait_condition.wakeAll()
-            self.mutex.unlock()
-
-        except Exception as e:
-            self.logger.error(f"Error showing permission dialog: {e}")
-            self.mutex.lock()
-            self.permission_choice = PermissionResponse.DENY
-            self.wait_condition.wakeAll()
-            self.mutex.unlock()
 
 
 class ForShapeAI:
@@ -155,8 +81,6 @@ class ForShapeAI:
 
         # These will be initialized after prestart checks pass
         self.history_logger = None
-        self.permission_dialog_helper = None
-        self.permission_manager = None
         self.ai_client = None
 
         # GUI window (will be created in run())
@@ -176,12 +100,6 @@ class ForShapeAI:
 
         # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
-
-        # Initialize permission dialog helper for cross-thread communication
-        self.permission_dialog_helper = PermissionDialogHelper(self.logger)
-
-        # Initialize permission manager with GUI callback
-        self.permission_manager = PermissionManager(self._permission_callback)
 
         # Initialize ImageContext for screenshot capture
         from shapes.image_context import ImageContext
@@ -231,12 +149,13 @@ class ForShapeAI:
         else:
             agent_model = self.model if self.model else "gpt-5.1"
 
+        # AIAgent creates its own PermissionManager internally with UserInputWaiter
+        # The GUI will connect to the waiter via UserInputBridge in set_components()
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
             model=agent_model,
             logger=self.logger,
-            permission_manager=self.permission_manager,
             image_context=self.image_context,
             api_debugger=self.api_debugger,
             provider=provider,
@@ -305,42 +224,6 @@ class ForShapeAI:
 
         # Start Qt event loop
         return app.exec_()
-
-    def _permission_callback(self, path: str, operation: str) -> PermissionResponse:
-        """
-        GUI-based permission callback for file access.
-
-        This method uses signals and mutex/wait conditions to safely
-        show dialogs from worker threads.
-
-        Args:
-            path: The path being accessed
-            operation: The operation being performed (read, write, list)
-
-        Returns:
-            PermissionResponse indicating the user's choice
-        """
-        # Lock the mutex before emitting signal
-        helper = self.permission_dialog_helper
-        helper.mutex.lock()
-
-        # Emit signal to show dialog on main thread
-        helper.request_permission.emit(path, operation)
-
-        # Wait for the dialog to complete (max 60 seconds)
-        wait_result = helper.wait_condition.wait(helper.mutex, 60000)  # 60 second timeout
-
-        if not wait_result:
-            self.logger.error(f"Timeout waiting for permission response")
-            helper.mutex.unlock()
-            return PermissionResponse.DENY
-
-        # Get the permission choice (already a PermissionResponse enum)
-        choice = helper.permission_choice
-        helper.mutex.unlock()
-
-        # Return the PermissionResponse directly
-        return choice
 
     def handle_exit(self):
         """Handle graceful exit of the application."""

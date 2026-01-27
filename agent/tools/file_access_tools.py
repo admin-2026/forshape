@@ -298,7 +298,7 @@ class FileAccessTools(ToolBase):
             if file_size > LARGE_FILE_SIZE_THRESHOLD:
                 # Request permission for large file read
                 if self.permission_manager:
-                    result = self.permission_manager.permission_callback(
+                    result = self.permission_manager._request_user_permission(
                         str(resolved_path),
                         f"read_large_file ({file_size:,} bytes, exceeds 50KB limit)"
                     )

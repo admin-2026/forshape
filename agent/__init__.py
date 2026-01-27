@@ -18,6 +18,14 @@ from .history_logger import HistoryLogger
 from .edit_history import EditHistory
 from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
+from .async_ops import WaitManager
+from .async_ops import (
+    UserInputBase,
+    UserInputRequest,
+    UserInputResponse,
+    ClarificationInput,
+    PermissionInput,
+)
 
 __all__ = [
     'AIAgent',
@@ -39,4 +47,10 @@ __all__ = [
     'EditHistory',
     'LoggerProtocol',
     'UserInputQueue',
+    'WaitManager',
+    'UserInputBase',
+    'UserInputRequest',
+    'UserInputResponse',
+    'ClarificationInput',
+    'PermissionInput',
 ]

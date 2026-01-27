@@ -2,30 +2,23 @@
 Tool Manager for AI Agent.
 
 This module provides a tool manager that orchestrates tool registration
-and execution. All tools are injected via register methods.
+and execution. All tools are injected via register_provider().
 """
 
 import json
 from typing import List, Dict, Callable, Any, Optional
 
-from PySide2.QtCore import QObject, Signal
-
 from .tools.base import ToolBase
 from .logger_protocol import LoggerProtocol
 
 
-class ToolManager(QObject):
+class ToolManager:
     """
     Orchestrates tool registration and execution.
 
-    All tools are injected via register methods:
-    - register_provider() for general tool providers
-    - register_interaction_tools() for interaction tools (with clarification support)
+    All tools are injected via register_provider().
+    No GUI-specific code - user interaction is handled by UserInputWaiter.
     """
-
-    # Signal to request clarification dialog on the main thread
-    # Emits: list of questions
-    clarification_requested = Signal(list)
 
     def __init__(self, logger: LoggerProtocol):
         """
@@ -34,16 +27,12 @@ class ToolManager(QObject):
         Args:
             logger: LoggerProtocol instance for tool call logging
         """
-        super().__init__()
         self.logger = logger
 
         # Tool provider storage
         self._tool_providers: List[ToolBase] = []
         self._tools: List[Dict] = []
         self._tool_functions: Dict[str, Callable[..., str]] = {}
-
-        # Tool references (set via register methods)
-        self._interaction_tools = None
 
     def register_provider(self, provider: ToolBase) -> None:
         """
@@ -72,32 +61,6 @@ class ToolManager(QObject):
         """
         for provider in self._tool_providers:
             provider.start_conversation(conversation_id, user_request)
-
-    def register_interaction_tools(self, interaction_tools: ToolBase) -> None:
-        """
-        Register interaction tools and store reference for clarification responses.
-
-        Args:
-            interaction_tools: InteractionTools instance
-        """
-        self._interaction_tools = interaction_tools
-        self.register_provider(interaction_tools)
-
-    def set_clarification_response(self, responses: Optional[Dict], cancelled: bool = False) -> None:
-        """
-        Set the clarification response from the main thread.
-
-        This method should be called from the main GUI thread after the
-        clarification dialog is closed.
-
-        Args:
-            responses: Dictionary of responses from the dialog, or None if cancelled
-            cancelled: Whether the user cancelled the dialog
-        """
-        if self._interaction_tools is None:
-            self.logger.warn("Interaction tools not registered, cannot set clarification response")
-            return
-        self._interaction_tools.set_clarification_response(responses, cancelled)
 
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """

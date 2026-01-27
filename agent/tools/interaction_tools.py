@@ -2,38 +2,32 @@
 User interaction tools for AI Agent.
 
 This module provides tools for interacting with the user,
-such as asking clarification questions via GUI dialogs.
+such as asking clarification questions. Uses WaitManager
+for GUI interaction without direct GUI dependencies.
 """
 
 import json
-import threading
-from typing import Dict, List, Callable, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Callable
 
-from agent.tools.base import ToolBase
-
-if TYPE_CHECKING:
-    from agent.tool_manager import ToolManager
+from .base import ToolBase
+from ..async_ops import WaitManager
 
 
 class InteractionTools(ToolBase):
     """
-    User interaction tools - injected into ToolManager.
+    User interaction tools.
 
-    Provides: ask_user_clarification
+    Uses WaitManager for user interaction - no GUI dependencies.
     """
 
-    def __init__(self, tool_manager: "ToolManager"):
+    def __init__(self, wait_manager: WaitManager):
         """
         Initialize interaction tools.
 
         Args:
-            tool_manager: Parent ToolManager instance (for signal emission)
+            wait_manager: WaitManager for requesting user input
         """
-        self.tool_manager = tool_manager
-
-        # Threading primitives for clarification dialog
-        self._clarification_event = threading.Event()
-        self._clarification_response: Optional[Dict[str, Any]] = None
+        self._manager = wait_manager
 
     def get_definitions(self) -> List[Dict]:
         """Get tool definitions in OpenAI function format."""
@@ -83,8 +77,7 @@ class InteractionTools(ToolBase):
         Implementation of the ask_user_clarification tool.
         Shows a dialog to ask the user clarification questions.
 
-        This method emits a signal to request the dialog be shown on the main thread,
-        then waits for the response using a threading event.
+        Uses UserInputWaiter to request input without GUI dependencies.
 
         Args:
             questions: List of questions to ask the user
@@ -100,22 +93,11 @@ class InteractionTools(ToolBase):
             if len(questions) == 0:
                 return self._json_error("At least one question is required")
 
-            # Reset the event and response before requesting
-            self._clarification_event.clear()
-            self._clarification_response = None
-
-            # Emit signal to show dialog on main thread
-            self.tool_manager.clarification_requested.emit(questions)
-
-            # Wait for the response (blocking until main thread responds)
-            self._clarification_event.wait()
+            # Request through manager (blocks until response)
+            response = self._manager.clarification.request(questions)
 
             # Process the response
-            response = self._clarification_response
-            if response is None:
-                return self._json_error("No response received from clarification dialog")
-
-            if response.get("cancelled", False):
+            if response.cancelled:
                 return json.dumps({
                     "success": False,
                     "message": "User cancelled the clarification dialog",
@@ -124,26 +106,8 @@ class InteractionTools(ToolBase):
 
             return self._json_success(
                 message="User provided clarification responses",
-                responses=response.get("responses", {})
+                responses=response.data.get("responses", {}) if response.data else {}
             )
 
         except Exception as e:
             return self._json_error(f"Error asking user clarification: {str(e)}")
-
-    def set_clarification_response(self, responses: Optional[Dict], cancelled: bool = False) -> None:
-        """
-        Set the clarification response from the main thread.
-
-        This method should be called from the main GUI thread after the
-        clarification dialog is closed.
-
-        Args:
-            responses: Dictionary of responses from the dialog, or None if cancelled
-            cancelled: Whether the user cancelled the dialog
-        """
-        if cancelled:
-            self._clarification_response = {"cancelled": True}
-        else:
-            self._clarification_response = {"responses": responses, "cancelled": False}
-        # Signal the waiting thread that the response is ready
-        self._clarification_event.set()

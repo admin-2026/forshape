@@ -33,7 +33,8 @@ class FileAccessTools(ToolBase):
         logger: LoggerProtocol,
         permission_manager: Optional[PermissionManager] = None,
         edit_history: Optional[EditHistory] = None,
-        config_manager=None
+        exclude_folders: Optional[List[str]] = None,
+        exclude_patterns: Optional[List[str]] = None
     ):
         """
         Initialize file access tools.
@@ -43,13 +44,15 @@ class FileAccessTools(ToolBase):
             logger: LoggerProtocol instance for logging
             permission_manager: Optional permission manager for access control
             edit_history: Optional EditHistory instance for tracking file edits
-            config_manager: Optional ConfigurationManager for configuration
+            exclude_folders: Optional list of folder patterns to skip when listing/searching files
+            exclude_patterns: Optional list of file/directory name patterns to skip (e.g., "__pycache__")
         """
         self.working_dir = working_dir
         self.logger = logger
         self.permission_manager = permission_manager
         self.edit_history = edit_history
-        self.config_manager = config_manager
+        self.exclude_folders = exclude_folders or []
+        self.exclude_patterns = exclude_patterns or []
 
     def get_definitions(self) -> List[Dict]:
         """Get tool definitions in OpenAI function format."""
@@ -269,16 +272,13 @@ When users ask you to generate or modify files:
             items = []
             working_dir = Path(self.working_dir)
 
-            # Get the forshape folder name from config_manager, fallback to ".forshape"
-            forshape_folder = self.config_manager.get_forshape_folder_name() if self.config_manager else ".forshape"
-
             for item in resolved_path.iterdir():
-                # Skip files/directories in the forshape folder
-                if forshape_folder in item.parts:
+                # Skip files/directories in excluded folders
+                if any(folder in item.parts for folder in self.exclude_folders):
                     continue
 
-                # Skip __pycache__ directories
-                if item.name == "__pycache__":
+                # Skip files/directories matching exclude patterns
+                if item.name in self.exclude_patterns:
                     continue
 
                 # If only_python is True, filter out non-Python files
@@ -475,9 +475,6 @@ When users ask you to generate or modify files:
             except re.error as e:
                 return self._json_error(f"Invalid regex pattern: {str(e)}")
 
-            # Get the forshape folder name from config_manager, fallback to ".forshape"
-            forshape_folder = self.config_manager.get_forshape_folder_name() if self.config_manager else ".forshape"
-
             # Find all Python files
             if recursive:
                 python_files = list(search_path.rglob("*.py"))
@@ -489,8 +486,11 @@ When users ask you to generate or modify files:
             working_dir = Path(self.working_dir)
 
             for py_file in python_files:
-                # Skip files inside the forshape folder
-                if forshape_folder in py_file.parts:
+                # Skip files inside excluded folders
+                if any(folder in py_file.parts for folder in self.exclude_folders):
+                    continue
+                # Skip files matching exclude patterns
+                if py_file.name in self.exclude_patterns:
                     continue
                 self.logger.info(f"Search file: {py_file}")
                 try:

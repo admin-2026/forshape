@@ -208,7 +208,8 @@ class ForShapeAI:
             logger=self.logger,
             permission_manager=permission_manager,
             edit_history=self.edit_history,
-            config_manager=self.config
+            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
+            exclude_patterns=[]
         )
         tool_manager.register_provider(file_access_tools)
 

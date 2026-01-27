@@ -134,12 +134,13 @@ When creating new objects:
         else:
             return f"{prefix}{template_files_info}\n\n{best_practices}"
 
-    def load_system_message(self, include_agent_tools: bool = False) -> str:
+    def load_system_message(self, include_agent_tools: bool = False, tool_manager: 'ToolManager' = None) -> str:
         """
         Load the system message from shapes/README.md.
 
         Args:
             include_agent_tools: If True, includes instructions about available tools
+            tool_manager: ToolManager instance (required if include_agent_tools is True)
 
         Returns:
             System message content, or default message if file not found
@@ -158,8 +159,8 @@ When creating new objects:
         base_message = self._build_base_message(api_docs)
 
         # Add tool usage instructions if requested
-        if include_agent_tools:
-            base_message += ToolManager.get_tool_usage_instructions()
+        if include_agent_tools and tool_manager:
+            base_message += tool_manager.get_tool_usage_instructions()
 
         return base_message
 
@@ -213,19 +214,20 @@ When creating new objects:
             print(f"Warning: Could not get document structure: {e}")
             return None
 
-    def get_context(self, include_agent_tools: bool = False) -> Tuple[str, Optional[str]]:
+    def get_context(self, include_agent_tools: bool = False, tool_manager: 'ToolManager' = None) -> Tuple[str, Optional[str]]:
         """
         Get both system message and user context.
 
         Args:
             include_agent_tools: If True, includes file management tool instructions
+            tool_manager: ToolManager instance (required if include_agent_tools is True)
 
         Returns:
             Tuple of (system_message, forshape_context)
             - system_message: Always returns a string (from README.md or default)
             - forshape_context: Combined context from FORSHAPE.md and document structure
         """
-        system_message = self.load_system_message(include_agent_tools=include_agent_tools)
+        system_message = self.load_system_message(include_agent_tools=include_agent_tools, tool_manager=tool_manager)
         forshape_context = self.load_forshape_context()
         document_structure = self.get_document_structure()
 

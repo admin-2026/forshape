@@ -109,7 +109,10 @@ class InteractionTools(ToolBase):
                 return self._json_error("At least one question is required")
 
             # Request through manager (blocks until response)
-            response = self._manager.clarification.request(questions)
+            provider = self._manager.get_provider("clarification")
+            if provider is None:
+                return self._json_error("Clarification provider not registered")
+            response = provider.request(questions)
 
             # Process the response
             if response.cancelled:

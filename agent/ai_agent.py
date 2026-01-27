@@ -163,7 +163,7 @@ class AIAgent:
 
             # Get system message from context provider (only once, then cache it)
             if self._system_message_cache is None:
-                system_message, forshape_context = self.context_provider.get_context(include_agent_tools=True)
+                system_message, forshape_context = self.context_provider.get_context(include_agent_tools=True, tool_manager=self.tool_manager)
                 self._system_message_cache = system_message
             else:
                 system_message = self._system_message_cache
@@ -172,7 +172,7 @@ class AIAgent:
             # Augment user input with FORSHAPE.md context if available
             augmented_input = initial_message
             if forshape_context:
-                augmented_input = f"[User Context from FORSHAPE.md]\n{forshape_context}\n\n[User Request]\n{initial_message}"
+                augmented_input = f"[User Preferences]\n{forshape_context}\n\n[User Request]\n{initial_message}"
 
             # Use the run method with the context and input queue
             response = self.run(augmented_input, system_message, image_data, token_callback, input_queue)

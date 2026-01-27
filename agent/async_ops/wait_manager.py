@@ -32,23 +32,6 @@ class WaitManager:
         # Provider storage
         self._providers: Dict[str, UserInputBase] = {}
 
-    def __getattr__(self, name: str):
-        """
-        Allow attribute-based access to providers by type_id.
-
-        This enables code like: wait_manager.permission.request(...)
-        instead of: wait_manager.get_provider("permission").request(...)
-        """
-        # Avoid recursion for _providers itself
-        if name == "_providers":
-            raise AttributeError(name)
-
-        providers = object.__getattribute__(self, "_providers")
-        provider = providers.get(name)
-        if provider is not None:
-            return provider
-        raise AttributeError(f"'{type(self).__name__}' has no provider '{name}'")
-
     def register_provider(self, provider: UserInputBase) -> None:
         """
         Register a user input provider.

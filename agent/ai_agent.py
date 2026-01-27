@@ -18,7 +18,7 @@ from .api_provider import APIProvider, create_api_provider
 
 from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
-from .async_ops import WaitManager
+from .async_ops import WaitManager, PermissionInput
 from .permission_manager import PermissionManager
 
 
@@ -74,8 +74,11 @@ class AIAgent:
         # Providers are registered via UserInputBridge.register_input_type()
         self.wait_manager = WaitManager()
 
-        # Create permission manager with wait manager
-        self.permission_manager = PermissionManager(wait_manager=self.wait_manager)
+        # Create permission input provider (registered with WaitManager later via GUI bridge)
+        self.permission_input = PermissionInput()
+
+        # Create permission manager with the permission requester (decoupled from WaitManager)
+        self.permission_manager = PermissionManager(permission_requester=self.permission_input)
 
         self.tool_manager = ToolManager(logger=logger)
 

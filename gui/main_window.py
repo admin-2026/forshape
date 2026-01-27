@@ -655,7 +655,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.ai_client and self.ai_client.wait_manager:
             from .async_ops import UserInputBridge
             from .async_ops import ClarificationHandler, PermissionHandler
-            from agent.async_ops import ClarificationInput, PermissionInput
+            from agent.async_ops import ClarificationInput
 
             # Create bridge and register provider/handler pairs
             self.user_input_bridge = UserInputBridge(
@@ -666,8 +666,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.user_input_bridge.register_input_type(
                 ClarificationInput(), ClarificationHandler()
             )
+            # Reuse the permission_input from ai_client (decoupled from WaitManager)
             self.user_input_bridge.register_input_type(
-                PermissionInput(), PermissionHandler()
+                self.ai_client.permission_input, PermissionHandler()
             )
 
         # Update image_context if provided

@@ -4,16 +4,36 @@ Permission Manager for AI Agent file access and object operations.
 This module provides a permission manager that requests and tracks user permissions
 for file, directory access, and object deletion during an AI agent session.
 
-Uses WaitManager for GUI interaction, falling back to console prompts
-if no manager is provided.
+Uses a PermissionRequester for GUI interaction, falling back to console prompts
+if no requester is provided.
 """
 
 from enum import Enum
-from typing import Set, Optional, TYPE_CHECKING
+from typing import Set, Optional, Protocol, Any
+
 from pathlib import Path
 
-if TYPE_CHECKING:
-    from .async_ops import WaitManager
+
+class PermissionRequester(Protocol):
+    """
+    Protocol for permission request providers.
+
+    This abstracts the permission request mechanism, allowing PermissionManager
+    to work with any implementation (GUI-based, console-based, etc.).
+    """
+
+    def request(self, resource: str, operation: str) -> Any:
+        """
+        Request permission for an operation on a resource.
+
+        Args:
+            resource: Path or object being accessed
+            operation: Operation type (read, write, delete_object, etc.)
+
+        Returns:
+            Response object with 'cancelled' and 'data' attributes
+        """
+        ...
 
 
 class PermissionResponse(Enum):
@@ -30,25 +50,25 @@ class PermissionManager:
     This class tracks granted permissions for the current session and
     requests user approval before allowing file/directory operations and object deletion.
 
-    Uses WaitManager for GUI interaction when available, otherwise
+    Uses a PermissionRequester for GUI interaction when available, otherwise
     falls back to console-based prompts.
     """
 
-    def __init__(self, wait_manager: Optional["WaitManager"] = None):
+    def __init__(self, permission_requester: Optional[PermissionRequester] = None):
         """
         Initialize the permission manager.
 
         Args:
-            wait_manager: Optional WaitManager for GUI-based permission dialogs.
-                         If None, falls back to console prompts.
+            permission_requester: Optional PermissionRequester for GUI-based permission dialogs.
+                                  If None, falls back to console prompts.
         """
-        self._manager = wait_manager
+        self._requester = permission_requester
         self.granted_paths: Set[str] = set()
         self.granted_directories: Set[str] = set()  # Directories with recursive access
 
     def _request_user_permission(self, resource: str, operation: str) -> PermissionResponse:
         """
-        Request permission from user via manager or console.
+        Request permission from user via requester or console.
 
         Args:
             resource: The resource being accessed
@@ -57,10 +77,10 @@ class PermissionManager:
         Returns:
             PermissionResponse indicating user's choice
         """
-        if self._manager is None:
+        if self._requester is None:
             return self._console_prompt(resource, operation)
 
-        response = self._manager.permission.request(resource, operation)
+        response = self._requester.request(resource, operation)
 
         if response.cancelled:
             return PermissionResponse.DENY

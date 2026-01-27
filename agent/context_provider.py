@@ -11,7 +11,7 @@ import os
 import sys
 from io import StringIO
 from typing import Optional, Tuple
-from .tool_manager import ToolManager
+from .tools.tool_manager import ToolManager
 
 
 class ContextProvider:

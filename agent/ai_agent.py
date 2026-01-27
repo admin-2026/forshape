@@ -11,7 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .tool_manager import ToolManager
+from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider

@@ -7,7 +7,7 @@ tool management, and related components that are independent of the GUI.
 
 from .ai_agent import AIAgent
 from .api_provider import APIProvider, OpenAICompatibleProvider, create_api_provider, create_api_provider_from_config
-from .tool_manager import ToolManager
+from .tools.tool_manager import ToolManager
 from .chat_history_manager import ChatHistoryManager
 from .context_provider import ContextProvider
 from .api_debugger import APIDebugger

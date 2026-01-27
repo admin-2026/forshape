@@ -31,7 +31,7 @@ from gui import (
     APIDebugger,
     ApiKeyManager
 )
-from agent.tool_manager import ToolManager
+from agent.tools.tool_manager import ToolManager
 from agent.async_ops import WaitManager, PermissionInput
 from agent.permission_manager import PermissionManager
 

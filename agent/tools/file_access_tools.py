@@ -149,6 +149,40 @@ class FileAccessTools(ToolBase):
             "search_python_files": self._tool_search_python_files,
         }
 
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for file access tools."""
+        return """
+### File Management Tools
+1. **list_files** - List files and directories in any folder
+2. **read_file** - Read the contents of any file
+3. **edit_file** - Edit files by replacing content
+4. **search_python_files** - Search for regex patterns in Python files within the working directory
+
+### Working with Generated files
+
+When users ask you to generate or modify files:
+1. You can use your tools to **directly update the generated files**
+2. You can read existing files to understand what's already been created
+3. You can edit files to fix issues, add features, or improve code
+
+### File Management Examples
+
+**User says: "The script has an error on line 15"**
+> Read the script file, identify the issue, edit the file to fix it, confirm the fix
+
+**User says: "What scripts have I created?"**
+> List files in the working directory to show them their generated scripts
+
+**User says: "Find all files that import FreeCAD"**
+> Use search_python_files with pattern="import FreeCAD" or "from FreeCAD"
+
+**User says: "Search for all functions that create boxes"**
+> Use search_python_files with pattern="def.*box" (case insensitive if needed)
+
+**User says: "Find usages of the Context class"**
+> Use search_python_files with pattern="Context\\." to find all references
+"""
+
     def start_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
         """
         Start a new conversation with the given ID.

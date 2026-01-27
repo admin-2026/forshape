@@ -60,6 +60,21 @@ class InteractionTools(ToolBase):
             "ask_user_clarification": self._tool_ask_user_clarification,
         }
 
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for interaction tools."""
+        return """
+### User Interaction Tools
+1. **ask_user_clarification** - Ask the user one or more clarification questions and collect their responses
+
+### User Interaction Examples
+
+**User says: "Create a custom shape"**
+> Use ask_user_clarification with questions like ["What type of shape do you want?", "What dimensions should it have?", "What color would you like?"]
+
+**AI Agent needs clarification:**
+> If the user's request is ambiguous or missing key information, use ask_user_clarification to gather the necessary details before proceeding
+"""
+
     def _json_error(self, message: str, **kwargs) -> str:
         """Create a JSON error response."""
         response = {"error": message}

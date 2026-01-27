@@ -57,3 +57,16 @@ class ToolBase(ABC):
             user_request: Optional user request text
         """
         pass
+
+    def get_tool_instructions(self) -> str:
+        """
+        Get user-facing instructions for this tool provider's tools.
+
+        Override this method to provide detailed usage instructions and examples
+        for the tools provided by this class. These instructions will be assembled
+        by ToolManager and presented to the AI agent.
+
+        Returns:
+            Formatted string with tool usage instructions, or empty string if none.
+        """
+        return ""

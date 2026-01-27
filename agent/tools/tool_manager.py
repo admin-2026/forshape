@@ -8,8 +8,8 @@ and execution. All tools are injected via register_provider().
 import json
 from typing import List, Dict, Callable, Any, Optional
 
-from .tools.base import ToolBase
-from .logger_protocol import LoggerProtocol
+from .base import ToolBase
+from ..logger_protocol import LoggerProtocol
 
 
 class ToolManager:
@@ -119,110 +119,31 @@ class ToolManager:
         """Get the tool functions dictionary for backward compatibility."""
         return self._tool_functions
 
-    @staticmethod
-    def get_tool_usage_instructions() -> str:
+    def get_tool_usage_instructions(self) -> str:
         """
         Get comprehensive tool usage instructions for the AI agent.
+
+        Assembles instructions from all registered tool providers.
 
         Returns:
             Formatted string with tool usage instructions
         """
-        return """
+        # Collect instructions from all registered providers
+        provider_instructions = []
+        for provider in self._tool_providers:
+            instructions = provider.get_tool_instructions()
+            if instructions and instructions.strip():
+                provider_instructions.append(instructions.strip())
 
-## Available Tools
+        # Build the complete instructions
+        parts = [
+            "\n## Available Tools\n",
+            "You have access to the following tools:\n",
+            "Use these tools proactively to provide a better user experience!\n"
+        ]
 
-You have access to the following tools:
+        # Add provider-specific instructions
+        if provider_instructions:
+            parts.append("\n".join(provider_instructions))
 
-### File Management Tools
-1. **list_files** - List files and directories in any folder
-2. **read_file** - Read the contents of any file
-3. **edit_file** - Edit files by replacing content
-4. **search_python_files** - Search for regex patterns in Python files within the working directory
-
-### FreeCAD Object Tools
-6. **print_object** - Print information about a FreeCAD object by label or name
-7. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
-8. **print_document** - Print information about all objects in the active document
-9. **rename_object** - Rename a FreeCAD object by changing its Label property
-10. **remove_object** - Remove a FreeCAD object from the document
-
-### FreeCAD Visualization Tools
-11. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
-
-### User Interaction Tools
-12. **ask_user_clarification** - Ask the user one or more clarification questions and collect their responses
-
-### Working with Generated Scripts
-
-When users ask you to generate or modify Python scripts for shapes:
-1. You can use your tools to **directly update the generated script files**
-2. You can read existing scripts to understand what's already been created
-3. You can edit scripts to fix issues, add features, or improve code
-4. Scripts are typically stored in the working directory or shapes folder
-
-### Working with FreeCAD Objects
-
-When users ask about objects in their FreeCAD document:
-1. Use **print_document** to see all objects in the scene
-2. Use **print_object** with verbose=true to get detailed information about specific objects
-3. Use **find_objects_by_regex** to search for objects by name patterns
-
-### Best Practices
-
-- When a user reports an error in a generated script, **read the script first** to understand the issue
-- After generating new code, you can **directly write or edit the script file** instead of just showing code
-- Use **list_files** to explore the project structure when needed
-- Always verify changes by reading the file after editing
-- Use **find_objects_by_regex** to locate objects when you need to reference them by pattern
-
-### Example Workflows
-
-**User says: "Add a red sphere to the scene"**
-→ Generate the code and either tell the user to save it, OR directly edit their current script file
-
-**User says: "The script has an error on line 15"**
-→ Read the script file, identify the issue, edit the file to fix it, confirm the fix
-
-**User says: "What scripts have I created?"**
-→ List files in the working directory to show them their generated scripts
-
-**User says: "Show me all objects in the document"**
-→ Use print_document with verbose=true to show the full object hierarchy
-
-**User says: "Find all boxes in the scene"**
-→ Use find_objects_by_regex with pattern like "box.*" or "Box.*"
-
-**User says: "Rename the box to 'MainBox'"**
-→ Use rename_object with obj_or_label="box" and new_label="MainBox"
-
-**User says: "Delete the sphere" or "Remove the cylinder"**
-→ Use remove_object with obj_or_label="sphere" or "cylinder"
-
-**User says: "Find all files that import FreeCAD"**
-→ Use search_python_files with pattern="import FreeCAD" or "from FreeCAD"
-
-**User says: "Search for all functions that create boxes"**
-→ Use search_python_files with pattern="def.*box" (case insensitive if needed)
-
-**User says: "Find usages of the Context class"**
-→ Use search_python_files with pattern="Context\\." to find all references
-
-**User says: "Take a screenshot of the model"**
-→ Use capture_screenshot (no parameters needed - auto-saves with timestamp)
-
-**User says: "Capture the box from the front view"**
-→ Use capture_screenshot with target="box", perspective="front"
-
-**User says: "Take screenshots from multiple angles"**
-→ Use capture_screenshot with perspectives=["front", "top", "isometric"]
-
-**User says: "Show me what the object looks like"**
-→ Use capture_screenshot to capture an image of the object and return the image
-
-**User says: "Create a custom shape"**
-→ Use ask_user_clarification with questions like ["What type of shape do you want?", "What dimensions should it have?", "What color would you like?"]
-
-**AI Agent needs clarification:**
-→ If the user's request is ambiguous or missing key information, use ask_user_clarification to gather the necessary details before proceeding
-
-Use these tools proactively to provide a better user experience!"""
+        return "\n".join(parts)

@@ -68,6 +68,21 @@ class ExecutionTools(ToolBase):
             "run_python_script": self._tool_run_python_script,
         }
 
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for execution tools."""
+        return """
+### Script Execution Tools
+1. **run_python_script** - Load and execute a Python script in the FreeCAD environment
+
+### Script Execution Examples
+
+**User says: "Run the box script"**
+> Use run_python_script with script_path="box.py" and description="Creates a box shape"
+
+**User says: "Execute my shape generator"**
+> Use run_python_script with the appropriate script path and a description of what it does
+"""
+
     def _resolve_path(self, path: str) -> Path:
         """Resolve a path relative to the working directory."""
         path_obj = Path(path)

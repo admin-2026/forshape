@@ -118,12 +118,21 @@ When creating new objects:
 - Extract any reusable logic into appropriate <feature>_lib.py files
 """
 
-        suffix = "Avoid inserting dangerous Python code into the generated Python script."
+        best_practices = """
+### Best Practices
+
+- When a user reports an error in a generated script, **read the script first** to understand the issue
+- After generating new code, you can **directly write or edit the script file** instead of just showing code
+- Use **list_files** to explore the project structure when needed
+- Always verify changes by reading the file after editing
+- Use **find_objects_by_regex** to locate objects when you need to reference them by pattern
+- Avoid inserting dangerous code into the generated script.
+"""
 
         if api_docs:
-            return f"{prefix}{template_files_info}\n\nBelow is the complete API documentation:\n\n{api_docs}\n\n{suffix}"
+            return f"{prefix}{template_files_info}\n\nBelow is the complete API documentation:\n\n{api_docs}\n\n{best_practices}"
         else:
-            return f"{prefix}{template_files_info}\n\n{suffix}"
+            return f"{prefix}{template_files_info}\n\n{best_practices}"
 
     def load_system_message(self, include_agent_tools: bool = False) -> str:
         """

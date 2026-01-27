@@ -70,6 +70,27 @@ class VisualizationTools(ToolBase):
             "capture_screenshot": self._tool_capture_screenshot,
         }
 
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for visualization tools."""
+        return """
+### FreeCAD Visualization Tools
+1. **capture_screenshot** - Capture screenshots of the FreeCAD 3D view from various perspectives
+
+### Visualization Examples
+
+**User says: "Take a screenshot of the model"**
+> Use capture_screenshot (no parameters needed - auto-saves with timestamp)
+
+**User says: "Capture the box from the front view"**
+> Use capture_screenshot with target="box", perspective="front"
+
+**User says: "Take screenshots from multiple angles"**
+> Use capture_screenshot with perspectives=["front", "top", "isometric"]
+
+**User says: "Show me what the object looks like"**
+> Use capture_screenshot to capture an image of the object and return the image
+"""
+
     def _json_error(self, message: str, **kwargs) -> str:
         """Create a JSON error response."""
         response = {"error": message}

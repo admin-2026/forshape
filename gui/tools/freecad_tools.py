@@ -144,6 +144,38 @@ class FreeCADTools(ToolBase):
             "remove_object": self._tool_remove_object,
         }
 
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for FreeCAD tools."""
+        return """
+### FreeCAD Object Tools
+1. **print_object** - Print information about a FreeCAD object by label or name
+2. **find_objects_by_regex** - Find objects whose label, name, or label2 matches a regex pattern
+3. **print_document** - Print information about all objects in the active document
+4. **rename_object** - Rename a FreeCAD object by changing its Label property
+5. **remove_object** - Remove a FreeCAD object from the document
+
+### Working with FreeCAD Objects
+
+When users ask about objects in their FreeCAD document:
+1. Use **print_document** to see all objects in the scene
+2. Use **print_object** with verbose=true to get detailed information about specific objects
+3. Use **find_objects_by_regex** to search for objects by name patterns
+
+### FreeCAD Object Examples
+
+**User says: "Show me all objects in the document"**
+> Use print_document with verbose=true to show the full object hierarchy
+
+**User says: "Find all boxes in the scene"**
+> Use find_objects_by_regex with pattern like "box.*" or "Box.*"
+
+**User says: "Rename the box to 'MainBox'"**
+> Use rename_object with obj_or_label="box" and new_label="MainBox"
+
+**User says: "Delete the sphere" or "Remove the cylinder"**
+> Use remove_object with obj_or_label="sphere" or "cylinder"
+"""
+
     def _json_error(self, message: str, **kwargs) -> str:
         """Create a JSON error response."""
         response = {"error": message}

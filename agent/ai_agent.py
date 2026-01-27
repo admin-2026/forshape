@@ -19,7 +19,6 @@ from .api_provider import APIProvider, create_api_provider
 from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
 from .async_ops import WaitManager, PermissionInput
-from .permission_manager import PermissionManager
 
 
 class AIAgent:
@@ -36,12 +35,12 @@ class AIAgent:
         context_provider: ContextProvider,
         model: str,
         logger: LoggerProtocol,
+        tool_manager: ToolManager,
+        wait_manager: WaitManager,
+        permission_input: PermissionInput,
         max_iterations: int = 50,
-        image_context = None,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
-        edit_history = None,
-        config_manager = None,
         provider_config = None
     ):
         """
@@ -52,12 +51,12 @@ class AIAgent:
             context_provider: ContextProvider instance for file operations and context
             model: Model identifier to use
             logger: LoggerProtocol instance for tool call logging
+            tool_manager: ToolManager instance with registered tools
+            wait_manager: WaitManager instance for user interactions
+            permission_input: PermissionInput instance for permission requests
             max_iterations: Maximum number of tool calling iterations (default: 50)
-            image_context: Optional ImageContext instance for screenshot capture
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
-            edit_history: Optional EditHistory instance for tracking file edits
-            config_manager: Optional ConfigurationManager instance for configuration
             provider_config: Optional ProviderConfig instance for provider configuration
         """
         # Set logger first so it's available in _initialize_provider
@@ -70,59 +69,18 @@ class AIAgent:
         self.provider_name = provider
         self.context_provider = context_provider
 
-        # Create the unified wait manager for all user interactions
-        # Providers are registered via UserInputBridge.register_input_type()
-        self.wait_manager = WaitManager()
+        # Use injected managers for user interactions and permissions
+        self.wait_manager = wait_manager
+        self.permission_input = permission_input
 
-        # Create permission input provider (registered with WaitManager later via GUI bridge)
-        self.permission_input = PermissionInput()
+        # Use injected tool manager (tools already registered by caller)
+        self.tool_manager = tool_manager
 
-        # Create permission manager with the permission requester (decoupled from WaitManager)
-        self.permission_manager = PermissionManager(permission_requester=self.permission_input)
-
-        self.tool_manager = ToolManager(logger=logger)
-
-        # Register file access tools
-        from .tools.file_access_tools import FileAccessTools
-        file_access_tools = FileAccessTools(
-            working_dir=context_provider.working_dir,
-            logger=logger,
-            permission_manager=self.permission_manager,
-            edit_history=edit_history,
-            config_manager=config_manager
-        )
-        self.tool_manager.register_provider(file_access_tools)
-
-        # Inject GUI tools
-        self._inject_gui_tools(image_context)
         self._system_message_cache = None
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger
         self._conversation_counter = 0  # Counter for generating unique conversation IDs
-
-    def _inject_gui_tools(self, image_context=None) -> None:
-        """
-        Inject GUI-specific tools into the tool manager.
-
-        Args:
-            image_context: Optional ImageContext instance for screenshot capture
-        """
-        from gui.tools import FreeCADTools, VisualizationTools
-        from .tools.interaction_tools import InteractionTools
-
-        # Register interaction tools (uses wait_manager for user interaction)
-        interaction_tools = InteractionTools(self.wait_manager)
-        self.tool_manager.register_provider(interaction_tools)
-
-        # Register FreeCAD object manipulation tools
-        freecad_tools = FreeCADTools(permission_manager=self.permission_manager)
-        self.tool_manager.register_provider(freecad_tools)
-
-        # Register visualization tools if image_context is available
-        if image_context is not None:
-            visualization_tools = VisualizationTools(image_context=image_context)
-            self.tool_manager.register_provider(visualization_tools)
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
         """

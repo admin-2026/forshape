@@ -31,6 +31,9 @@ from gui import (
     APIDebugger,
     ApiKeyManager
 )
+from agent.tool_manager import ToolManager
+from agent.async_ops import WaitManager, PermissionInput
+from agent.permission_manager import PermissionManager
 
 
 class ForShapeAI:
@@ -149,18 +152,30 @@ class ForShapeAI:
         else:
             agent_model = self.model if self.model else "gpt-5.1"
 
-        # AIAgent creates its own PermissionManager internally with UserInputWaiter
-        # The GUI will connect to the waiter via UserInputBridge in set_components()
+        # Create wait manager and permission system
+        wait_manager = WaitManager()
+        permission_input = PermissionInput()
+        permission_manager = PermissionManager(permission_requester=permission_input)
+
+        # Create and configure tool manager with all tools
+        tool_manager = ToolManager(logger=self.logger)
+        self._register_tools(
+            tool_manager,
+            wait_manager,
+            permission_manager
+        )
+
+        # Create AI agent with pre-configured tool manager
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
             model=agent_model,
             logger=self.logger,
-            image_context=self.image_context,
+            tool_manager=tool_manager,
+            wait_manager=wait_manager,
+            permission_input=permission_input,
             api_debugger=self.api_debugger,
             provider=provider,
-            edit_history=self.edit_history,
-            config_manager=self.config,
             provider_config=provider_config
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
@@ -168,6 +183,47 @@ class ForShapeAI:
         # Update the main window with the initialized components
         if self.main_window:
             self.main_window.set_components(self.ai_client, self.history_logger, self.logger, self.image_context, self.api_debugger)
+
+    def _register_tools(
+        self,
+        tool_manager: ToolManager,
+        wait_manager: WaitManager,
+        permission_manager: PermissionManager
+    ) -> None:
+        """
+        Register all tools with the tool manager.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+            wait_manager: WaitManager instance for user interactions
+            permission_manager: PermissionManager instance for permission checks
+        """
+        from agent.tools.file_access_tools import FileAccessTools
+        from agent.tools.interaction_tools import InteractionTools
+        from gui.tools import FreeCADTools, VisualizationTools
+
+        # Register file access tools
+        file_access_tools = FileAccessTools(
+            working_dir=self.context_provider.working_dir,
+            logger=self.logger,
+            permission_manager=permission_manager,
+            edit_history=self.edit_history,
+            config_manager=self.config
+        )
+        tool_manager.register_provider(file_access_tools)
+
+        # Register interaction tools
+        interaction_tools = InteractionTools(wait_manager)
+        tool_manager.register_provider(interaction_tools)
+
+        # Register FreeCAD object manipulation tools
+        freecad_tools = FreeCADTools(permission_manager=permission_manager)
+        tool_manager.register_provider(freecad_tools)
+
+        # Register visualization tools if image_context is available
+        if self.image_context is not None:
+            visualization_tools = VisualizationTools(image_context=self.image_context)
+            tool_manager.register_provider(visualization_tools)
 
     def run(self):
         """Start the interactive GUI interface."""

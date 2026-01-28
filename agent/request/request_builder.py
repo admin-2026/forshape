@@ -52,14 +52,14 @@ class RequestBuilder:
                     parts.append(content)
         return "\n\n".join(parts)
 
-    def build_request(self, init_element: RequestElement) -> Tuple[str, str]:
+    def build_request(self, init_elements: List[RequestElement]) -> Tuple[str, str]:
         """
         Build the system message and augmented user input for an AI request.
 
         The user message is augmented with user context if available.
 
         Args:
-            init_element: RequestElement containing the user's initial message/request
+            init_elements: List of RequestElement objects containing the user's initial message/request
 
         Returns:
             Tuple of (system_message, user_context)
@@ -68,7 +68,7 @@ class RequestBuilder:
         """
         # Get system message and user context
         system_message = self._concatenate_elements(self._base_system_elements)
-        user_context = self._concatenate_elements(self._base_user_elements+[init_element])
+        user_context = self._concatenate_elements(self._base_user_elements + init_elements)
 
         return system_message, user_context
 
@@ -143,6 +143,46 @@ class RequestBuilder:
             "role": "user",
             "content": content
         }
+
+    def build_screenshot_messages(self, result_data: Dict) -> List[Dict]:
+        """
+        Build conversation messages from screenshot tool result data.
+
+        Args:
+            result_data: Parsed screenshot result dict (already verified successful)
+
+        Returns:
+            List of message dicts to append to conversation
+        """
+        messages = []
+
+        # Check if we have single or multiple images
+        if "image_base64" in result_data:
+            # Single image
+            base64_image = result_data["image_base64"]
+            if base64_image and not base64_image.startswith("Error"):
+                messages.append(self.create_image_message(
+                    "Here is the screenshot that was just captured:",
+                    base64_image
+                ))
+
+        elif "images" in result_data:
+            # Multiple images
+            content = [{"type": "text", "text": "Here are the screenshots that were just captured:"}]
+
+            for perspective, image_data in result_data["images"].items():
+                base64_image = image_data.get("image_base64")
+                if base64_image and not base64_image.startswith("Error"):
+                    content.append({"type": "text", "text": f"\n{perspective} view:"})
+                    content.append(self.create_image_url_content(base64_image))
+
+            if len(content) > 1:  # More than just the intro text
+                messages.append({
+                    "role": "user",
+                    "content": content
+                })
+
+        return messages
 
     def build_user_message(self, text: str, image_data: Optional[Dict] = None) -> Dict:
         """

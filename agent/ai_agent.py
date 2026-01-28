@@ -201,7 +201,7 @@ class AIAgent:
 
         # Build system message and augmented input
         init_element = Instruction(user_message, description="User Request")
-        system_message, augmented_input = self.request_builder.build_request(init_element)
+        system_message, augmented_input = self.request_builder.build_request([init_element])
 
         # Get messages for API call (system message + history)
         # System message is NOT stored in history, just prepended for the API call
@@ -364,31 +364,8 @@ class AIAgent:
             if not result_data.get("success"):
                 return
 
-            # Check if we have single or multiple images
-            if "image_base64" in result_data:
-                # Single image
-                base64_image = result_data["image_base64"]
-                if base64_image and not base64_image.startswith("Error"):
-                    messages.append(RequestBuilder.create_image_message(
-                        "Here is the screenshot that was just captured:",
-                        base64_image
-                    ))
-
-            elif "images" in result_data:
-                # Multiple images
-                content = [{"type": "text", "text": "Here are the screenshots that were just captured:"}]
-
-                for perspective, image_data in result_data["images"].items():
-                    base64_image = image_data.get("image_base64")
-                    if base64_image and not base64_image.startswith("Error"):
-                        content.append({"type": "text", "text": f"\n{perspective} view:"})
-                        content.append(RequestBuilder.create_image_url_content(base64_image))
-
-                if len(content) > 1:  # More than just the intro text
-                    messages.append({
-                        "role": "user",
-                        "content": content
-                    })
+            screenshot_messages = self.request_builder.build_screenshot_messages(result_data)
+            messages.extend(screenshot_messages)
 
         except Exception as e:
             self.logger.error(f"Error adding screenshot to conversation: {str(e)}")

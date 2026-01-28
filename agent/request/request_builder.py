@@ -10,11 +10,11 @@ This module builds requests for AI interactions by combining:
 
 import os
 from typing import Optional, Tuple, Dict, List, TYPE_CHECKING
-from .context_provider import ContextProvider
-from .tools.tool_manager import ToolManager
+from ..context_provider import ContextProvider
+from ..tools.tool_manager import ToolManager
 
 if TYPE_CHECKING:
-    from .user_input_queue import UserInputQueue
+    from ..user_input_queue import UserInputQueue
 
 
 class RequestBuilder:

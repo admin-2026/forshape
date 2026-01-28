@@ -10,7 +10,7 @@ from .api_provider import APIProvider, OpenAICompatibleProvider, create_api_prov
 from .tools.tool_manager import ToolManager
 from .chat_history_manager import ChatHistoryManager
 from .context_provider import ContextProvider
-from .request_builder import RequestBuilder
+from .request import RequestBuilder
 from .api_debugger import APIDebugger
 from .provider_config_loader import ProviderConfigLoader, ProviderConfig, ModelConfig
 from .permission_manager import PermissionManager, PermissionResponse

@@ -32,7 +32,7 @@ from gui import (
     ApiKeyManager
 )
 from agent.tools.tool_manager import ToolManager
-from agent.request_builder import RequestBuilder
+from agent.request import RequestBuilder
 from agent.async_ops import WaitManager, PermissionInput
 from agent.permission_manager import PermissionManager
 

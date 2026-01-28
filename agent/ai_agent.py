@@ -11,7 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .request import RequestBuilder
+from .request import RequestBuilder, Instruction
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
@@ -135,16 +135,15 @@ class AIAgent:
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
 
-    def process_request(self, image_data: Optional[Dict] = None, token_callback=None) -> str:
+    def process_request(self, input_queue: 'UserInputQueue', image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
         This method is designed to be compatible with the existing ForShape GUI code
         that expects an AIClient-like interface.
 
-        Note: input_queue must be set on request_builder before calling this method.
-
         Args:
+            input_queue: The user input queue containing the initial message and any follow-up messages
             image_data: Optional dict containing captured image data (from capture_screenshot tool)
             token_callback: Optional callback function to receive token usage updates after each iteration
 
@@ -155,10 +154,8 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
-            # Build system message and augmented input (gets initial_message from input_queue)
-            system_message, augmented_input, initial_message = self.request_builder.build_request(
-                self.tool_manager
-            )
+            # Get the initial message from the queue
+            initial_message = input_queue.get_initial_message()
 
             # Generate a new conversation ID for this user request
             # Each user request begins a new conversation in the edit history
@@ -168,7 +165,7 @@ class AIAgent:
             self.logger.info(f"Started new conversation: {conversation_id}")
 
             # Use the run method with the context and input queue
-            response = self.run(augmented_input, system_message, image_data, token_callback, self.request_builder.input_queue)
+            response = self.run(initial_message, image_data, token_callback, input_queue)
             return response
 
         except Exception as e:
@@ -183,13 +180,12 @@ class AIAgent:
         """Reset the cancellation flag for new requests."""
         self._cancellation_requested = False
 
-    def run(self, user_message: str, system_message: Optional[str] = None, image_data: Optional[Dict] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
+    def run(self, user_message: str, image_data: Optional[Dict] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
         Args:
             user_message: The user's message/request
-            system_message: Optional system message to set context
             image_data: Optional dict or list of dicts containing captured image data (from capture_screenshot tool or dropped images)
             token_callback: Optional callback function to receive token usage updates after each iteration
             input_queue: Optional UserInputQueue to check for new user input during iterations
@@ -203,12 +199,16 @@ class AIAgent:
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
+        # Build system message and augmented input
+        init_element = Instruction(user_message, description="User Request")
+        system_message, augmented_input = self.request_builder.build_request(init_element)
+
         # Get messages for API call (system message + history)
         # System message is NOT stored in history, just prepended for the API call
         messages = self.history_manager.get_context_for_api(system_message=system_message)
 
         # Add user message with optional image(s) using RequestBuilder
-        messages.append(self.request_builder.build_user_message(user_message, image_data))
+        messages.append(self.request_builder.build_user_message(augmented_input, image_data))
 
         # Initialize token usage tracking
         total_prompt_tokens = 0

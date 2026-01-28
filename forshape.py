@@ -32,9 +32,94 @@ from gui import (
     ApiKeyManager
 )
 from agent.tools.tool_manager import ToolManager
-from agent.request import RequestBuilder
+from agent.request import RequestBuilder, FileLoader, Instruction, DynamicContent
 from agent.async_ops import WaitManager, PermissionInput
 from agent.permission_manager import PermissionManager
+
+
+# System message instructions
+BASE_INSTRUCTION = """You are an AI assistant helping users create and manipulate 3D shapes using provided Python APIs. Use tool to print and inspect FreeCAD object details. There could be existing scripts to generate the Freecad document. Update the script instead of creating a new one. Generated script should be saved to file without asking user. Introduce functions to encapsulate construction of logically related parts. Use constants to define values. Boolean operation label should have '_cut', '_fuse', '_common' suffix. For hyphen, use ascii one '-'. Use professional or widely used terminologies to name things. Boolean operations don't automatically copy the object. To get separate results from multiple boolean operations, you must copy the object first. DO NOT generate any test files or run any tests. Only read files helpful for the task. DO NOT read unrelated files. Offset is used when constructing object or its components. Transformation is used for moving finished object to desired location. Object should be constructed at the origin and then transformed to the desired final location."""
+
+TEMPLATE_FILES_INFO = """
+# Project File Structure
+
+The working directory follows a modular organization pattern with core template files and optional modular build files:
+
+## Core Template Files:
+
+1. **constants.py** - Project constants and parameters
+   - Contains all dimensional constants, tolerances, and configuration values
+   - Define all numeric values here instead of hardcoding them in other files
+   - Example: lengths, widths, heights, clearances, tolerances
+   - Imported by other scripts using `from constants import *`
+
+2. **main.py** - Main orchestrator script
+   - The primary entry point that constructs all geometries
+   - Imports and calls builder functions from <object_name>_build.py files
+   - Contains a main orchestrator function (e.g., build_model()) that coordinates all builds
+   - Should remain high-level and delegate detailed construction to build files
+   - Example: `from case_build import build_case` then call `build_case()` in main
+
+3. **export.py** - Export operations
+   - Handles exporting models to STEP files or other formats
+   - Contains export_models() function that exports finished parts
+   - Uses Export.export(label, filepath) from shapes.export
+   - Keeps export logic separate from construction logic
+
+4. **import.py** - Import and placement of external geometry
+   - Imports external geometry (VRML, STEP files, etc.)
+   - Places imported objects in the correct positions using Transform
+   - Useful for importing PCBs, reference components, or assemblies
+   - Uses ImportGeometry.import_geometry() and Transform.translate_to()
+
+## Modular Build Files (Optional):
+
+5. **<object_name>_build.py** - Object-specific build modules
+   - Contains all logic for building a specific object or component
+   - Example: `case_build.py`, `lid_build.py`, `bracket_build.py`
+   - Must have an orchestrator function (e.g., `build_case()`, `build_lid()`) that completes the entire object
+   - The orchestrator function is imported and called by main.py
+   - Should be runnable as a standalone script for testing: `if __name__ == '__main__': build_case()`
+   - Imports constants from constants.py
+   - May import shared utilities from <feature>_lib.py files
+   - Contains helper functions specific to that object
+   - Use functions to encapsulate construction of logically related parts
+
+6. **<feature>_lib.py** - Shared utility libraries
+   - Contains reusable logic and helper functions shared across multiple build files
+   - Example: `fasteners_lib.py`, `mounting_lib.py`, `connectors_lib.py`
+   - Pure utility functions that can be used by any <object_name>_build.py
+   - Does not build complete objects, only provides reusable components
+   - Example functions: create_bolt_pattern(), add_mounting_holes(), create_connector_cutout()
+   - Imported by build files: `from fasteners_lib import create_bolt_pattern`
+   - Promotes code reuse and consistency across the project
+
+## File Organization Guidelines:
+
+When users ask to modify their project, update the appropriate file(s):
+- Dimension/parameter changes → constants.py
+- Overall build coordination → main.py
+- Object-specific construction → <object_name>_build.py
+- Reusable utilities/helpers → <feature>_lib.py
+- Export configuration → export.py
+- External component placement → import.py
+
+When creating new objects:
+- Create a new <object_name>_build.py with an orchestrator function
+- Import and call it from main.py
+- Extract any reusable logic into appropriate <feature>_lib.py files
+"""
+
+BEST_PRACTICES = """
+### Best Practices
+
+- When a user reports an error in a generated script, **read the script first** to understand the issue
+- After generating new code, you can **directly write or edit the script file** instead of just showing code
+- Use **list_files** to explore the project structure when needed
+- Always verify changes by reading the file after editing
+- Use **find_objects_by_regex** to locate objects when you need to reference them by pattern
+- Avoid inserting dangerous code into the generated script.
+"""
 
 
 class ForShapeAI:
@@ -166,8 +251,19 @@ class ForShapeAI:
             permission_manager
         )
 
+        system_elements = [
+            Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
+            FileLoader(self.context_provider.get_readme_path(), required=True, description="API documentation"),
+            Instruction(BEST_PRACTICES, description="Best practices"),
+            DynamicContent(tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
+        ]
+
+        user_elements = [
+            FileLoader(self.context_provider.get_forshape_path(), required=False, description="User preferences"),
+        ]
+
         # Create request builder for AI context
-        request_builder = RequestBuilder(self.context_provider)
+        request_builder = RequestBuilder(system_elements, user_elements)
 
         # Create AI agent with pre-configured tool manager
         self.ai_client = AIAgent(

@@ -32,6 +32,7 @@ from gui import (
     ApiKeyManager
 )
 from agent.tools.tool_manager import ToolManager
+from agent.request_builder import RequestBuilder
 from agent.async_ops import WaitManager, PermissionInput
 from agent.permission_manager import PermissionManager
 
@@ -165,10 +166,14 @@ class ForShapeAI:
             permission_manager
         )
 
+        # Create request builder for AI context
+        request_builder = RequestBuilder(self.context_provider)
+
         # Create AI agent with pre-configured tool manager
         self.ai_client = AIAgent(
             api_key,
             self.context_provider,
+            request_builder,
             model=agent_model,
             logger=self.logger,
             tool_manager=tool_manager,

@@ -50,8 +50,9 @@ class AIWorker(QThread):
             def token_callback(token_data):
                 self.token_update.emit(token_data)
 
-            # Process request with token callback and input queue
-            response = self.ai_client.process_request(self.input_queue, self.image_data, token_callback)
+            # Set input queue on request builder and process request
+            self.ai_client.request_builder.input_queue = self.input_queue
+            response = self.ai_client.process_request(self.image_data, token_callback)
 
             # Check if cancelled
             if self._is_cancelled:

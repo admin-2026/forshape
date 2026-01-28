@@ -11,6 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
+from .request_builder import RequestBuilder
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
@@ -33,6 +34,7 @@ class AIAgent:
         self,
         api_key: Optional[str],
         context_provider: ContextProvider,
+        request_builder: RequestBuilder,
         model: str,
         logger: LoggerProtocol,
         tool_manager: ToolManager,
@@ -49,6 +51,7 @@ class AIAgent:
         Args:
             api_key: API key for the selected provider
             context_provider: ContextProvider instance for file operations and context
+            request_builder: RequestBuilder instance for building request context
             model: Model identifier to use
             logger: LoggerProtocol instance for tool call logging
             tool_manager: ToolManager instance with registered tools
@@ -68,6 +71,7 @@ class AIAgent:
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
         self.context_provider = context_provider
+        self.request_builder = request_builder
 
         # Use injected managers for user interactions and permissions
         self.wait_manager = wait_manager
@@ -76,7 +80,6 @@ class AIAgent:
         # Use injected tool manager (tools already registered by caller)
         self.tool_manager = tool_manager
 
-        self._system_message_cache = None
         self.last_token_usage = None  # Store the most recent token usage data
         self._cancellation_requested = False  # Flag to track cancellation requests
         self.api_debugger = api_debugger
@@ -132,15 +135,16 @@ class AIAgent:
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
 
-    def process_request(self, input_queue: UserInputQueue, image_data: Optional[Dict] = None, token_callback=None) -> str:
+    def process_request(self, image_data: Optional[Dict] = None, token_callback=None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
         This method is designed to be compatible with the existing ForShape GUI code
         that expects an AIClient-like interface.
 
+        Note: input_queue must be set on request_builder before calling this method.
+
         Args:
-            input_queue: UserInputQueue containing the user's input messages
             image_data: Optional dict containing captured image data (from capture_screenshot tool)
             token_callback: Optional callback function to receive token usage updates after each iteration
 
@@ -151,8 +155,10 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
-            # Get the initial message from the queue
-            initial_message = input_queue.get_initial_message()
+            # Build system message and augmented input (gets initial_message from input_queue)
+            system_message, augmented_input, initial_message = self.request_builder.build_request(
+                self.tool_manager
+            )
 
             # Generate a new conversation ID for this user request
             # Each user request begins a new conversation in the edit history
@@ -161,21 +167,8 @@ class AIAgent:
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            # Get system message from context provider (only once, then cache it)
-            if self._system_message_cache is None:
-                system_message, forshape_context = self.context_provider.get_context(include_agent_tools=True, tool_manager=self.tool_manager)
-                self._system_message_cache = system_message
-            else:
-                system_message = self._system_message_cache
-                forshape_context = self.context_provider.load_forshape_context()
-
-            # Augment user input with FORSHAPE.md context if available
-            augmented_input = initial_message
-            if forshape_context:
-                augmented_input = f"[User Preferences]\n{forshape_context}\n\n[User Request]\n{initial_message}"
-
             # Use the run method with the context and input queue
-            response = self.run(augmented_input, system_message, image_data, token_callback, input_queue)
+            response = self.run(augmented_input, system_message, image_data, token_callback, self.request_builder.input_queue)
             return response
 
         except Exception as e:
@@ -214,28 +207,8 @@ class AIAgent:
         # System message is NOT stored in history, just prepended for the API call
         messages = self.history_manager.get_context_for_api(system_message=system_message)
 
-        # Add user message with optional image(s)
-        if image_data:
-            # Handle both single image (dict) and multiple images (list)
-            images_list = image_data if isinstance(image_data, list) else [image_data]
-
-            # Filter valid images
-            valid_images = []
-            for img in images_list:
-                if img and img.get("success"):
-                    base64_image = img.get("image_base64")
-                    if base64_image and not base64_image.startswith("Error"):
-                        valid_images.append(base64_image)
-
-            # Create message with text and image(s)
-            if valid_images:
-                messages.append(self._create_multi_image_message(user_message, valid_images))
-            else:
-                # No valid images, just send text
-                messages.append({"role": "user", "content": user_message})
-        else:
-            # No image, just send text
-            messages.append({"role": "user", "content": user_message})
+        # Add user message with optional image(s) using RequestBuilder
+        messages.append(self.request_builder.build_user_message(user_message, image_data))
 
         # Initialize token usage tracking
         total_prompt_tokens = 0
@@ -377,76 +350,6 @@ class AIAgent:
         # If we hit max iterations
         return "Agent reached maximum iterations without completing the task."
 
-    @staticmethod
-    def _create_image_url_content(base64_image: str) -> Dict:
-        """
-        Create an image_url content object for OpenAI messages.
-
-        Args:
-            base64_image: Base64-encoded image string
-
-        Returns:
-            Image URL content dict
-        """
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{base64_image}",
-                "detail": "high"
-            }
-        }
-
-    @staticmethod
-    def _create_image_message(text: str, base64_image: str) -> Dict:
-        """
-        Create an OpenAI message with both text and image content.
-
-        Args:
-            text: The text content to include with the image
-            base64_image: Base64-encoded image string
-
-        Returns:
-            Message dict with text and image_url content
-        """
-        return {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": text
-                },
-                AIAgent._create_image_url_content(base64_image)
-            ]
-        }
-
-    @staticmethod
-    def _create_multi_image_message(text: str, base64_images: list) -> Dict:
-        """
-        Create an OpenAI message with text and multiple image content.
-
-        Args:
-            text: The text content to include with the images
-            base64_images: List of base64-encoded image strings
-
-        Returns:
-            Message dict with text and multiple image_url content
-        """
-        content = [
-            {
-                "type": "text",
-                "text": text
-            }
-        ]
-
-        # Add all images to the content array
-        for base64_image in base64_images:
-            content.append(AIAgent._create_image_url_content(base64_image))
-
-        return {
-            "role": "user",
-            "content": content
-        }
-
     def _add_screenshot_to_conversation(self, messages: List[Dict], tool_result: str):
         """
         Parse screenshot tool result and add images to conversation for LLM to see.
@@ -466,7 +369,7 @@ class AIAgent:
                 # Single image
                 base64_image = result_data["image_base64"]
                 if base64_image and not base64_image.startswith("Error"):
-                    messages.append(self._create_image_message(
+                    messages.append(RequestBuilder.create_image_message(
                         "Here is the screenshot that was just captured:",
                         base64_image
                     ))
@@ -479,7 +382,7 @@ class AIAgent:
                     base64_image = image_data.get("image_base64")
                     if base64_image and not base64_image.startswith("Error"):
                         content.append({"type": "text", "text": f"\n{perspective} view:"})
-                        content.append(self._create_image_url_content(base64_image))
+                        content.append(RequestBuilder.create_image_url_content(base64_image))
 
                 if len(content) > 1:  # More than just the intro text
                     messages.append({
@@ -511,24 +414,6 @@ class AIAgent:
             ChatHistoryManager instance
         """
         return self.history_manager
-
-    def is_available(self) -> bool:
-        """
-        Check if the AI agent is available and ready.
-
-        Returns:
-            True if provider is initialized, False otherwise
-        """
-        return self.provider is not None and self.provider.is_available()
-
-    def get_working_dir(self) -> str:
-        """
-        Get the current working directory for file operations.
-
-        Returns:
-            Working directory path as string
-        """
-        return self.context_provider.working_dir
 
     def get_model(self) -> str:
         """

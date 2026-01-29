@@ -199,16 +199,13 @@ class AIAgent:
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
-        # Build system message and augmented input
-        init_element = Instruction(user_message, description="User Request")
-        system_message, augmented_input = self.request_builder.build_request([init_element])
-
-        # Get messages for API call (system message + history)
-        # System message is NOT stored in history, just prepended for the API call
-        messages = self.history_manager.get_context_for_api(system_message=system_message)
-
-        # Add user message with optional image(s) using RequestBuilder
-        messages.append(self.request_builder.build_user_message(augmented_input, image_data))
+        # Build messages for API call (system message + history + user message)
+        init_user_message = Instruction(user_message, description="User Request")
+        messages = self.request_builder.build_messages(
+            self.history_manager.get_history(),
+            [init_user_message],
+            image_data
+        )
 
         # Initialize token usage tracking
         total_prompt_tokens = 0

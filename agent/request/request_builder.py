@@ -7,7 +7,7 @@ This module builds requests for AI interactions by combining:
 - Image handling for multimodal messages
 """
 
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Dict, List, Any
 
 from .request_element import RequestElement
 
@@ -52,25 +52,70 @@ class RequestBuilder:
                     parts.append(content)
         return "\n\n".join(parts)
 
-    def build_request(self, init_elements: List[RequestElement]) -> Tuple[str, str]:
+    def build_messages(self, history: List[Dict[str, Any]],
+                       init_elements: List[RequestElement],
+                       image_data: Optional[Dict] = None) -> List[Dict]:
         """
-        Build the system message and augmented user input for an AI request.
+        Build complete message list for OpenAI API call.
 
-        The user message is augmented with user context if available.
+        Combines system message, conversation history, and user message into
+        a single list ready for the API.
 
         Args:
+            history: List of message dicts with 'role' and 'content' keys
             init_elements: List of RequestElement objects containing the user's initial message/request
+            image_data: Optional dict or list of dicts containing captured image data
 
         Returns:
-            Tuple of (system_message, user_context)
-            - system_message: Built from system elements
-            - user_context: User message augmented with user context
+            List of messages formatted for OpenAI API
         """
-        # Get system message and user context
-        system_message = self._concatenate_elements(self._base_system_elements)
-        user_context = self._concatenate_elements(self._base_user_elements + init_elements)
+        messages = []
 
-        return system_message, user_context
+        # Build and add system message from system elements
+        system_message = self._concatenate_elements(self._base_system_elements)
+        if system_message:
+            messages.append({"role": "system", "content": system_message})
+
+        # Add conversation history
+        messages.extend(history)
+
+        # Build augmented user input and add as user message
+        user_content = self._concatenate_elements(self._base_user_elements + init_elements)
+        messages.append(self._build_user_message(user_content, image_data))
+
+        return messages
+
+    def _build_user_message(self, text: str, image_data: Optional[Dict] = None) -> Dict:
+        """
+        Build a complete user message, handling optional image data.
+
+        Args:
+            text: The text content of the message
+            image_data: Optional dict or list of dicts containing captured image data
+
+        Returns:
+            Message dict ready for API call
+        """
+        if not image_data:
+            return {"role": "user", "content": text}
+
+        # Handle both single image (dict) and multiple images (list)
+        images_list = image_data if isinstance(image_data, list) else [image_data]
+
+        # Filter valid images
+        valid_images = []
+        for img in images_list:
+            if img and img.get("success"):
+                base64_image = img.get("image_base64")
+                if base64_image and not base64_image.startswith("Error"):
+                    valid_images.append(base64_image)
+
+        # Create message with text and image(s)
+        if valid_images:
+            return self.create_multi_image_message(text, valid_images)
+        else:
+            # No valid images, just send text
+            return {"role": "user", "content": text}
 
     # ========== Image Message Building ==========
 
@@ -183,35 +228,3 @@ class RequestBuilder:
                 })
 
         return messages
-
-    def build_user_message(self, text: str, image_data: Optional[Dict] = None) -> Dict:
-        """
-        Build a complete user message, handling optional image data.
-
-        Args:
-            text: The text content of the message
-            image_data: Optional dict or list of dicts containing captured image data
-
-        Returns:
-            Message dict ready for API call
-        """
-        if not image_data:
-            return {"role": "user", "content": text}
-
-        # Handle both single image (dict) and multiple images (list)
-        images_list = image_data if isinstance(image_data, list) else [image_data]
-
-        # Filter valid images
-        valid_images = []
-        for img in images_list:
-            if img and img.get("success"):
-                base64_image = img.get("image_base64")
-                if base64_image and not base64_image.startswith("Error"):
-                    valid_images.append(base64_image)
-
-        # Create message with text and image(s)
-        if valid_images:
-            return self.create_multi_image_message(text, valid_images)
-        else:
-            # No valid images, just send text
-            return {"role": "user", "content": text}

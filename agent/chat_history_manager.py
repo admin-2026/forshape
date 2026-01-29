@@ -166,30 +166,6 @@ class ChatHistoryManager:
 
         return dump_path
 
-    def get_context_for_api(self, system_message: Optional[str] = None,
-                           max_history_messages: Optional[int] = None) -> List[Dict]:
-        """
-        Get formatted message list for OpenAI API call.
-
-        Args:
-            system_message: Optional system message to prepend (not stored in history)
-            max_history_messages: Maximum number of history messages to include
-
-        Returns:
-            List of messages formatted for OpenAI API
-        """
-        messages = []
-
-        # Add system message if provided (NOT stored in history)
-        if system_message:
-            messages.append({"role": "system", "content": system_message})
-
-        # Add conversation history
-        history = self.get_history(last_n=max_history_messages)
-        messages.extend(history)
-
-        return messages
-
     def __len__(self) -> int:
         """Return the number of messages in history."""
         return len(self._history)

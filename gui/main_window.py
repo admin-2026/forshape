@@ -37,7 +37,7 @@ class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
     def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 logger: 'Logger', context_provider, exit_handler,
+                 logger: 'Logger', config, exit_handler,
                  image_context=None, prestart_checker=None, completion_callback=None, window_close_callback=None):
         """
         Initialize the main window.
@@ -46,7 +46,7 @@ class ForShapeMainWindow(QMainWindow):
             ai_client: The AIAgent instance for AI interactions (can be None initially)
             history_logger: The HistoryLogger instance for logging (can be None initially)
             logger: The Logger instance for tool call logging
-            context_provider: The ContextProvider instance for accessing working directory and project info
+            config: The ConfigurationManager instance for accessing working directory and project info
             exit_handler: Function to handle exit
             image_context: Optional ImageContext instance for capturing screenshots
             prestart_checker: Optional PrestartChecker instance for prestart validation
@@ -57,7 +57,7 @@ class ForShapeMainWindow(QMainWindow):
         self.ai_client = ai_client
         self.history_logger = history_logger
         self.logger = logger
-        self.context_provider = context_provider
+        self.config = config
         self.image_context = image_context
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
@@ -81,7 +81,7 @@ class ForShapeMainWindow(QMainWindow):
 
         # Initialize UI config manager for persisting menu selections
         from pathlib import Path
-        forshape_dir = Path(self.context_provider.working_dir) / '.forshape'
+        forshape_dir = Path(self.config.working_dir) / '.forshape'
         self.ui_config_manager = UIConfigManager(forshape_dir)
         self.ui_config_manager.load()
 
@@ -293,7 +293,7 @@ class ForShapeMainWindow(QMainWindow):
         log_layout.addWidget(self.log_display)
 
         # Variables area
-        self.variables_widget = VariablesView(working_dir=self.context_provider.working_dir)
+        self.variables_widget = VariablesView(working_dir=self.config.working_dir)
 
         # Add all panels to splitter
         splitter.addWidget(conversation_widget)
@@ -449,7 +449,7 @@ class ForShapeMainWindow(QMainWindow):
         self.logger.log_message.connect(self.message_handler.on_log_message)
 
         self.file_executor = FileExecutor(
-            self.context_provider,
+            self.config,
             self.message_handler,
             self.logger
         )
@@ -522,7 +522,7 @@ class ForShapeMainWindow(QMainWindow):
         """Display welcome message in the conversation area."""
         # Check if AI client is initialized
         if self.ai_client:
-            context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
+            context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
             model_info = f"<strong>Using model:</strong> {self.ai_client.get_model()}<br>"
             context_info = f"<strong>Context:</strong> {context_status}"
             start_message = "Start chatting to generate 3D shapes!"
@@ -572,11 +572,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
     def on_rewind_clicked(self):
         """Handle Rewind button click - show checkpoint selector and restore files."""
         # Get the edits directory from the context provider
-        if not self.context_provider:
+        if not self.config:
             self.append_message("[ERROR]", "Context provider not initialized.")
             return
 
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
         edits_dir = os.path.join(working_dir, '.forshape', 'edits')
 
         # Check if edits directory exists
@@ -624,7 +624,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.append_message("System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}...")
 
         # Get paths
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
         edits_dir = os.path.join(working_dir, '.forshape', 'edits')
 
         # Restore using EditHistory
@@ -638,13 +638,15 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.append_message("[ERROR]", f"Failed to restore checkpoint:\n{message}")
             self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
-    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', logger: 'Logger' = None, image_context=None, api_debugger=None):
+    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', wait_manager, permission_input, logger: 'Logger' = None, image_context=None, api_debugger=None):
         """
         Set the AI client and history logger after initialization completes.
 
         Args:
             ai_client: The AIAgent instance
             history_logger: The HistoryLogger instance
+            wait_manager: WaitManager instance for user interactions
+            permission_input: PermissionInput instance for permission requests
             logger: Optional Logger instance to update (if logger was recreated)
             image_context: Optional ImageContext instance for capturing screenshots
             api_debugger: Optional APIDebugger instance for API data dumping
@@ -653,24 +655,22 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.history_logger = history_logger
 
         # Create bridge to connect agent's wait manager to GUI dialogs
-        if self.ai_client and self.ai_client.wait_manager:
-            from .async_ops import UserInputBridge
-            from .async_ops import ClarificationHandler, PermissionHandler
-            from agent.async_ops import ClarificationInput
+        from .async_ops import UserInputBridge
+        from .async_ops import ClarificationHandler, PermissionHandler
+        from agent.async_ops import ClarificationInput
 
-            # Create bridge and register provider/handler pairs
-            self.user_input_bridge = UserInputBridge(
-                self.ai_client.wait_manager,
-                parent=self,
-                logger=self.logger
-            )
-            self.user_input_bridge.register_input_type(
-                ClarificationInput(), ClarificationHandler()
-            )
-            # Reuse the permission_input from ai_client (decoupled from WaitManager)
-            self.user_input_bridge.register_input_type(
-                self.ai_client.permission_input, PermissionHandler()
-            )
+        # Create bridge and register provider/handler pairs
+        self.user_input_bridge = UserInputBridge(
+            wait_manager,
+            parent=self,
+            logger=self.logger
+        )
+        self.user_input_bridge.register_input_type(
+            ClarificationInput(), ClarificationHandler()
+        )
+        self.user_input_bridge.register_input_type(
+            permission_input, PermissionHandler()
+        )
 
         # Update image_context if provided
         if image_context is not None:
@@ -774,7 +774,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.prestart_check_mode = False
         # Update welcome message to show full AI details now that ai_client is initialized
         if self.ai_client:
-            context_status = "✓ FORSHAPE.md loaded" if self.ai_client.context_provider.has_forshape() else "✗ No FORSHAPE.md"
+            context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
             self.append_message("System",
                 f"🎉 **Initialization Complete!**\n\n"
                 f"**Using model:** {self.ai_client.get_model()}\n"
@@ -1036,7 +1036,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             history_manager = self.ai_client.get_history_manager()
 
             # Use working directory's .forshape folder for history dumps
-            history_dir = os.path.join(self.context_provider.working_dir, '.forshape', 'history_dumps')
+            history_dir = os.path.join(self.config.working_dir, '.forshape', 'history_dumps')
 
             # Get model name
             model_name = self.ai_client.get_model()

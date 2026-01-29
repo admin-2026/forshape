@@ -10,7 +10,6 @@ Supports multiple API providers: OpenAI, Fireworks, and more.
 import json
 from typing import List, Dict, Optional
 
-from .context_provider import ContextProvider
 from .request import RequestBuilder, Instruction, MessageElement, TextMessage
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
@@ -19,7 +18,6 @@ from .api_provider import APIProvider, create_api_provider
 
 from .logger_protocol import LoggerProtocol
 from .user_input_queue import UserInputQueue
-from .async_ops import WaitManager, PermissionInput
 
 
 class AIAgent:
@@ -33,13 +31,10 @@ class AIAgent:
     def __init__(
         self,
         api_key: Optional[str],
-        context_provider: ContextProvider,
         request_builder: RequestBuilder,
         model: str,
         logger: LoggerProtocol,
         tool_manager: ToolManager,
-        wait_manager: WaitManager,
-        permission_input: PermissionInput,
         max_iterations: int = 50,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
@@ -50,13 +45,10 @@ class AIAgent:
 
         Args:
             api_key: API key for the selected provider
-            context_provider: ContextProvider instance for file operations and context
             request_builder: RequestBuilder instance for building request context
             model: Model identifier to use
             logger: LoggerProtocol instance for tool call logging
             tool_manager: ToolManager instance with registered tools
-            wait_manager: WaitManager instance for user interactions
-            permission_input: PermissionInput instance for permission requests
             max_iterations: Maximum number of tool calling iterations (default: 50)
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
@@ -70,12 +62,7 @@ class AIAgent:
         self.history_manager = ChatHistoryManager(max_messages=None)
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
-        self.context_provider = context_provider
         self.request_builder = request_builder
-
-        # Use injected managers for user interactions and permissions
-        self.wait_manager = wait_manager
-        self.permission_input = permission_input
 
         # Use injected tool manager (tools already registered by caller)
         self.tool_manager = tool_manager

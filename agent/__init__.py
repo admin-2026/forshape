@@ -9,7 +9,6 @@ from .ai_agent import AIAgent
 from .api_provider import APIProvider, OpenAICompatibleProvider, create_api_provider, create_api_provider_from_config
 from .tools.tool_manager import ToolManager
 from .chat_history_manager import ChatHistoryManager
-from .context_provider import ContextProvider
 from .request import RequestBuilder
 from .api_debugger import APIDebugger
 from .provider_config_loader import ProviderConfigLoader, ProviderConfig, ModelConfig
@@ -36,7 +35,6 @@ __all__ = [
     'create_api_provider_from_config',
     'ToolManager',
     'ChatHistoryManager',
-    'ContextProvider',
     'RequestBuilder',
     'APIDebugger',
     'ProviderConfigLoader',

@@ -1,39 +1,45 @@
 """
 Configuration management for ForShape AI.
 
-This module handles directory setup and application configuration.
+This module handles directory setup, application configuration, and provides
+context for AI interactions including paths to documentation and project files.
 """
 
 import os
-import json
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from agent.context_provider import ContextProvider
+from typing import Optional
 
 
 class ConfigurationManager:
-    """Manages configuration and directories for ForShape AI."""
+    """Manages configuration, directories, and context for ForShape AI."""
 
     # Folder name for ForShape internal files
     FORSHAPE_FOLDER_NAME = ".forshape"
 
-    def __init__(self, context_provider: "ContextProvider"):
+    def __init__(self, shapes_dir: Optional[str] = None):
         """
         Initialize the configuration manager.
 
         Args:
-            context_provider: ContextProvider instance to get working directory from
+            shapes_dir: Path to shapes directory (defaults to ../shapes relative to install dir)
         """
-        self.context_provider = context_provider
         self.install_dir = Path(__file__).parent.parent
         self.provider_config_file = self.install_dir / "provider-config.json"
         # libs is at project root, not in gui folder
         self.libs_dir = self.install_dir / "libs"
 
-        # Initialize all directory paths
-        self._setup_paths(context_provider.working_dir)
+        # Setup shapes directory and project directory
+        if shapes_dir is None:
+            self.shapes_dir = self.install_dir / "shapes"
+        else:
+            self.shapes_dir = Path(shapes_dir)
+
+        self.project_dir = self.shapes_dir.parent
+        self.readme_path = self.shapes_dir / "README.md"
+
+        # Initialize working directory paths
+        self.working_dir = os.getcwd()
+        self._setup_paths(self.working_dir)
 
     def _setup_paths(self, working_directory: str):
         """
@@ -42,6 +48,7 @@ class ConfigurationManager:
         Args:
             working_directory: The working directory path
         """
+        self.working_dir = working_directory
         self.base_dir = Path(working_directory)
         self.forshape_dir = self.base_dir / self.FORSHAPE_FOLDER_NAME
         self.history_dir = self.forshape_dir / "history"
@@ -113,6 +120,22 @@ class ConfigurationManager:
     def has_forshape_md(self) -> bool:
         """Check if FORSHAPE.md exists."""
         return self.forshape_md_file.exists()
+
+    def has_forshape(self) -> bool:
+        """Check if FORSHAPE.md exists (alias for has_forshape_md)."""
+        return self.forshape_md_file.exists()
+
+    def get_readme_path(self) -> Path:
+        """Get the path to the API documentation README.md file."""
+        return self.readme_path
+
+    def get_forshape_path(self) -> Path:
+        """Get the path to FORSHAPE.md (alias for get_forshape_md_file)."""
+        return self.forshape_md_file
+
+    def get_project_dir(self) -> Path:
+        """Get the ForShape project directory (parent of shapes dir)."""
+        return self.project_dir
 
     def _create_default_forshape_md(self):
         """Create a default FORSHAPE.md template file."""

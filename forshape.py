@@ -23,7 +23,6 @@ from gui import (
     ConfigurationManager,
     HistoryLogger,
     AIAgent,
-    ContextProvider,
     ForShapeMainWindow,
     Logger,
     LogLevel,
@@ -140,11 +139,8 @@ class ForShapeAI:
         Args:
             model: Optional AI model identifier to use
         """
-        # Initialize context provider first - single source of truth for working directory
-        self.context_provider = ContextProvider()
-
-        # Initialize configuration manager with context provider
-        self.config = ConfigurationManager(self.context_provider)
+        # Initialize configuration manager - single source of truth for working directory
+        self.config = ConfigurationManager()
         # Note: Directory setup moved to prestart checker for interactive handling
 
         # Check and install all dependencies
@@ -163,7 +159,7 @@ class ForShapeAI:
         # Initialize prestart checker (will setup directories and check API key)
         # Create a minimal logger before directories exist
         self.logger = Logger(min_level=LogLevel.INFO)
-        self.prestart_checker = PrestartChecker(self.context_provider, self.config, self.logger)
+        self.prestart_checker = PrestartChecker(self.config, self.logger)
 
         # Store model preference for later
         self.model = model
@@ -201,7 +197,7 @@ class ForShapeAI:
         # Initialize edit history for tracking file changes
         from agent.edit_history import EditHistory
         self.edit_history = EditHistory(
-            working_dir=self.context_provider.working_dir,
+            working_dir=self.config.working_dir,
             edits_dir=str(self.config.get_edits_dir()),
             logger=self.logger
         )
@@ -253,13 +249,13 @@ class ForShapeAI:
 
         system_elements = [
             Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
-            FileLoader(self.context_provider.get_readme_path(), required=True, description="API documentation"),
+            FileLoader(str(self.config.get_readme_path()), required=True, description="API documentation"),
             Instruction(BEST_PRACTICES, description="Best practices"),
             DynamicContent(tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
         ]
 
         user_elements = [
-            FileLoader(self.context_provider.get_forshape_path(), required=False, description="User preferences"),
+            FileLoader(str(self.config.get_forshape_path()), required=False, description="User preferences"),
         ]
 
         # Create request builder for AI context
@@ -268,13 +264,10 @@ class ForShapeAI:
         # Create AI agent with pre-configured tool manager
         self.ai_client = AIAgent(
             api_key,
-            self.context_provider,
             request_builder,
             model=agent_model,
             logger=self.logger,
             tool_manager=tool_manager,
-            wait_manager=wait_manager,
-            permission_input=permission_input,
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config
@@ -283,7 +276,7 @@ class ForShapeAI:
 
         # Update the main window with the initialized components
         if self.main_window:
-            self.main_window.set_components(self.ai_client, self.history_logger, self.logger, self.image_context, self.api_debugger)
+            self.main_window.set_components(self.ai_client, self.history_logger, wait_manager, permission_input, self.logger, self.image_context, self.api_debugger)
 
     def _register_tools(
         self,
@@ -305,7 +298,7 @@ class ForShapeAI:
 
         # Register file access tools
         file_access_tools = FileAccessTools(
-            working_dir=self.context_provider.working_dir,
+            working_dir=self.config.working_dir,
             logger=self.logger,
             permission_manager=permission_manager,
             edit_history=self.edit_history,
@@ -354,7 +347,7 @@ class ForShapeAI:
             ai_client=None,  # Will be set after prestart checks
             history_logger=None,  # Will be set after prestart checks
             logger=self.logger,
-            context_provider=self.context_provider,
+            config=self.config,
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,
             completion_callback=self._complete_initialization,

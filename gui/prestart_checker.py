@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
     from .main_window import ForShapeMainWindow
-    from agent.context_provider import ContextProvider
     from .config_manager import ConfigurationManager
     from .logger import Logger
 
@@ -23,17 +22,15 @@ if TYPE_CHECKING:
 class PrestartChecker:
     """Handles prestart checks for configuration setup and FreeCAD document validation."""
 
-    def __init__(self, context_provider: 'ContextProvider', config_manager: 'ConfigurationManager', logger: 'Logger'):
+    def __init__(self, config: 'ConfigurationManager', logger: 'Logger'):
         """
         Initialize the prestart checker.
 
         Args:
-            context_provider: Context provider for working directory management
-            config_manager: Configuration manager for directory and API key management
+            config: Configuration manager for directory and working directory management
             logger: Logger instance for logging check results
         """
-        self.context_provider = context_provider
-        self.config_manager = config_manager
+        self.config = config
         self.logger = logger
         self.status: Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"] = "waiting"
         self.api_key: Optional[str] = None
@@ -96,7 +93,7 @@ class PrestartChecker:
 
         # Check 4: Does the working directory match the document's directory?
         doc_dir = os.path.dirname(os.path.abspath(doc_path))
-        current_dir = os.path.abspath(self.context_provider.working_dir)
+        current_dir = os.path.abspath(self.config.working_dir)
 
         if doc_dir != current_dir:
             window.append_message("System",
@@ -171,13 +168,13 @@ class PrestartChecker:
 
         # All checks passed
         configured_keys = [f"{provider_info[p]['display_name']}" for p in provider_info if provider_info[p]['has_key']]
-        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.context_provider.working_dir}, API keys: {', '.join(configured_keys)}")
+        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.config.working_dir}, API keys: {', '.join(configured_keys)}")
 
         keys_message = ", ".join(configured_keys) if configured_keys else "None"
         window.append_message("System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
-            f"📂 Working directory: `{self.context_provider.working_dir}`\n"
+            f"📂 Working directory: `{self.config.working_dir}`\n"
             f"🔑 API keys configured: {keys_message}\n\n"
             f"You can now start chatting with the AI!")
         self.status = "ready"
@@ -195,7 +192,7 @@ class PrestartChecker:
         """
         try:
             # Use config_manager to setup directories
-            created_items = self.config_manager.setup_directories()
+            created_items = self.config.setup_directories()
 
             # Log what was created
             for item in created_items:
@@ -242,7 +239,7 @@ class PrestartChecker:
             source_path = os.path.join(templates_dir, filename)
 
             # Destination: working directory
-            dest_path = os.path.join(self.context_provider.working_dir, filename)
+            dest_path = os.path.join(self.config.working_dir, filename)
 
             # Check if file already exists in working directory
             if os.path.exists(dest_path):
@@ -303,10 +300,10 @@ class PrestartChecker:
             doc_dir = os.path.dirname(os.path.abspath(doc_path))
             try:
                 os.chdir(doc_dir)
-                self.context_provider.working_dir = doc_dir
+                self.config.working_dir = doc_dir
 
                 # Update config manager with new working directory
-                self.config_manager.update_working_directory(doc_dir)
+                self.config.update_working_directory(doc_dir)
 
                 self.logger.info(f"Changed working directory to: {doc_dir}")
                 window.append_message("System",
@@ -323,8 +320,8 @@ class PrestartChecker:
                 return False
         elif response == "no":
             # User wants to keep current directory - update config manager to use current dir
-            current_dir = self.context_provider.working_dir
-            self.config_manager.update_working_directory(current_dir)
+            current_dir = self.config.working_dir
+            self.config.update_working_directory(current_dir)
 
             window.append_message("System", "Continuing with current directory. Rechecking setup...")
             return True

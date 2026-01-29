@@ -19,16 +19,16 @@ from ..dialogs import PythonFileSelector
 class FileExecutor:
     """Handles Python file scanning and execution."""
 
-    def __init__(self, context_provider, message_handler, logger):
+    def __init__(self, config, message_handler, logger):
         """
         Initialize the file executor.
 
         Args:
-            context_provider: ContextProvider instance for accessing working directory
+            config: ConfigurationManager instance for accessing working directory
             message_handler: MessageHandler instance for displaying messages
             logger: Logger instance
         """
-        self.context_provider = context_provider
+        self.config = config
         self.message_handler = message_handler
         self.logger = logger
 
@@ -42,7 +42,7 @@ class FileExecutor:
         python_files = []
 
         # Get working directory from context provider
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
 
         # Find all .py files in the working directory (non-recursive)
         pattern = os.path.join(working_dir, "*.py")
@@ -69,7 +69,7 @@ class FileExecutor:
         runnable_files = []
 
         # Get working directory from context provider
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
 
         # Find all .py files in the working directory (non-recursive)
         pattern = os.path.join(working_dir, "*.py")
@@ -123,7 +123,7 @@ class FileExecutor:
             return
 
         # Add project directory to sys.path if not already there
-        project_dir = self.context_provider.get_project_dir()
+        project_dir = str(self.config.get_project_dir())
         if project_dir not in sys.path:
             sys.path.insert(0, project_dir)
 
@@ -272,7 +272,7 @@ class FileExecutor:
     def on_export_clicked(self):
         """Handle Export button click - run export.py from the working directory."""
         # Get working directory from context provider
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
         export_file = os.path.join(working_dir, "export.py")
 
         # Check if export.py exists
@@ -286,7 +286,7 @@ class FileExecutor:
     def on_import_clicked(self):
         """Handle Import button click - run import.py from the working directory."""
         # Get working directory from context provider
-        working_dir = self.context_provider.working_dir
+        working_dir = self.config.working_dir
         import_file = os.path.join(working_dir, "import.py")
 
         # Check if import.py exists

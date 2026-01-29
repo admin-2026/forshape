@@ -13,7 +13,6 @@ from .prestart_checker import PrestartChecker
 # Re-export agent components for backwards compatibility
 from agent import (
     AIAgent,
-    ContextProvider,
     APIDebugger,
     PermissionManager,
     PermissionResponse,
@@ -29,7 +28,6 @@ __all__ = [
     'HistoryLogger',
     'AIAgent',
     'ForShapeMainWindow',
-    'ContextProvider',
     'Logger',
     'LogLevel',
     'PermissionManager',

@@ -12,6 +12,7 @@ from typing import Optional, Dict, List, Any
 from .request_element import RequestElement
 from .message_element import MessageElement
 from .image_message import ImageMessage
+from .text_message import TextMessage
 
 
 class RequestBuilder:
@@ -78,14 +79,14 @@ class RequestBuilder:
         # Build and add system message from system elements
         system_message = self._concatenate_elements(self._base_system_elements)
         if system_message:
-            messages.append({"role": "system", "content": system_message})
+            messages.append(TextMessage("system", system_message).get_message())
 
         # Add conversation history
         messages.extend(history)
 
         # Add init user message
         user_content = self._concatenate_elements(self._base_user_elements + init_elements)
-        messages.append({"role": "user", "content": user_content})
+        messages.append(TextMessage("user", user_content).get_message())
 
         # Add any additional message elements (e.g., images with descriptions)
         if message_elements:

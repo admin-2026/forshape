@@ -11,7 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .request import RequestBuilder, Instruction, MessageElement
+from .request import RequestBuilder, Instruction, MessageElement, TextMessage
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
@@ -203,13 +203,14 @@ class AIAgent:
 
         # Build messages for API call (system message + history + user message)
         init_user_message = Instruction(user_message, description="User Request")
-        init_elements = [init_user_message]
 
         messages = self.request_builder.build_messages(
             self.history_manager.get_history(),
-            init_elements,
+            [init_user_message],
             initial_messages
         )
+
+        self.history_manager.add_user_message(user_message)
 
         # Initialize token usage tracking
         total_prompt_tokens = 0
@@ -226,8 +227,9 @@ class AIAgent:
             if input_queue:
                 pending_input = input_queue.get_next_message()
                 if pending_input:
+                    self.history_manager.add_user_message(pending_input)
                     # Append the new user message to the conversation
-                    messages.append({"role": "user", "content": pending_input})
+                    messages.append(TextMessage("user", pending_input).get_message())
                     self.logger.info(f"New user input received during iteration {iteration + 1}: {pending_input}")
 
             try:
@@ -340,7 +342,6 @@ class AIAgent:
                 }
 
                 # Update history through history manager
-                self.history_manager.add_user_message(user_message)
                 self.history_manager.add_assistant_message(final_response)
 
                 return final_response

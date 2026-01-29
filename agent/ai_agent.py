@@ -270,15 +270,15 @@ class AIAgent:
 
                 # Check if the agent wants to call tools
                 if response_message.tool_calls:
+                    # Add the assistant's message (with tool_calls) to messages first
+                    # This is required before adding tool result messages
+                    messages.append(response_message.model_dump())
 
                     # Process each tool call
                     for tool_call in response_message.tool_calls:
                         # Check for cancellation during tool execution
                         if self._cancellation_requested:
                             return "Operation cancelled by user."
-
-                        # Add the assistant's response to messages
-                        messages.append(response_message.tool_call)
 
                         tool_name = tool_call.function.name
                         raw_arguments = tool_call.function.arguments

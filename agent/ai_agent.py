@@ -283,14 +283,15 @@ class AIAgent:
 
                 # Check if the agent wants to call tools
                 if response_message.tool_calls:
-                    # Add the assistant's response to messages
-                    messages.append(response_message)
 
                     # Process each tool call
                     for tool_call in response_message.tool_calls:
                         # Check for cancellation during tool execution
                         if self._cancellation_requested:
                             return "Operation cancelled by user."
+
+                        # Add the assistant's response to messages
+                        messages.append(response_message.tool_call)
 
                         tool_name = tool_call.function.name
                         raw_arguments = tool_call.function.arguments
@@ -316,17 +317,16 @@ class AIAgent:
                                 tool_call_id=tool_call.id
                             )
 
-                        # Add tool result to messages
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": tool_name,
-                            "content": tool_result
-                        })
-
-                        # Special handling for screenshot tools - present images to LLM
-                        if tool_name == "capture_screenshot":
-                            self._add_screenshot_to_conversation(messages, tool_result)
+                        # Get the provider and let it process the result
+                        provider = self.tool_manager.get_provider(tool_name)
+                        if provider:
+                            result_messages = provider.process_result(
+                                tool_call.id, tool_name, tool_result
+                            )
+                            for result_message in result_messages:
+                                message_dict = result_message.get_message()
+                                if message_dict:
+                                    messages.append(message_dict)
 
                     # Continue the loop to get the next response
                     continue
@@ -351,26 +351,6 @@ class AIAgent:
 
         # If we hit max iterations
         return "Agent reached maximum iterations without completing the task."
-
-    def _add_screenshot_to_conversation(self, messages: List[Dict], tool_result: str):
-        """
-        Parse screenshot tool result and add images to conversation for LLM to see.
-
-        Args:
-            messages: The conversation messages list
-            tool_result: The JSON string returned from capture_screenshot tool
-        """
-        try:
-            result_data = json.loads(tool_result)
-
-            if not result_data.get("success"):
-                return
-
-            screenshot_messages = self.request_builder.build_screenshot_messages(result_data)
-            messages.extend(screenshot_messages)
-
-        except Exception as e:
-            self.logger.error(f"Error adding screenshot to conversation: {str(e)}")
 
     def get_history(self) -> List[Dict]:
         """

@@ -20,7 +20,10 @@ class ImageMessage(MessageElement):
         Args:
             description: A description for the images (e.g., "Here is the reference image")
             image_data: Optional dict or list of dicts containing captured image data.
-                        Each dict should have 'success' and 'image_base64' keys.
+                        Supported formats:
+                        - Single image: {"success": True, "image_base64": "..."}
+                        - List of images: [{"success": True, "image_base64": "..."}, ...]
+                        - Labeled images: {"front": {"image_base64": "..."}, "top": {"image_base64": "..."}}
         """
         self._description = description
         self._image_data = image_data
@@ -34,6 +37,10 @@ class ImageMessage(MessageElement):
         """
         if not self._image_data:
             return None
+
+        # Check if this is a labeled images dict (dict-of-dicts format)
+        if self._is_labeled_images():
+            return self._create_labeled_images_message()
 
         # Handle both single image (dict) and multiple images (list)
         images_list = self._image_data if isinstance(self._image_data, list) else [self._image_data]
@@ -52,6 +59,47 @@ class ImageMessage(MessageElement):
         else:
             # No valid images
             return None
+
+    def _is_labeled_images(self) -> bool:
+        """
+        Check if image_data is in labeled format (dict-of-dicts).
+
+        Returns:
+            True if image_data is a dict where values are dicts with image_base64
+        """
+        if not isinstance(self._image_data, dict):
+            return False
+
+        # If it has 'success' or 'image_base64' at top level, it's a single image
+        if "success" in self._image_data or "image_base64" in self._image_data:
+            return False
+
+        # Check if any value is a dict with image_base64
+        for value in self._image_data.values():
+            if isinstance(value, dict) and "image_base64" in value:
+                return True
+
+        return False
+
+    def _create_labeled_images_message(self) -> Optional[Dict[str, Any]]:
+        """
+        Create a message with labeled images (e.g., perspective views).
+
+        Returns:
+            Message dict with description and labeled images, or None if no valid images
+        """
+        content = [{"type": "text", "text": self._description}]
+
+        for label, image_data in self._image_data.items():
+            base64_image = image_data.get("image_base64")
+            if base64_image and not base64_image.startswith("Error"):
+                content.append({"type": "text", "text": f"\n{label} view:"})
+                content.append(self._create_image_url_content(base64_image))
+
+        if len(content) > 1:  # More than just the description
+            return {"role": "user", "content": content}
+
+        return None
 
     def _create_multi_image_message(self, base64_images: List[str]) -> Dict[str, Any]:
         """
@@ -98,40 +146,4 @@ class ImageMessage(MessageElement):
             }
         }
 
-    @staticmethod
-    def create_image_url_content(base64_image: str) -> Dict[str, Any]:
-        """
-        Create an image_url content object for OpenAI messages.
 
-        Public static method for external use.
-
-        Args:
-            base64_image: Base64-encoded image string
-
-        Returns:
-            Image URL content dict
-        """
-        return ImageMessage._create_image_url_content(base64_image)
-
-    @staticmethod
-    def create_image_message(description: str, base64_image: str) -> Dict[str, Any]:
-        """
-        Create an OpenAI message with both description and image content.
-
-        Args:
-            description: A description for the image
-            base64_image: Base64-encoded image string
-
-        Returns:
-            Message dict with description and image_url content
-        """
-        return {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": description
-                },
-                ImageMessage._create_image_url_content(base64_image)
-            ]
-        }

@@ -33,6 +33,7 @@ class ToolManager:
         self._tool_providers: List[ToolBase] = []
         self._tools: List[Dict] = []
         self._tool_functions: Dict[str, Callable[..., str]] = {}
+        self._tool_to_provider: Dict[str, ToolBase] = {}
 
     def register_provider(self, provider: ToolBase) -> None:
         """
@@ -45,8 +46,12 @@ class ToolManager:
         self._tools.extend(provider.get_definitions())
         self._tool_functions.update(provider.get_functions())
 
-        # Log registered tools
+        # Map each tool name to its provider
         tool_names = provider.get_names()
+        for tool_name in tool_names:
+            self._tool_to_provider[tool_name] = provider
+
+        # Log registered tools
         self.logger.info(f"Registered tools: {', '.join(tool_names)}")
 
     def start_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
@@ -118,6 +123,18 @@ class ToolManager:
     def tool_functions(self) -> Dict[str, Callable[..., str]]:
         """Get the tool functions dictionary for backward compatibility."""
         return self._tool_functions
+
+    def get_provider(self, tool_name: str) -> Optional[ToolBase]:
+        """
+        Get the provider for a specific tool.
+
+        Args:
+            tool_name: Name of the tool
+
+        Returns:
+            ToolBase instance that provides this tool, or None if not found
+        """
+        return self._tool_to_provider.get(tool_name)
 
     def get_tool_usage_instructions(self) -> str:
         """

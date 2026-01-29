@@ -12,6 +12,7 @@ from typing import Dict, List, Callable, Optional
 from contextlib import contextmanager
 
 from agent.tools.base import ToolBase
+from agent.request import MessageElement, ToolResultMessage, ImageMessage
 from shapes.image_context import ImageContext
 
 
@@ -90,6 +91,74 @@ class VisualizationTools(ToolBase):
 **User says: "Show me what the object looks like"**
 > Use capture_screenshot to capture an image of the object and return the image
 """
+
+    def process_result(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        tool_result: str
+    ) -> List[MessageElement]:
+        """
+        Process a tool result and return MessageElements for the conversation.
+
+        For capture_screenshot, adds image messages so the LLM can see the screenshots.
+
+        Args:
+            tool_call_id: The ID of the tool call
+            tool_name: The name of the tool that was called
+            tool_result: The result from the tool execution
+
+        Returns:
+            List of MessageElements to add to the conversation
+        """
+        messages = [ToolResultMessage(tool_call_id, tool_name, tool_result)]
+
+        # Add screenshot images to conversation for capture_screenshot tool
+        if tool_name == "capture_screenshot":
+            screenshot_messages = self._build_screenshot_messages(tool_result)
+            messages.extend(screenshot_messages)
+
+        return messages
+
+    def _build_screenshot_messages(self, tool_result: str) -> List[MessageElement]:
+        """
+        Build conversation messages from screenshot tool result.
+
+        Args:
+            tool_result: JSON string from capture_screenshot tool
+
+        Returns:
+            List of MessageElements for the screenshots
+        """
+        messages = []
+
+        try:
+            result_data = json.loads(tool_result)
+
+            if not result_data.get("success"):
+                return messages
+
+            # Check if we have single or multiple images
+            if "image_base64" in result_data:
+                # Single image
+                base64_image = result_data["image_base64"]
+                if base64_image and not base64_image.startswith("Error"):
+                    messages.append(ImageMessage(
+                        "Here is the screenshot that was just captured:",
+                        {"success": True, "image_base64": base64_image}
+                    ))
+
+            elif "images" in result_data:
+                # Multiple images with perspective labels
+                messages.append(ImageMessage(
+                    "Here are the screenshots that were just captured:",
+                    result_data["images"]
+                ))
+
+        except (json.JSONDecodeError, Exception):
+            pass  # Silently ignore errors in screenshot message building
+
+        return messages
 
     def _json_error(self, message: str, **kwargs) -> str:
         """Create a JSON error response."""

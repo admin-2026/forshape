@@ -3,6 +3,7 @@ from .request_element import RequestElement
 from .message_element import MessageElement
 from .image_message import ImageMessage
 from .text_message import TextMessage
+from .tool_result_message import ToolResultMessage
 from .file_loader import FileLoader
 from .instruction import Instruction
 from .dynamic_content import DynamicContent

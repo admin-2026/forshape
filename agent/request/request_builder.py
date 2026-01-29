@@ -54,21 +54,6 @@ class RequestBuilder:
                     parts.append(content)
         return "\n\n".join(parts)
 
-    def get_user_content(self, init_elements: List[RequestElement]) -> str:
-        """
-        Get the concatenated user content from base and init elements.
-
-        Use this method to get the full user content text when constructing
-        MessageElements that need to include the user context.
-
-        Args:
-            init_elements: List of RequestElement objects containing the user's request
-
-        Returns:
-            Concatenated user content string
-        """
-        return self._concatenate_elements(self._base_user_elements + init_elements)
-
     def build_messages(self, history: List[Dict[str, Any]],
                        init_elements: List[RequestElement],
                        message_elements: Optional[List[MessageElement]] = None) -> List[Dict]:
@@ -81,9 +66,9 @@ class RequestBuilder:
         Args:
             history: List of message dicts with 'role' and 'content' keys
             init_elements: List of RequestElement objects containing the user's initial message/request
-            message_elements: Optional list of MessageElement objects for building user messages.
-                              If provided, these are used instead of building a simple text message.
-                              Caller is responsible for including user content in message_elements.
+            message_elements: Optional list of MessageElement objects for additional content
+                              (e.g., images with descriptions). These are appended after the
+                              init user message.
 
         Returns:
             List of messages formatted for OpenAI API
@@ -98,13 +83,14 @@ class RequestBuilder:
         # Add conversation history
         messages.extend(history)
 
-        # Add user message(s)
+        # Add init user message
+        user_content = self._concatenate_elements(self._base_user_elements + init_elements)
+        messages.append({"role": "user", "content": user_content})
+
+        # Add any additional message elements (e.g., images with descriptions)
         if message_elements:
             for element in message_elements:
                 messages.append(element.get_message())
-        else:
-            user_content = self._concatenate_elements(self._base_user_elements + init_elements)
-            messages.append({"role": "user", "content": user_content})
 
         return messages
 

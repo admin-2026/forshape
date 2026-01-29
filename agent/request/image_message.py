@@ -2,7 +2,7 @@
 Image message element.
 
 This module provides the ImageMessage class for building
-API messages with text and optional image content.
+API messages with a description and optional image content.
 """
 
 from typing import Dict, List, Optional, Any
@@ -11,29 +11,29 @@ from .message_element import MessageElement
 
 
 class ImageMessage(MessageElement):
-    """Message element that handles text with optional images."""
+    """Message element that handles a description with optional images."""
 
-    def __init__(self, text: str, image_data: Optional[Dict] = None):
+    def __init__(self, description: str, image_data: Optional[Dict] = None):
         """
         Initialize the image message.
 
         Args:
-            text: The text content of the message
+            description: A description for the images (e.g., "Here is the reference image")
             image_data: Optional dict or list of dicts containing captured image data.
                         Each dict should have 'success' and 'image_base64' keys.
         """
-        self._text = text
+        self._description = description
         self._image_data = image_data
 
-    def get_message(self) -> Dict[str, Any]:
+    def get_message(self) -> Optional[Dict[str, Any]]:
         """
         Build a complete user message, handling optional image data.
 
         Returns:
-            Message dict ready for API call
+            Message dict ready for API call, or None if image data is empty or invalid
         """
         if not self._image_data:
-            return {"role": "user", "content": self._text}
+            return None
 
         # Handle both single image (dict) and multiple images (list)
         images_list = self._image_data if isinstance(self._image_data, list) else [self._image_data]
@@ -46,27 +46,27 @@ class ImageMessage(MessageElement):
                 if base64_image and not base64_image.startswith("Error"):
                     valid_images.append(base64_image)
 
-        # Create message with text and image(s)
+        # Create message with description and image(s)
         if valid_images:
             return self._create_multi_image_message(valid_images)
         else:
-            # No valid images, just send text
-            return {"role": "user", "content": self._text}
+            # No valid images
+            return None
 
     def _create_multi_image_message(self, base64_images: List[str]) -> Dict[str, Any]:
         """
-        Create a message with text and multiple image content.
+        Create a message with description and multiple image content.
 
         Args:
             base64_images: List of base64-encoded image strings
 
         Returns:
-            Message dict with text and multiple image_url content
+            Message dict with description and multiple image_url content
         """
         content = [
             {
                 "type": "text",
-                "text": self._text
+                "text": self._description
             }
         ]
 
@@ -114,23 +114,23 @@ class ImageMessage(MessageElement):
         return ImageMessage._create_image_url_content(base64_image)
 
     @staticmethod
-    def create_image_message(text: str, base64_image: str) -> Dict[str, Any]:
+    def create_image_message(description: str, base64_image: str) -> Dict[str, Any]:
         """
-        Create an OpenAI message with both text and image content.
+        Create an OpenAI message with both description and image content.
 
         Args:
-            text: The text content to include with the image
+            description: A description for the image
             base64_image: Base64-encoded image string
 
         Returns:
-            Message dict with text and image_url content
+            Message dict with description and image_url content
         """
         return {
             "role": "user",
             "content": [
                 {
                     "type": "text",
-                    "text": text
+                    "text": description
                 },
                 ImageMessage._create_image_url_content(base64_image)
             ]

@@ -11,7 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .request import RequestBuilder, Instruction, ImageMessage
+from .request import RequestBuilder, Instruction, MessageElement
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
@@ -135,7 +135,7 @@ class AIAgent:
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
 
-    def process_request(self, input_queue: 'UserInputQueue', image_data: Optional[Dict] = None, token_callback=None) -> str:
+    def process_request(self, input_queue: 'UserInputQueue', initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
         """
         Process the user's request through the AI agent (compatible with AIClient interface).
 
@@ -144,7 +144,8 @@ class AIAgent:
 
         Args:
             input_queue: The user input queue containing the initial message and any follow-up messages
-            image_data: Optional dict containing captured image data (from capture_screenshot tool)
+            initial_messages: Optional list of MessageElement objects for additional content
+                              (e.g., images with descriptions)
             token_callback: Optional callback function to receive token usage updates after each iteration
 
         Returns:
@@ -165,7 +166,7 @@ class AIAgent:
             self.logger.info(f"Started new conversation: {conversation_id}")
 
             # Use the run method with the context and input queue
-            response = self.run(initial_message, image_data, token_callback, input_queue)
+            response = self.run(initial_message, initial_messages, token_callback, input_queue)
             return response
 
         except Exception as e:
@@ -180,13 +181,14 @@ class AIAgent:
         """Reset the cancellation flag for new requests."""
         self._cancellation_requested = False
 
-    def run(self, user_message: str, image_data: Optional[Dict] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
+    def run(self, user_message: str, initial_messages: Optional[List[MessageElement]] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
         Args:
             user_message: The user's message/request
-            image_data: Optional dict or list of dicts containing captured image data (from capture_screenshot tool or dropped images)
+            initial_messages: Optional list of MessageElement objects for additional content
+                              (e.g., images with descriptions)
             token_callback: Optional callback function to receive token usage updates after each iteration
             input_queue: Optional UserInputQueue to check for new user input during iterations
 
@@ -203,17 +205,10 @@ class AIAgent:
         init_user_message = Instruction(user_message, description="User Request")
         init_elements = [init_user_message]
 
-        # Build message elements for multimodal content
-        if image_data:
-            user_content = self.request_builder.get_user_content(init_elements)
-            message_elements = [ImageMessage(user_content, image_data)]
-        else:
-            message_elements = None
-
         messages = self.request_builder.build_messages(
             self.history_manager.get_history(),
             init_elements,
-            message_elements
+            initial_messages
         )
 
         # Initialize token usage tracking

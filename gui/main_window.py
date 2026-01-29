@@ -25,6 +25,7 @@ from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
 from agent.user_input_queue import UserInputQueue
+from agent.request import ImageMessage
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
@@ -869,7 +870,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.current_input_queue = input_queue
 
         # Create and start worker thread for AI processing with input queue and optional images
-        self.worker = AIWorker(self.ai_client, input_queue, self.captured_images if has_images else None)
+        initial_messages = [ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images)] if has_images else None
+        self.worker = AIWorker(self.ai_client, input_queue, initial_messages)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.token_update.connect(self.on_token_update)
         self.worker.start()

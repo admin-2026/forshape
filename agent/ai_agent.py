@@ -11,7 +11,7 @@ import json
 from typing import List, Dict, Optional
 
 from .context_provider import ContextProvider
-from .request import RequestBuilder, Instruction
+from .request import RequestBuilder, Instruction, ImageMessage
 from .tools.tool_manager import ToolManager
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
@@ -201,10 +201,19 @@ class AIAgent:
 
         # Build messages for API call (system message + history + user message)
         init_user_message = Instruction(user_message, description="User Request")
+        init_elements = [init_user_message]
+
+        # Build message elements for multimodal content
+        if image_data:
+            user_content = self.request_builder.get_user_content(init_elements)
+            message_elements = [ImageMessage(user_content, image_data)]
+        else:
+            message_elements = None
+
         messages = self.request_builder.build_messages(
             self.history_manager.get_history(),
-            [init_user_message],
-            image_data
+            init_elements,
+            message_elements
         )
 
         # Initialize token usage tracking

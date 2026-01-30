@@ -339,15 +339,6 @@ class AIAgent:
         # If we hit max iterations
         return "Agent reached maximum iterations without completing the task."
 
-    def get_history(self) -> List[Dict]:
-        """
-        Get the conversation history.
-
-        Returns:
-            List of message dictionaries
-        """
-        return self.history_manager.get_history()
-
     def clear_history(self):
         """Clear the conversation history."""
         self.history_manager.clear_history()

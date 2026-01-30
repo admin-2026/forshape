@@ -325,6 +325,7 @@ class ForShapeAI:
         from agent.tools.file_access_tools import FileAccessTools
         from agent.tools.interaction_tools import InteractionTools
         from agent.tools.calculator_tools import CalculatorTools
+        from agent.tools.tool_call_tools import ToolCallTools
         from gui.tools import FreeCADTools, VisualizationTools
 
         # Register file access tools
@@ -345,6 +346,11 @@ class ForShapeAI:
         # Register calculator tools
         calculator_tools = CalculatorTools()
         tool_manager.register_provider(calculator_tools)
+
+        # Register tool call tools (meta-tool for calling other tools)
+        tool_call_tools = ToolCallTools()
+        tool_manager.register_provider(tool_call_tools)
+        tool_call_tools.set_tool_manager(tool_manager)
 
         # Register FreeCAD object manipulation tools
         freecad_tools = FreeCADTools(permission_manager=permission_manager)

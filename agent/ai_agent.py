@@ -152,8 +152,8 @@ class AIAgent:
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            # Use the run method with the context and input queue
-            response = self.run(initial_message, initial_messages, token_callback, input_queue)
+            # Use the run method with the input queue
+            response = self.run(input_queue, initial_messages, token_callback)
             return response
 
         except Exception as e:
@@ -168,16 +168,15 @@ class AIAgent:
         """Reset the cancellation flag for new requests."""
         self._cancellation_requested = False
 
-    def run(self, user_message: str, initial_messages: Optional[List[MessageElement]] = None, token_callback=None, input_queue: Optional[UserInputQueue] = None) -> str:
+    def run(self, input_queue: UserInputQueue, initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
         """
         Run the agent with a user message. The agent will autonomously call tools as needed.
 
         Args:
-            user_message: The user's message/request
+            input_queue: UserInputQueue containing the initial message and any follow-up messages
             initial_messages: Optional list of MessageElement objects for additional content
                               (e.g., images with descriptions)
             token_callback: Optional callback function to receive token usage updates after each iteration
-            input_queue: Optional UserInputQueue to check for new user input during iterations
 
         Returns:
             Final response from the agent
@@ -187,6 +186,9 @@ class AIAgent:
 
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
+
+        # Get the initial message from the queue
+        user_message = input_queue.get_initial_message()
 
         # Build messages for API call (system message + history + user message)
         init_user_message = Instruction(user_message, description="User Request")
@@ -211,13 +213,12 @@ class AIAgent:
                 return "Operation cancelled by user."
 
             # Check for new user input from the queue
-            if input_queue:
-                pending_input = input_queue.get_next_message()
-                if pending_input:
-                    self.history_manager.add_user_message(pending_input)
-                    # Append the new user message to the conversation
-                    messages.append(TextMessage("user", pending_input).get_message())
-                    self.logger.info(f"New user input received during iteration {iteration + 1}: {pending_input}")
+            pending_input = input_queue.get_next_message()
+            if pending_input:
+                self.history_manager.add_user_message(pending_input)
+                # Append the new user message to the conversation
+                messages.append(TextMessage("user", pending_input).get_message())
+                self.logger.info(f"New user input received during iteration {iteration + 1}: {pending_input}")
 
             try:
                 # Dump request data if debugger is enabled

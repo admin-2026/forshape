@@ -11,7 +11,7 @@ from pathlib import Path
 
 from agent.tools.base import ToolBase
 from agent.permission_manager import PermissionManager
-from gui.script_executor import ScriptExecutor
+from app.script_executor import ScriptExecutor
 
 
 class ExecutionTools(ToolBase):

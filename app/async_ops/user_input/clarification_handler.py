@@ -30,7 +30,7 @@ class ClarificationHandler(GuiInputHandlerBase):
         Args:
             request: UserInputRequest with data containing questions
         """
-        from gui.dialogs import ClarificationDialog
+        from app.dialogs import ClarificationDialog
 
         questions = request.data.get("questions", [])
         dialog = ClarificationDialog(questions, parent=self._parent)

@@ -18,7 +18,7 @@ import sys
 from typing import Optional
 from PySide2.QtWidgets import QApplication
 
-from gui import (
+from app import (
     DependencyManager,
     ConfigurationManager,
     HistoryLogger,
@@ -326,7 +326,7 @@ class ForShapeAI:
         from agent.tools.interaction_tools import InteractionTools
         from agent.tools.calculator_tools import CalculatorTools
         from agent.tools.tool_call_tools import ToolCallTools
-        from gui.tools import FreeCADTools, VisualizationTools
+        from app.tools import FreeCADTools, VisualizationTools
 
         # Register file access tools
         file_access_tools = FileAccessTools(

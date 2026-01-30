@@ -1,17 +1,16 @@
 """
-AI Agent with tool calling capabilities for multiple API providers.
+AI Agent orchestrator for multiple API providers.
 
-This module provides an AI agent that can call tools to interact with the file system,
-including listing files, reading files, and editing files.
+This module provides an AI agent that orchestrates a list of Steps,
+each of which can call tools to interact with the file system.
 
 Supports multiple API providers: OpenAI, Fireworks, and more.
 """
 
-import json
 from typing import List, Dict, Optional
 
-from .request import RequestBuilder, Instruction, MessageElement, TextMessage
-from .tools.tool_manager import ToolManager
+from .step import Step, StepResult
+from .request import MessageElement
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
@@ -22,55 +21,44 @@ from .user_input_queue import UserInputQueue
 
 class AIAgent:
     """
-    AI Agent with tool-calling capabilities for multiple API providers.
+    AI Agent orchestrator for multiple API providers.
 
-    This agent can use tools to interact with the file system and perform
-    tasks autonomously through function calling APIs (OpenAI, Fireworks, etc.).
+    This agent orchestrates a list of Steps, each of which can use tools
+    to interact with the file system and perform tasks autonomously.
     """
 
     def __init__(
         self,
         api_key: Optional[str],
-        request_builder: RequestBuilder,
         model: str,
+        steps: List[Step],
         logger: LoggerProtocol,
-        tool_manager: ToolManager,
-        max_iterations: int = 50,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
-        provider_config = None
+        provider_config=None
     ):
         """
         Initialize the AI agent.
 
         Args:
             api_key: API key for the selected provider
-            request_builder: RequestBuilder instance for building request context
             model: Model identifier to use
-            logger: LoggerProtocol instance for tool call logging
-            tool_manager: ToolManager instance with registered tools
-            max_iterations: Maximum number of tool calling iterations (default: 50)
+            steps: List of Step instances to execute
+            logger: LoggerProtocol instance for logging
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
             provider_config: Optional ProviderConfig instance for provider configuration
         """
-        # Set logger first so it's available in _initialize_provider
         self.logger = logger
-
         self.model = model
-        self.max_iterations = max_iterations
+        self.steps = steps
         self.history_manager = ChatHistoryManager(max_messages=None)
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
-        self.request_builder = request_builder
-
-        # Use injected tool manager (tools already registered by caller)
-        self.tool_manager = tool_manager
-
-        self.last_token_usage = None  # Store the most recent token usage data
-        self._cancellation_requested = False  # Flag to track cancellation requests
+        self.last_token_usage = None
+        self._cancellation_requested = False
         self.api_debugger = api_debugger
-        self._conversation_counter = 0  # Counter for generating unique conversation IDs
+        self._conversation_counter = 0
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
         """
@@ -110,9 +98,6 @@ class AIAgent:
         """
         Generate a unique conversation ID.
 
-        Each conversation represents a user request and all subsequent AI agent work
-        until a final response is given.
-
         Returns:
             Unique conversation ID string
         """
@@ -121,18 +106,13 @@ class AIAgent:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
-
     def process_request(self, input_queue: 'UserInputQueue', initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
         """
-        Process the user's request through the AI agent (compatible with AIClient interface).
-
-        This method is designed to be compatible with the existing ForShape GUI code
-        that expects an AIClient-like interface.
+        Process the user's request through the AI agent.
 
         Args:
             input_queue: The user input queue containing the initial message and any follow-up messages
             initial_messages: Optional list of MessageElement objects for additional content
-                              (e.g., images with descriptions)
             token_callback: Optional callback function to receive token usage updates after each iteration
 
         Returns:
@@ -142,18 +122,19 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
-            # Get the initial message from the queue
             initial_message = input_queue.get_initial_message()
 
             # Generate a new conversation ID for this user request
-            # Each user request begins a new conversation in the edit history
             conversation_id = self._generate_conversation_id()
-            self.tool_manager.start_conversation(conversation_id, user_request=initial_message)
+
+            # Start conversation on all step tool managers
+            for step in self.steps:
+                step.tool_manager.start_conversation(conversation_id, user_request=initial_message)
+
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            # Use the run method with the input queue
-            response = self.run(input_queue, initial_messages, token_callback)
+            response = self._agent_run(input_queue, initial_messages, token_callback)
             return response
 
         except Exception as e:
@@ -168,177 +149,107 @@ class AIAgent:
         """Reset the cancellation flag for new requests."""
         self._cancellation_requested = False
 
-    def run(self, input_queue: UserInputQueue, initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
+    def _is_cancelled(self) -> bool:
+        """Check if cancellation has been requested."""
+        return self._cancellation_requested
+
+    def _agent_run(self, input_queue: UserInputQueue, initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
         """
-        Run the agent with a user message. The agent will autonomously call tools as needed.
+        Run the agent by executing all steps in sequence.
 
         Args:
             input_queue: UserInputQueue containing the initial message and any follow-up messages
             initial_messages: Optional list of MessageElement objects for additional content
-                              (e.g., images with descriptions)
-            token_callback: Optional callback function to receive token usage updates after each iteration
+            token_callback: Optional callback function to receive token usage updates
 
         Returns:
-            Final response from the agent
+            Final response from the last step
         """
         if self.provider is None:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
+        if not self.steps:
+            return "Error: No steps configured for this agent."
+
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
-        # Get the initial message from the queue
+        # Get initial message for history
         user_message = input_queue.get_initial_message()
-
-        # Build messages for API call (system message + history + user message)
-        init_user_message = Instruction(user_message, description="User Request")
-
-        messages = self.request_builder.build_messages(
-            self.history_manager.get_history(),
-            [init_user_message],
-            initial_messages
-        )
-
         self.history_manager.add_user_message(user_message)
 
-        # Initialize token usage tracking
+        # Initialize cumulative token usage
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
 
-        # Agent loop: keep calling tools until the agent gives a final response
-        for iteration in range(self.max_iterations):
-            # Check for cancellation before each iteration
-            if self._cancellation_requested:
-                return "Operation cancelled by user."
+        # Get history for the first step
+        history = self.history_manager.get_history()
 
-            # Check for new user input from the queue
-            pending_input = input_queue.get_next_message()
-            if pending_input:
-                self.history_manager.add_user_message(pending_input)
-                # Append the new user message to the conversation
-                messages.append(TextMessage("user", pending_input).get_message())
-                self.logger.info(f"New user input received during iteration {iteration + 1}: {pending_input}")
+        # Track the final result
+        final_response = ""
+        final_status = "completed"
 
-            try:
-                # Dump request data if debugger is enabled
-                if self.api_debugger:
-                    self.api_debugger.dump_request(
-                        model=self.model,
-                        messages=messages,
-                        tools=self.tool_manager.get_tools(),
-                        tool_choice="auto",
-                        additional_data={"iteration": iteration + 1}
-                    )
+        # Execute each step in sequence
+        for i, step in enumerate(self.steps):
+            self.logger.info(f"Executing step {i + 1}/{len(self.steps)}: {step.name}")
 
-                # Call API provider with tools
-                response = self.provider.create_completion(
-                    model=self.model,
-                    messages=messages,
-                    tools=self.tool_manager.get_tools(),
-                    tool_choice="auto"
-                )
+            # Create a token callback that accumulates usage
+            def step_token_callback(token_data):
+                nonlocal total_prompt_tokens, total_completion_tokens, total_tokens
+                total_prompt_tokens = token_data["prompt_tokens"]
+                total_completion_tokens = token_data["completion_tokens"]
+                total_tokens = token_data["total_tokens"]
 
-                # Track token usage from this API call
-                if hasattr(response, 'usage') and response.usage:
-                    total_prompt_tokens += response.usage.prompt_tokens
-                    total_completion_tokens += response.usage.completion_tokens
-                    total_tokens += response.usage.total_tokens
+                if token_callback:
+                    token_callback({
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                        "total_tokens": total_tokens,
+                        "iteration": token_data.get("iteration", 0),
+                        "step": step.name,
+                        "step_index": i + 1
+                    })
 
-                    # Send token usage update via callback if provided
-                    if token_callback:
-                        token_data = {
-                            "prompt_tokens": total_prompt_tokens,
-                            "completion_tokens": total_completion_tokens,
-                            "total_tokens": total_tokens,
-                            "iteration": iteration + 1
-                        }
-                        token_callback(token_data)
+            # Run the step
+            result: StepResult = step.step_run(
+                provider=self.provider,
+                model=self.model,
+                history=history,
+                input_queue=input_queue,
+                initial_messages=initial_messages if i == 0 else None,
+                api_debugger=self.api_debugger,
+                token_callback=step_token_callback,
+                cancellation_check=self._is_cancelled
+            )
 
-                # Dump response data if debugger is enabled
-                if self.api_debugger:
-                    self.api_debugger.dump_response(
-                        response=response,
-                        token_usage={
-                            "prompt_tokens": total_prompt_tokens,
-                            "completion_tokens": total_completion_tokens,
-                            "total_tokens": total_tokens
-                        },
-                        additional_data={"iteration": iteration + 1}
-                    )
+            final_response = result.response
+            final_status = result.status
 
-                response_message = response.choices[0].message
+            # Accumulate token usage
+            total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)
+            total_completion_tokens += result.token_usage.get("completion_tokens", 0)
+            total_tokens += result.token_usage.get("total_tokens", 0)
 
-                # Check if the agent wants to call tools
-                if response_message.tool_calls:
-                    # Add the assistant's message (with tool_calls) to messages first
-                    # This is required before adding tool result messages
-                    messages.append(response_message.model_dump())
+            # If step was cancelled or errored, stop execution
+            if result.status in ("cancelled", "error"):
+                self.logger.info(f"Step {step.name} ended with status: {result.status}")
+                break
 
-                    # Process each tool call
-                    for tool_call in response_message.tool_calls:
-                        # Check for cancellation during tool execution
-                        if self._cancellation_requested:
-                            return "Operation cancelled by user."
+            # Update history for next step (could pass messages between steps if needed)
+            # For now, we don't modify history between steps
 
-                        tool_name = tool_call.function.name
-                        raw_arguments = tool_call.function.arguments
-                        try:
-                            tool_args = json.loads(raw_arguments)
-                        except json.JSONDecodeError as e:
-                            self.logger.error(f"JSON parsing failed for tool '{tool_name}'")
-                            self.logger.error(f"Error: {e}")
-                            self.logger.error(f"Raw arguments (len={len(raw_arguments)}): {raw_arguments[:500]}...")
-                            if len(raw_arguments) > 500:
-                                self.logger.error(f"...end of raw arguments: ...{raw_arguments[-200:]}")
-                            raise
+        # Store final token usage
+        self.last_token_usage = {
+            "prompt_tokens": total_prompt_tokens,
+            "completion_tokens": total_completion_tokens,
+            "total_tokens": total_tokens
+        }
 
-                        # Execute the tool
-                        tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
+        # Update history with final response
+        self.history_manager.add_assistant_message(final_response)
 
-                        # Dump tool execution data if debugger is enabled
-                        if self.api_debugger:
-                            self.api_debugger.dump_tool_execution(
-                                tool_name=tool_name,
-                                tool_arguments=tool_call.function.arguments,
-                                tool_result=tool_result,
-                                tool_call_id=tool_call.id
-                            )
-
-                        # Get the provider and let it process the result
-                        provider = self.tool_manager.get_provider(tool_name)
-                        if provider:
-                            result_messages = provider.process_result(
-                                tool_call.id, tool_name, tool_result
-                            )
-                            for result_message in result_messages:
-                                message_dict = result_message.get_message()
-                                if message_dict:
-                                    messages.append(message_dict)
-
-                    # Continue the loop to get the next response
-                    continue
-
-                # No tool calls, we have a final response
-                final_response = response_message.content
-
-                # Store token usage data
-                self.last_token_usage = {
-                    "prompt_tokens": total_prompt_tokens,
-                    "completion_tokens": total_completion_tokens,
-                    "total_tokens": total_tokens
-                }
-
-                # Update history through history manager
-                self.history_manager.add_assistant_message(final_response)
-
-                return final_response
-
-            except Exception as e:
-                return f"Error during agent execution: {str(e)}"
-
-        # If we hit max iterations
-        return "Agent reached maximum iterations without completing the task."
+        return final_response
 
     def clear_history(self):
         """Clear the conversation history."""

@@ -23,6 +23,7 @@ from app import (
     ConfigurationManager,
     HistoryLogger,
     AIAgent,
+    Step,
     ForShapeMainWindow,
     Logger,
     LogLevel,
@@ -291,13 +292,21 @@ class ForShapeAI:
         # Create request builder for AI context
         request_builder = RequestBuilder(system_elements, user_elements)
 
-        # Create AI agent with pre-configured tool manager
+        # Create the main step with tool manager
+        main_step = Step(
+            name="main",
+            request_builder=request_builder,
+            tool_manager=tool_manager,
+            max_iterations=50,
+            logger=self.logger
+        )
+
+        # Create AI agent with step
         self.ai_client = AIAgent(
             api_key,
-            request_builder,
             model=agent_model,
+            steps=[main_step],
             logger=self.logger,
-            tool_manager=tool_manager,
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config

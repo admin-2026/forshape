@@ -1,0 +1,282 @@
+"""
+Step class for AI agent execution.
+
+A Step represents a single execution unit that runs a tool-calling loop
+until completion or max iterations.
+"""
+
+import json
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Any, Callable
+
+from .request import RequestBuilder, Instruction, TextMessage, MessageElement
+from .tools.tool_manager import ToolManager
+from .api_debugger import APIDebugger
+from .api_provider import APIProvider
+from .logger_protocol import LoggerProtocol
+from .user_input_queue import UserInputQueue
+
+
+@dataclass
+class StepResult:
+    """Result of a Step execution."""
+    response: str
+    messages: List[Dict]
+    token_usage: Dict
+    status: str  # "completed", "cancelled", "max_iterations"
+
+
+class Step:
+    """
+    A Step represents a single execution unit in an AI agent pipeline.
+
+    Each step has its own request builder, tool manager, and configuration.
+    The step runs a tool-calling loop until the AI provides a final response
+    or max iterations is reached.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        request_builder: RequestBuilder,
+        tool_manager: ToolManager,
+        max_iterations: int = 50,
+        logger: Optional[LoggerProtocol] = None
+    ):
+        """
+        Initialize a Step.
+
+        Args:
+            name: Name of this step for logging/identification
+            request_builder: RequestBuilder instance for building request context
+            tool_manager: ToolManager instance with registered tools
+            max_iterations: Maximum number of tool calling iterations (default: 50)
+            logger: Optional LoggerProtocol instance for logging
+        """
+        self.name = name
+        self.request_builder = request_builder
+        self.tool_manager = tool_manager
+        self.max_iterations = max_iterations
+        self.logger = logger
+
+    def _log_info(self, message: str):
+        """Log info message if logger is available."""
+        if self.logger:
+            self.logger.info(f"[{self.name}] {message}")
+
+    def _log_error(self, message: str):
+        """Log error message if logger is available."""
+        if self.logger:
+            self.logger.error(f"[{self.name}] {message}")
+
+    def step_run(
+        self,
+        provider: APIProvider,
+        model: str,
+        history: List[Dict],
+        input_queue: UserInputQueue,
+        initial_messages: Optional[List[MessageElement]] = None,
+        api_debugger: Optional[APIDebugger] = None,
+        token_callback: Optional[Callable[[Dict], None]] = None,
+        cancellation_check: Optional[Callable[[], bool]] = None
+    ) -> StepResult:
+        """
+        Run the step with a user message. Executes the tool-calling loop.
+
+        Args:
+            provider: API provider to use for completions
+            model: Model identifier to use
+            history: Conversation history from previous steps/interactions
+            input_queue: UserInputQueue containing the initial message and any follow-up messages
+            initial_messages: Optional list of MessageElement objects for additional content
+            api_debugger: Optional APIDebugger instance for dumping API data
+            token_callback: Optional callback function to receive token usage updates
+            cancellation_check: Optional function that returns True if cancellation requested
+
+        Returns:
+            StepResult containing response, updated messages, token usage, and status
+        """
+        # Get the initial message from the queue
+        user_message = input_queue.get_initial_message()
+
+        # Build messages for API call (system message + history + user message)
+        init_user_message = Instruction(user_message, description="User Request")
+
+        messages = self.request_builder.build_messages(
+            history,
+            [init_user_message],
+            initial_messages
+        )
+
+        # Initialize token usage tracking
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+
+        # Agent loop: keep calling tools until the agent gives a final response
+        for iteration in range(self.max_iterations):
+            # Check for cancellation before each iteration
+            if cancellation_check and cancellation_check():
+                return StepResult(
+                    response="Operation cancelled by user.",
+                    messages=messages,
+                    token_usage={
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    status="cancelled"
+                )
+
+            # Check for new user input from the queue
+            pending_input = input_queue.get_next_message()
+            if pending_input:
+                # Append the new user message to the conversation
+                messages.append(TextMessage("user", pending_input).get_message())
+                self._log_info(f"New user input received during iteration {iteration + 1}: {pending_input}")
+
+            try:
+                # Dump request data if debugger is enabled
+                if api_debugger:
+                    api_debugger.dump_request(
+                        model=model,
+                        messages=messages,
+                        tools=self.tool_manager.get_tools(),
+                        tool_choice="auto",
+                        additional_data={"iteration": iteration + 1, "step": self.name}
+                    )
+
+                # Call API provider with tools
+                response = provider.create_completion(
+                    model=model,
+                    messages=messages,
+                    tools=self.tool_manager.get_tools(),
+                    tool_choice="auto"
+                )
+
+                # Track token usage from this API call
+                if hasattr(response, 'usage') and response.usage:
+                    total_prompt_tokens += response.usage.prompt_tokens
+                    total_completion_tokens += response.usage.completion_tokens
+                    total_tokens += response.usage.total_tokens
+
+                    # Send token usage update via callback if provided
+                    if token_callback:
+                        token_data = {
+                            "prompt_tokens": total_prompt_tokens,
+                            "completion_tokens": total_completion_tokens,
+                            "total_tokens": total_tokens,
+                            "iteration": iteration + 1,
+                            "step": self.name
+                        }
+                        token_callback(token_data)
+
+                # Dump response data if debugger is enabled
+                if api_debugger:
+                    api_debugger.dump_response(
+                        response=response,
+                        token_usage={
+                            "prompt_tokens": total_prompt_tokens,
+                            "completion_tokens": total_completion_tokens,
+                            "total_tokens": total_tokens
+                        },
+                        additional_data={"iteration": iteration + 1, "step": self.name}
+                    )
+
+                response_message = response.choices[0].message
+
+                # Check if the agent wants to call tools
+                if response_message.tool_calls:
+                    # Add the assistant's message (with tool_calls) to messages first
+                    messages.append(response_message.model_dump())
+
+                    # Process each tool call
+                    for tool_call in response_message.tool_calls:
+                        # Check for cancellation during tool execution
+                        if cancellation_check and cancellation_check():
+                            return StepResult(
+                                response="Operation cancelled by user.",
+                                messages=messages,
+                                token_usage={
+                                    "prompt_tokens": total_prompt_tokens,
+                                    "completion_tokens": total_completion_tokens,
+                                    "total_tokens": total_tokens
+                                },
+                                status="cancelled"
+                            )
+
+                        tool_name = tool_call.function.name
+                        raw_arguments = tool_call.function.arguments
+                        try:
+                            tool_args = json.loads(raw_arguments)
+                        except json.JSONDecodeError as e:
+                            self._log_error(f"JSON parsing failed for tool '{tool_name}'")
+                            self._log_error(f"Error: {e}")
+                            self._log_error(f"Raw arguments (len={len(raw_arguments)}): {raw_arguments[:500]}...")
+                            if len(raw_arguments) > 500:
+                                self._log_error(f"...end of raw arguments: ...{raw_arguments[-200:]}")
+                            raise
+
+                        # Execute the tool
+                        tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
+
+                        # Dump tool execution data if debugger is enabled
+                        if api_debugger:
+                            api_debugger.dump_tool_execution(
+                                tool_name=tool_name,
+                                tool_arguments=tool_call.function.arguments,
+                                tool_result=tool_result,
+                                tool_call_id=tool_call.id
+                            )
+
+                        # Get the provider and let it process the result
+                        tool_provider = self.tool_manager.get_provider(tool_name)
+                        if tool_provider:
+                            result_messages = tool_provider.process_result(
+                                tool_call.id, tool_name, tool_result
+                            )
+                            for result_message in result_messages:
+                                message_dict = result_message.get_message()
+                                if message_dict:
+                                    messages.append(message_dict)
+
+                    # Continue the loop to get the next response
+                    continue
+
+                # No tool calls, we have a final response
+                final_response = response_message.content
+
+                return StepResult(
+                    response=final_response,
+                    messages=messages,
+                    token_usage={
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    status="completed"
+                )
+
+            except Exception as e:
+                return StepResult(
+                    response=f"Error during step execution: {str(e)}",
+                    messages=messages,
+                    token_usage={
+                        "prompt_tokens": total_prompt_tokens,
+                        "completion_tokens": total_completion_tokens,
+                        "total_tokens": total_tokens
+                    },
+                    status="error"
+                )
+
+        # If we hit max iterations
+        return StepResult(
+            response="Step reached maximum iterations without completing the task.",
+            messages=messages,
+            token_usage={
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_tokens
+            },
+            status="max_iterations"
+        )

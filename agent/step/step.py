@@ -5,16 +5,16 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
-import json
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Any, Callable
+from typing import List, Dict, Optional, Callable
 
-from .request import RequestBuilder, Instruction, TextMessage, MessageElement
-from .tools.tool_manager import ToolManager
-from .api_debugger import APIDebugger
-from .api_provider import APIProvider
-from .logger_protocol import LoggerProtocol
-from .user_input_queue import UserInputQueue
+from ..request import RequestBuilder, Instruction, TextMessage, MessageElement
+from ..tools.tool_manager import ToolManager
+from .tool_executor import ToolExecutor
+from ..api_debugger import APIDebugger
+from ..api_provider import APIProvider
+from ..logger_protocol import LoggerProtocol
+from ..user_input_queue import UserInputQueue
 
 
 @dataclass
@@ -56,6 +56,7 @@ class Step:
         self.name = name
         self.request_builder = request_builder
         self.tool_manager = tool_manager
+        self.tool_executor = ToolExecutor(tool_manager, logger)
         self.max_iterations = max_iterations
         self.logger = logger
 
@@ -192,55 +193,26 @@ class Step:
                     # 'annotations', 'audio', 'function_call' that some APIs reject
                     messages.append(response_message.model_dump(exclude_none=True))
 
-                    # Process each tool call
-                    for tool_call in response_message.tool_calls:
-                        # Check for cancellation during tool execution
-                        if cancellation_check and cancellation_check():
-                            return StepResult(
-                                response="Operation cancelled by user.",
-                                messages=messages,
-                                token_usage={
-                                    "prompt_tokens": total_prompt_tokens,
-                                    "completion_tokens": total_completion_tokens,
-                                    "total_tokens": total_tokens
-                                },
-                                status="cancelled"
-                            )
+                    # Execute tools using shared executor
+                    result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
+                        tool_calls=response_message.tool_calls,
+                        api_debugger=api_debugger,
+                        cancellation_check=cancellation_check
+                    )
 
-                        tool_name = tool_call.function.name
-                        raw_arguments = tool_call.function.arguments
-                        try:
-                            tool_args = json.loads(raw_arguments)
-                        except json.JSONDecodeError as e:
-                            self._log_error(f"JSON parsing failed for tool '{tool_name}'")
-                            self._log_error(f"Error: {e}")
-                            self._log_error(f"Raw arguments (len={len(raw_arguments)}): {raw_arguments[:500]}...")
-                            if len(raw_arguments) > 500:
-                                self._log_error(f"...end of raw arguments: ...{raw_arguments[-200:]}")
-                            raise
+                    if was_cancelled:
+                        return StepResult(
+                            response="Operation cancelled by user.",
+                            messages=messages,
+                            token_usage={
+                                "prompt_tokens": total_prompt_tokens,
+                                "completion_tokens": total_completion_tokens,
+                                "total_tokens": total_tokens
+                            },
+                            status="cancelled"
+                        )
 
-                        # Execute the tool
-                        tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
-
-                        # Dump tool execution data if debugger is enabled
-                        if api_debugger:
-                            api_debugger.dump_tool_execution(
-                                tool_name=tool_name,
-                                tool_arguments=tool_call.function.arguments,
-                                tool_result=tool_result,
-                                tool_call_id=tool_call.id
-                            )
-
-                        # Get the provider and let it process the result
-                        tool_provider = self.tool_manager.get_provider(tool_name)
-                        if tool_provider:
-                            result_messages = tool_provider.process_result(
-                                tool_call.id, tool_name, tool_result
-                            )
-                            for result_message in result_messages:
-                                message_dict = result_message.get_message()
-                                if message_dict:
-                                    messages.append(message_dict)
+                    messages.extend(result_messages)
 
                     # Continue the loop to get the next response
                     continue

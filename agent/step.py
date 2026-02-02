@@ -188,7 +188,9 @@ class Step:
                 # Check if the agent wants to call tools
                 if response_message.tool_calls:
                     # Add the assistant's message (with tool_calls) to messages first
-                    messages.append(response_message.model_dump())
+                    # Use exclude_none=True to avoid sending extra fields like 'refusal',
+                    # 'annotations', 'audio', 'function_call' that some APIs reject
+                    messages.append(response_message.model_dump(exclude_none=True))
 
                     # Process each tool call
                     for tool_call in response_message.tool_calls:

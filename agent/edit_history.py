@@ -80,9 +80,45 @@ class EditHistory:
 
         return self.session_folder
 
+    def _get_next_version(self, relative_path: Path) -> int:
+        """
+        Get the next version number for a file backup.
+
+        Args:
+            relative_path: Relative path of the file being backed up
+
+        Returns:
+            Next version number (1 for first backup, 2 for second, etc.)
+        """
+        # Count existing backups for this file in current session
+        file_str = str(relative_path)
+        version = 1
+        for op in self.file_operations:
+            if op.get("action") == "edit" and op.get("file") == file_str:
+                version += 1
+        return version
+
+    def _make_versioned_path(self, path: Path, version: int) -> Path:
+        """
+        Create a versioned path for backup.
+
+        Args:
+            path: Original path
+            version: Version number
+
+        Returns:
+            Path with version suffix (e.g., file.v1.py)
+        """
+        stem = path.stem
+        suffix = path.suffix
+        return path.parent / f"{stem}.v{version}{suffix}"
+
     def backup_file(self, file_path: Path) -> bool:
         """
         Backup a file before editing it.
+
+        Each edit creates a new versioned backup (e.g., file.v1.py, file.v2.py).
+        This allows restoring to the earliest version when rewinding.
 
         Args:
             file_path: Path to the file to backup (can be absolute or relative)
@@ -115,8 +151,12 @@ class EditHistory:
                 else:
                     relative_path = Path(str(file_path).lstrip('/'))
 
-            # Create backup path
-            backup_path = session_folder / relative_path
+            # Get version number for this backup
+            version = self._get_next_version(relative_path)
+
+            # Create versioned backup path
+            versioned_relative_path = self._make_versioned_path(relative_path, version)
+            backup_path = session_folder / versioned_relative_path
 
             # Create parent directories
             backup_path.parent.mkdir(parents=True, exist_ok=True)
@@ -129,7 +169,8 @@ class EditHistory:
                 "action": "edit",
                 "file": str(relative_path),
                 "absolute_path": str(file_path),
-                "backup_path": str(backup_path.relative_to(session_folder))
+                "backup_path": str(versioned_relative_path),
+                "version": version
             })
             self._save_metadata()
 
@@ -318,8 +359,11 @@ class EditHistory:
     def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Optional[LoggerProtocol] = None) -> tuple:
         """
         Restore files from a specific checkpoint session.
-        - Restores backed up files (edited files)
+        - Restores backed up files (edited files) to their earliest version (before any edits)
         - Deletes files that were created (didn't exist before)
+
+        For files that were edited multiple times, only the earliest backup (v1) is restored,
+        which represents the original state before any edits in this session.
 
         Args:
             edits_dir: Directory where edit history is stored
@@ -349,38 +393,56 @@ class EditHistory:
             deleted_count = 0
             errors = []
 
-            # Process file operations in reverse order (to undo them)
-            for operation in reversed(file_operations):
+            # For edits: find the earliest backup for each file
+            # We want to restore the original state (v1), not intermediate states
+            earliest_edits: Dict[str, Dict] = {}
+            files_to_delete: List[Dict] = []
+
+            for operation in file_operations:
+                action = operation.get("action")
+                file_path = operation.get("file")
+
+                if action == "edit":
+                    version = operation.get("version", 1)
+                    # Keep only the earliest version (lowest version number)
+                    if file_path not in earliest_edits or version < earliest_edits[file_path].get("version", float('inf')):
+                        earliest_edits[file_path] = operation
+                elif action == "create":
+                    files_to_delete.append(operation)
+
+            # Restore edited files from their earliest backups
+            for file_path, operation in earliest_edits.items():
                 try:
-                    action = operation.get("action")
+                    target_path = working_dir_path / file_path
+                    backup_rel_path = operation.get("backup_path")
+
+                    if backup_rel_path:
+                        backup_file = session_path / backup_rel_path
+                        if backup_file.exists():
+                            # Create parent directories if needed
+                            target_path.parent.mkdir(parents=True, exist_ok=True)
+                            # Copy the backup over the current file
+                            shutil.copy2(backup_file, target_path)
+                            restored_count += 1
+                        else:
+                            errors.append(f"Backup not found for {file_path}")
+                    else:
+                        errors.append(f"No backup path in metadata for {file_path}")
+                except Exception as e:
+                    errors.append(f"{file_path}: {str(e)}")
+
+            # Delete files that were created in this session
+            for operation in files_to_delete:
+                try:
                     file_path = operation.get("file")
                     target_path = working_dir_path / file_path
 
-                    if action == "edit":
-                        # Restore the backed up file
-                        backup_rel_path = operation.get("backup_path")
-                        if backup_rel_path:
-                            backup_file = session_path / backup_rel_path
-                            if backup_file.exists():
-                                # Create parent directories if needed
-                                target_path.parent.mkdir(parents=True, exist_ok=True)
-                                # Copy the backup over the current file
-                                shutil.copy2(backup_file, target_path)
-                                restored_count += 1
-                            else:
-                                errors.append(f"Backup not found for {file_path}")
-                        else:
-                            errors.append(f"No backup path in metadata for {file_path}")
-
-                    elif action == "create":
-                        # Delete the file that was created
-                        if target_path.exists():
-                            target_path.unlink()
-                            deleted_count += 1
-                            print(f"[EditHistory] Deleted created file: {file_path}")
-                        else:
-                            print(f"[EditHistory] File already deleted: {file_path}")
-
+                    if target_path.exists():
+                        target_path.unlink()
+                        deleted_count += 1
+                        print(f"[EditHistory] Deleted created file: {file_path}")
+                    else:
+                        print(f"[EditHistory] File already deleted: {file_path}")
                 except Exception as e:
                     errors.append(f"{file_path}: {str(e)}")
 

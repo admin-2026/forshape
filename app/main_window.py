@@ -879,7 +879,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             step_configs.set_initial_messages("main", initial_messages)
 
         # Create and start worker thread for AI processing with step configs
-        self.worker = AIWorker(self.ai_client, step_configs)
+        self.worker = AIWorker(self.ai_client, user_input, step_configs)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.token_update.connect(self.on_token_update)
         self.worker.start()

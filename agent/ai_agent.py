@@ -110,11 +110,12 @@ class AIAgent:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
-    def process_request(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
+    def process_request(self, user_input: str, step_configs: StepConfigRegistry, token_callback=None) -> str:
         """
         Process the user's request through the AI agent.
 
         Args:
+            user_input: The user's input message
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates after each iteration
 
@@ -125,18 +126,16 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
-            initial_message = step_configs.default_input_queue.get_initial_message()
-
             # Generate a new conversation ID for this user request
             conversation_id = self._generate_conversation_id()
 
             # Start new conversation on edit history
-            self.edit_history.start_new_conversation(conversation_id, user_request=initial_message)
+            self.edit_history.start_new_conversation(conversation_id, user_request=user_input)
 
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            response = self._agent_run(step_configs, token_callback)
+            response = self._agent_run(user_input, step_configs, token_callback)
             return response
 
         except Exception as e:
@@ -155,11 +154,12 @@ class AIAgent:
         """Check if cancellation has been requested."""
         return self._cancellation_requested
 
-    def _agent_run(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
+    def _agent_run(self, user_input: str, step_configs: StepConfigRegistry, token_callback=None) -> str:
         """
         Run the agent by executing all steps in sequence.
 
         Args:
+            user_input: The user's input message
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates
 
@@ -175,9 +175,8 @@ class AIAgent:
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
-        # Get initial message for history
-        user_message = step_configs.default_input_queue.get_initial_message()
-        self.history_manager.add_user_message(user_message)
+        # Add user message to history
+        self.history_manager.add_user_message(user_input)
 
         # Initialize cumulative token usage
         total_prompt_tokens = 0

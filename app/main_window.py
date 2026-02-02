@@ -865,18 +865,19 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         input_queue = UserInputQueue(user_input)
         self.current_input_queue = input_queue
 
-        # Create StepConfigRegistry with the input queue
-        step_configs = StepConfigRegistry(default_input_queue=input_queue)
+        # Create StepConfigRegistry and associate input queue with main step
+        step_configs = StepConfigRegistry()
+        step_configs.set_input_queue("main", input_queue)
 
         # Configure doc_print step to call print_document tool
         doc_print_tool_call = ToolCallMessage(
             tool_calls=[ToolCall(name="print_document", arguments={})]
         )
-        step_configs.set_initial_messages("doc_print", [doc_print_tool_call])
+        step_configs.append_messages("doc_print", [doc_print_tool_call])
 
-        # Set initial_messages for main step if any exist
+        # Append messages for main step if any exist
         if initial_messages:
-            step_configs.set_initial_messages("main", initial_messages)
+            step_configs.append_messages("main", initial_messages)
 
         # Create and start worker thread for AI processing with step configs
         self.worker = AIWorker(self.ai_client, user_input, step_configs)

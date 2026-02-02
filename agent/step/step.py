@@ -64,7 +64,7 @@ class Step:
         provider: APIProvider,
         model: str,
         history: List[Dict],
-        input_queue: UserInputQueue,
+        input_queue: Optional[UserInputQueue] = None,
         initial_messages: Optional[List[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[Dict], None]] = None,
@@ -77,7 +77,7 @@ class Step:
             provider: API provider to use for completions
             model: Model identifier to use
             history: Conversation history from previous steps/interactions
-            input_queue: UserInputQueue containing the initial message and any follow-up messages
+            input_queue: Optional UserInputQueue containing the initial message and any follow-up messages
             initial_messages: Optional list of MessageElement objects for additional content
             api_debugger: Optional APIDebugger instance for dumping API data
             token_callback: Optional callback function to receive token usage updates
@@ -86,15 +86,16 @@ class Step:
         Returns:
             StepResult containing response, updated messages, token usage, and status
         """
-        # Get the initial message from the queue
-        user_message = input_queue.get_initial_message()
-
-        # Build messages for API call (system message + history + user message)
-        init_user_message = Instruction(user_message, description="User Request")
+        # Get the initial message from the queue if available
+        user_messages = []
+        if input_queue:
+            user_message = input_queue.get_initial_message()
+            if user_message:
+                user_messages.append(Instruction(user_message, description="User Request"))
 
         messages = self.request_builder.build_messages(
             history,
-            [init_user_message],
+            user_messages,
             initial_messages
         )
 
@@ -119,7 +120,7 @@ class Step:
                 )
 
             # Check for new user input from the queue
-            pending_input = input_queue.get_next_message()
+            pending_input = input_queue.get_next_message() if input_queue else None
             if pending_input:
                 # Append the new user message to the conversation
                 messages.append(TextMessage("user", pending_input).get_message())

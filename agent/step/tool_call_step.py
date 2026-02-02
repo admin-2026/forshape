@@ -59,7 +59,7 @@ class ToolCallStep:
         provider: APIProvider,  # Ignored - no AI calls
         model: str,             # Ignored - no AI calls
         history: List[Dict],
-        input_queue: UserInputQueue,  # Ignored - no user input processing
+        input_queue: Optional[UserInputQueue] = None,  # Ignored - no user input processing
         initial_messages: Optional[List[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[Dict], None]] = None,  # Ignored - no tokens
@@ -72,7 +72,7 @@ class ToolCallStep:
             provider: API provider (ignored - no AI calls made)
             model: Model identifier (ignored - no AI calls made)
             history: Conversation history (not modified, for reference only)
-            input_queue: UserInputQueue (ignored - no user input processing)
+            input_queue: Optional UserInputQueue (ignored - no user input processing)
             initial_messages: List of MessageElement objects; must contain a ToolCallMessage
             api_debugger: Optional APIDebugger instance for dumping tool execution data
             token_callback: Optional callback (ignored - no tokens used)

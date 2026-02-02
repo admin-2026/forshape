@@ -7,26 +7,12 @@ ToolCallStep to avoid code duplication.
 """
 
 import json
-from dataclasses import dataclass
 from typing import List, Dict, Optional, Any, Callable, Tuple
 
 from ..tools.tool_manager import ToolManager
 from ..api_debugger import APIDebugger
 from ..logger_protocol import LoggerProtocol
-
-
-@dataclass
-class ToolCall:
-    """Represents a tool call to be executed."""
-    name: str
-    arguments: Dict[str, Any]
-    id: Optional[str] = None
-
-    def __post_init__(self):
-        """Generate ID if not provided."""
-        if self.id is None:
-            import uuid
-            self.id = f"call_{uuid.uuid4().hex[:24]}"
+from ..request.tool_call_message import ToolCall
 
 
 class ToolExecutor:

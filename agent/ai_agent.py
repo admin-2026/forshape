@@ -175,9 +175,6 @@ class AIAgent:
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
 
-        # Add user message to history
-        self.history_manager.add_user_message(user_input)
-
         # Initialize cumulative token usage
         total_prompt_tokens = 0
         total_completion_tokens = 0
@@ -185,6 +182,9 @@ class AIAgent:
 
         # Get history for the first step
         history = self.history_manager.get_history()
+
+        # Add user message to history
+        self.history_manager.add_user_message(user_input)
 
         # Track the final result
         final_response = ""
@@ -213,7 +213,7 @@ class AIAgent:
 
             # Get step-specific config from registry
             step_input_queue = step_configs.get_input_queue(step.name)
-            step_initial_messages = step_configs.get_initial_messages(step.name)
+            step_initial_messages = step_configs.get_messages(step.name)
 
             # Run the step
             result: StepResult = step.step_run(

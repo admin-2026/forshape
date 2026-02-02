@@ -25,7 +25,7 @@ from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
 from agent.user_input_queue import UserInputQueue
-from agent.request import ImageMessage, ToolCallMessage, ToolCall
+from agent.request import ImageMessage, TextMessage, ToolCallMessage, ToolCall
 from agent.step_config import StepConfigRegistry
 
 if TYPE_CHECKING:
@@ -829,30 +829,25 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.history_logger:
             self.history_logger.log_conversation("user", user_input)
 
-        # Check if there are attached Python files to include in message
-        has_files = len(self.attached_files) > 0
-        augmented_input = user_input
+        # Build initial_messages for the main step (files and images)
+        initial_messages = []
 
-        if has_files:
-            # Prepend Python file content to the message
-            file_parts = []
-            for file_info in self.attached_files:
-                file_parts.append(
-                    f"[Attached Python file: {file_info['name']}]\n"
-                    f"```python\n{file_info['content']}\n```\n"
-                )
-
-            # Combine file content with user input
-            augmented_input = "\n".join(file_parts) + f"\n[User message]\n{user_input}"
-
+        # Add attached files as TextMessage
+        if self.attached_files:
             file_count = len(self.attached_files)
             self.append_message("System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message...")
+            for file_info in self.attached_files:
+                file_content = (
+                    f"[Attached Python file: {file_info['name']}]\n"
+                    f"```python\n{file_info['content']}\n```"
+                )
+                initial_messages.append(TextMessage("user", file_content))
 
-        # Check if there are captured images to attach
-        has_images = len(self.captured_images) > 0
-        if has_images:
+        # Add images as ImageMessage
+        if self.captured_images:
             image_count = len(self.captured_images)
             self.append_message("System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message...")
+            initial_messages.append(ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images))
 
         # Show in-progress indicator
         self.append_message("AI", "⏳ Processing...")
@@ -866,8 +861,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show cancel button when AI starts processing
         self.cancel_button.setVisible(True)
 
-        # Create UserInputQueue with the augmented input
-        input_queue = UserInputQueue(augmented_input)
+        # Create UserInputQueue with the user input
+        input_queue = UserInputQueue(user_input)
         self.current_input_queue = input_queue
 
         # Create StepConfigRegistry with the input queue
@@ -879,9 +874,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         )
         step_configs.set_initial_messages("doc_print", [doc_print_tool_call])
 
-        # Add initial messages for the main step if there are captured images
-        if has_images:
-            step_configs.set_initial_messages("main", [ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images)])
+        # Set initial_messages for main step if any exist
+        if initial_messages:
+            step_configs.set_initial_messages("main", initial_messages)
 
         # Create and start worker thread for AI processing with step configs
         self.worker = AIWorker(self.ai_client, step_configs)
@@ -895,12 +890,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.token_status_label.setStyleSheet("color: #666; padding: 2px;")  # Reset to default style
 
         # Clear captured images and reset button after sending
-        if has_images:
+        if self.captured_images:
             self.captured_images = []
             self.update_capture_button_state()
 
         # Clear attached files and reset placeholder after sending
-        if has_files:
+        if self.attached_files:
             self.attached_files = []
             self.update_input_placeholder()
 

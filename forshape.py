@@ -320,7 +320,8 @@ class ForShapeAI:
             logger=self.logger,
             api_debugger=self.api_debugger,
             provider=provider,
-            provider_config=provider_config
+            provider_config=provider_config,
+            edit_history=self.edit_history
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 

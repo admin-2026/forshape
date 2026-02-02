@@ -47,19 +47,6 @@ class ToolBase(ABC):
         """
         return list(self.get_functions().keys())
 
-    def start_conversation(self, conversation_id: str, user_request: Any = None) -> None:
-        """
-        Called when a new conversation starts.
-
-        Tool providers can override this to perform setup for a new conversation.
-        Default implementation does nothing.
-
-        Args:
-            conversation_id: Unique conversation ID
-            user_request: Optional user request text
-        """
-        pass
-
     def get_tool_instructions(self) -> str:
         """
         Get user-facing instructions for this tool provider's tools.

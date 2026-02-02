@@ -54,19 +54,6 @@ class ToolManager:
         # Log registered tools
         self.logger.info(f"Registered tools: {', '.join(tool_names)}")
 
-    def start_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
-        """
-        Start a new conversation with the given ID.
-
-        Notifies all registered tool providers about the new conversation.
-
-        Args:
-            conversation_id: Unique conversation ID from AIAgent
-            user_request: Optional user request text to store with this checkpoint
-        """
-        for provider in self._tool_providers:
-            provider.start_conversation(conversation_id, user_request)
-
     def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.

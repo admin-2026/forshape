@@ -186,19 +186,6 @@ When users ask you to generate or modify files:
 > Use search_python_files with pattern="Context\\." to find all references
 """
 
-    def start_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
-        """
-        Start a new conversation with the given ID.
-
-        This delegates to the edit history to prepare for tracking file edits.
-
-        Args:
-            conversation_id: Unique conversation ID from AIAgent
-            user_request: Optional user request text to store with this checkpoint
-        """
-        if self.edit_history:
-            self.edit_history.start_new_conversation(conversation_id, user_request)
-
     def _resolve_path(self, path: str) -> Path:
         """Resolve a path relative to the working directory."""
         path_obj = Path(path)

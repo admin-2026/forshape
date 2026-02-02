@@ -17,6 +17,7 @@ from .api_provider import APIProvider, create_api_provider
 from .step_config import StepConfigRegistry
 
 from .logger_protocol import LoggerProtocol
+from .edit_history import EditHistory
 
 
 class AIAgent:
@@ -33,9 +34,10 @@ class AIAgent:
         model: str,
         steps: List[Step],
         logger: LoggerProtocol,
+        edit_history: EditHistory,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
-        provider_config=None
+        provider_config=None,
     ):
         """
         Initialize the AI agent.
@@ -45,6 +47,7 @@ class AIAgent:
             model: Model identifier to use
             steps: List of Step instances to execute
             logger: LoggerProtocol instance for logging
+            edit_history: EditHistory instance for tracking file changes
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
             provider_config: Optional ProviderConfig instance for provider configuration
@@ -59,6 +62,7 @@ class AIAgent:
         self._cancellation_requested = False
         self.api_debugger = api_debugger
         self._conversation_counter = 0
+        self.edit_history = edit_history
 
     def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
         """
@@ -126,9 +130,8 @@ class AIAgent:
             # Generate a new conversation ID for this user request
             conversation_id = self._generate_conversation_id()
 
-            # Start conversation on all step tool managers
-            for step in self.steps:
-                step.tool_manager.start_conversation(conversation_id, user_request=initial_message)
+            # Start new conversation on edit history
+            self.edit_history.start_new_conversation(conversation_id, user_request=initial_message)
 
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")

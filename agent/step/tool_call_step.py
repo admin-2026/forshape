@@ -147,8 +147,20 @@ class ToolCallStep:
 
             messages.extend(result_messages)
 
+            # Extract response from tool results where copy_result_to_response is True
+            response = ""
+            copy_ids = {tc.id for tc in tool_calls if tc.copy_result_to_response}
+            if copy_ids and result_messages:
+                response_parts = []
+                for msg in result_messages:
+                    if msg.get("tool_call_id") in copy_ids:
+                        content = msg.get("content", "")
+                        if content:
+                            response_parts.append(content)
+                response = "\n".join(response_parts)
+
             return StepResult(
-                response="",
+                response=response,
                 messages=messages,
                 token_usage={},
                 status="completed"

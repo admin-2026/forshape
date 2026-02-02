@@ -135,7 +135,7 @@ class AIAgent:
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            response = self._agent_run(user_input, step_configs, token_callback)
+            response = self._agent_run(step_configs, token_callback)
             return response
 
         except Exception as e:
@@ -154,12 +154,11 @@ class AIAgent:
         """Check if cancellation has been requested."""
         return self._cancellation_requested
 
-    def _agent_run(self, user_input: str, step_configs: StepConfigRegistry, token_callback=None) -> str:
+    def _agent_run(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
         """
         Run the agent by executing all steps in sequence.
 
         Args:
-            user_input: The user's input message
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates
 
@@ -179,12 +178,6 @@ class AIAgent:
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
-
-        # Get history for the first step
-        history = self.history_manager.get_history()
-
-        # Add user message to history
-        self.history_manager.add_user_message(user_input)
 
         # Track the final result
         final_response = ""
@@ -215,6 +208,15 @@ class AIAgent:
             step_input_queue = step_configs.get_input_queue(step.name)
             step_initial_messages = step_configs.get_messages(step.name)
 
+            # Get history for the current step
+            history = self.history_manager.get_history()
+
+            # Add user message to history
+            if step_input_queue:
+                user_input = step_input_queue.get_initial_message()
+                if user_input:
+                    self.history_manager.add_user_message(user_input)
+
             # Run the step
             result: StepResult = step.step_run(
                 provider=self.provider,
@@ -240,8 +242,8 @@ class AIAgent:
                 self.logger.info(f"Step {step.name} ended with status: {result.status}")
                 break
 
-            # Update history for next step (could pass messages between steps if needed)
-            # For now, we don't modify history between steps
+            # Update history with final response, pass response to next step
+            self.history_manager.add_assistant_message(final_response)
 
         # Store final token usage
         self.last_token_usage = {
@@ -249,9 +251,6 @@ class AIAgent:
             "completion_tokens": total_completion_tokens,
             "total_tokens": total_tokens
         }
-
-        # Update history with final response
-        self.history_manager.add_assistant_message(final_response)
 
         return final_response
 

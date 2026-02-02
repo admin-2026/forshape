@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
-    from agent.user_input_queue import UserInputQueue
+
+from agent.step_config import StepConfigRegistry
 
 
 class AIWorker(QThread):
@@ -19,19 +20,17 @@ class AIWorker(QThread):
     # Signal emitted during processing to update token usage
     token_update = Signal(object)  # (token_data)
 
-    def __init__(self, ai_client: 'AIAgent', input_queue: 'UserInputQueue', initial_messages=None):
+    def __init__(self, ai_client: 'AIAgent', step_configs: StepConfigRegistry):
         """
         Initialize the AI worker thread.
 
         Args:
             ai_client: The AIAgent instance
-            input_queue: UserInputQueue containing the initial message and any follow-up messages
-            initial_messages: Optional list of MessageElement objects for additional content
+            step_configs: Registry with step-specific configurations
         """
         super().__init__()
         self.ai_client = ai_client
-        self.input_queue = input_queue
-        self.initial_messages = initial_messages
+        self.step_configs = step_configs
         self._is_cancelled = False
 
     def cancel(self):
@@ -50,8 +49,8 @@ class AIWorker(QThread):
             def token_callback(token_data):
                 self.token_update.emit(token_data)
 
-            # Process request with input queue
-            response = self.ai_client.process_request(self.input_queue, self.initial_messages, token_callback)
+            # Process request with step configs
+            response = self.ai_client.process_request(self.step_configs, token_callback)
 
             # Check if cancelled
             if self._is_cancelled:

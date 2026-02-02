@@ -14,9 +14,9 @@ from .request import MessageElement
 from .api_debugger import APIDebugger
 from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
+from .step_config import StepConfigRegistry
 
 from .logger_protocol import LoggerProtocol
-from .user_input_queue import UserInputQueue
 
 
 class AIAgent:
@@ -106,13 +106,12 @@ class AIAgent:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
-    def process_request(self, input_queue: 'UserInputQueue', initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
+    def process_request(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
         """
         Process the user's request through the AI agent.
 
         Args:
-            input_queue: The user input queue containing the initial message and any follow-up messages
-            initial_messages: Optional list of MessageElement objects for additional content
+            step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates after each iteration
 
         Returns:
@@ -122,7 +121,7 @@ class AIAgent:
             return f"Error: {self.provider_name} provider not initialized. Please check your API key."
 
         try:
-            initial_message = input_queue.get_initial_message()
+            initial_message = step_configs.default_input_queue.get_initial_message()
 
             # Generate a new conversation ID for this user request
             conversation_id = self._generate_conversation_id()
@@ -134,7 +133,7 @@ class AIAgent:
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            response = self._agent_run(input_queue, initial_messages, token_callback)
+            response = self._agent_run(step_configs, token_callback)
             return response
 
         except Exception as e:
@@ -153,13 +152,12 @@ class AIAgent:
         """Check if cancellation has been requested."""
         return self._cancellation_requested
 
-    def _agent_run(self, input_queue: UserInputQueue, initial_messages: Optional[List[MessageElement]] = None, token_callback=None) -> str:
+    def _agent_run(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
         """
         Run the agent by executing all steps in sequence.
 
         Args:
-            input_queue: UserInputQueue containing the initial message and any follow-up messages
-            initial_messages: Optional list of MessageElement objects for additional content
+            step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates
 
         Returns:
@@ -175,7 +173,7 @@ class AIAgent:
         self.reset_cancellation()
 
         # Get initial message for history
-        user_message = input_queue.get_initial_message()
+        user_message = step_configs.default_input_queue.get_initial_message()
         self.history_manager.add_user_message(user_message)
 
         # Initialize cumulative token usage
@@ -211,13 +209,17 @@ class AIAgent:
                         "step_index": i + 1
                     })
 
+            # Get step-specific config from registry
+            step_input_queue = step_configs.get_input_queue(step.name)
+            step_initial_messages = step_configs.get_initial_messages(step.name)
+
             # Run the step
             result: StepResult = step.step_run(
                 provider=self.provider,
                 model=self.model,
                 history=history,
-                input_queue=input_queue,
-                initial_messages=initial_messages if i == 0 else None,
+                input_queue=step_input_queue,
+                initial_messages=step_initial_messages,
                 api_debugger=self.api_debugger,
                 token_callback=step_token_callback,
                 cancellation_check=self._is_cancelled

@@ -26,6 +26,7 @@ from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandl
 from .variables import VariablesView
 from agent.user_input_queue import UserInputQueue
 from agent.request import ImageMessage
+from agent.step_config import StepConfigRegistry
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
@@ -869,9 +870,15 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         input_queue = UserInputQueue(augmented_input)
         self.current_input_queue = input_queue
 
-        # Create and start worker thread for AI processing with input queue and optional images
-        initial_messages = [ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images)] if has_images else None
-        self.worker = AIWorker(self.ai_client, input_queue, initial_messages)
+        # Create StepConfigRegistry with the input queue
+        step_configs = StepConfigRegistry(default_input_queue=input_queue)
+
+        # Add initial messages for the main step if there are captured images
+        if has_images:
+            step_configs.set_initial_messages("main", [ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images)])
+
+        # Create and start worker thread for AI processing with step configs
+        self.worker = AIWorker(self.ai_client, step_configs)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.token_update.connect(self.on_token_update)
         self.worker.start()

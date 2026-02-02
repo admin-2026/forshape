@@ -6,7 +6,7 @@ tool management, and related components that are independent of the GUI.
 """
 
 from .ai_agent import AIAgent
-from .step import Step, StepResult, ToolCallStep, ToolCallStepResult, ToolExecutor
+from .step import Step, StepResult, ToolCallStep, ToolExecutor
 from .step_config import StepConfig, StepConfigRegistry
 from .api_provider import APIProvider, OpenAICompatibleProvider, create_api_provider, create_api_provider_from_config
 from .tools.tool_manager import ToolManager
@@ -34,7 +34,6 @@ __all__ = [
     'Step',
     'StepResult',
     'ToolCallStep',
-    'ToolCallStepResult',
     'ToolExecutor',
     'StepConfig',
     'StepConfigRegistry',

@@ -5,23 +5,16 @@ This module provides a ToolCallStep that directly calls tools (no AI)
 and puts responses in history for other steps to process.
 """
 
-from dataclasses import dataclass
 from typing import List, Dict, Optional, Callable
 
 from .tool_executor import ToolExecutor
+from .step_result import StepResult
 from ..request import MessageElement
 from ..request.tool_call_message import ToolCallMessage
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
 from ..user_input_queue import UserInputQueue
-
-
-@dataclass
-class ToolCallStepResult:
-    """Result of a ToolCallStep execution."""
-    messages: List[Dict]  # Tool call message + tool result messages
-    status: str  # "completed", "cancelled", "error"
 
 
 class ToolCallStep:
@@ -71,7 +64,7 @@ class ToolCallStep:
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[Dict], None]] = None,  # Ignored - no tokens
         cancellation_check: Optional[Callable[[], bool]] = None
-    ) -> ToolCallStepResult:
+    ) -> StepResult:
         """
         Run the step by executing tool calls from initial_messages.
 
@@ -86,15 +79,17 @@ class ToolCallStep:
             cancellation_check: Optional function that returns True if cancellation requested
 
         Returns:
-            ToolCallStepResult containing messages (tool call + results) and status
+            StepResult containing messages (tool call + results) and status
         """
         messages = []
 
         # Validate initial_messages contains only ToolCallMessage
         if not initial_messages:
             self._log_error("No initial_messages provided")
-            return ToolCallStepResult(
+            return StepResult(
+                response="",
                 messages=[],
+                token_usage={},
                 status="error"
             )
 
@@ -105,8 +100,10 @@ class ToolCallStep:
                     f"initial_messages must contain only ToolCallMessage, "
                     f"got {type(msg_element).__name__}"
                 )
-                return ToolCallStepResult(
+                return StepResult(
+                    response="",
                     messages=[],
+                    token_usage={},
                     status="error"
                 )
 
@@ -115,8 +112,10 @@ class ToolCallStep:
 
         # Check for cancellation before starting
         if cancellation_check and cancellation_check():
-            return ToolCallStepResult(
+            return StepResult(
+                response="",
                 messages=[],
+                token_usage={},
                 status="cancelled"
             )
 
@@ -139,21 +138,27 @@ class ToolCallStep:
             )
 
             if was_cancelled:
-                return ToolCallStepResult(
+                return StepResult(
+                    response="",
                     messages=messages,
+                    token_usage={},
                     status="cancelled"
                 )
 
             messages.extend(result_messages)
 
-            return ToolCallStepResult(
+            return StepResult(
+                response="",
                 messages=messages,
+                token_usage={},
                 status="completed"
             )
 
         except Exception as e:
             self._log_error(f"Error during tool execution: {str(e)}")
-            return ToolCallStepResult(
+            return StepResult(
+                response="",
                 messages=messages,
+                token_usage={},
                 status="error"
             )

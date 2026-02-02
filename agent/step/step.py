@@ -5,25 +5,15 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
-from dataclasses import dataclass
 from typing import List, Dict, Optional, Callable
 
 from ..request import RequestBuilder, Instruction, TextMessage, MessageElement
-from ..tools.tool_manager import ToolManager
 from .tool_executor import ToolExecutor
+from .step_result import StepResult
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
 from ..user_input_queue import UserInputQueue
-
-
-@dataclass
-class StepResult:
-    """Result of a Step execution."""
-    response: str
-    messages: List[Dict]
-    token_usage: Dict
-    status: str  # "completed", "cancelled", "max_iterations"
 
 
 class Step:
@@ -39,7 +29,7 @@ class Step:
         self,
         name: str,
         request_builder: RequestBuilder,
-        tool_manager: ToolManager,
+        tool_executor: ToolExecutor,
         max_iterations: int = 50,
         logger: Optional[LoggerProtocol] = None
     ):
@@ -49,14 +39,13 @@ class Step:
         Args:
             name: Name of this step for logging/identification
             request_builder: RequestBuilder instance for building request context
-            tool_manager: ToolManager instance with registered tools
+            tool_executor: ToolExecutor instance for executing tools
             max_iterations: Maximum number of tool calling iterations (default: 50)
             logger: Optional LoggerProtocol instance for logging
         """
         self.name = name
         self.request_builder = request_builder
-        self.tool_manager = tool_manager
-        self.tool_executor = ToolExecutor(tool_manager, logger)
+        self.tool_executor = tool_executor
         self.max_iterations = max_iterations
         self.logger = logger
 
@@ -142,7 +131,7 @@ class Step:
                     api_debugger.dump_request(
                         model=model,
                         messages=messages,
-                        tools=self.tool_manager.get_tools(),
+                        tools=self.tool_executor.tool_manager.get_tools(),
                         tool_choice="auto",
                         additional_data={"iteration": iteration + 1, "step": self.name}
                     )
@@ -151,7 +140,7 @@ class Step:
                 response = provider.create_completion(
                     model=model,
                     messages=messages,
-                    tools=self.tool_manager.get_tools(),
+                    tools=self.tool_executor.tool_manager.get_tools(),
                     tool_choice="auto"
                 )
 

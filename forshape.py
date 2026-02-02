@@ -293,7 +293,7 @@ class ForShapeAI:
         # Create request builder for AI context
         request_builder = RequestBuilder(system_elements, user_elements)
 
-        # Create tool executor for ToolCallStep
+        # Create tool executor shared by all steps
         tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
 
         # Create the doc_print step that calls print_document before main step
@@ -303,11 +303,11 @@ class ForShapeAI:
             logger=self.logger
         )
 
-        # Create the main step with tool manager
+        # Create the main step with tool executor
         main_step = Step(
             name="main",
             request_builder=request_builder,
-            tool_manager=tool_manager,
+            tool_executor=tool_executor,
             max_iterations=50,
             logger=self.logger
         )

@@ -31,6 +31,7 @@ from app import (
     APIDebugger,
     ApiKeyManager
 )
+from agent import ToolCallStep, ToolExecutor
 from agent.tools.tool_manager import ToolManager
 from agent.request import RequestBuilder, FileLoader, Instruction, DynamicContent
 from agent.async_ops import WaitManager, PermissionInput
@@ -292,6 +293,16 @@ class ForShapeAI:
         # Create request builder for AI context
         request_builder = RequestBuilder(system_elements, user_elements)
 
+        # Create tool executor for ToolCallStep
+        tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
+
+        # Create the doc_print step that calls print_document before main step
+        doc_print_step = ToolCallStep(
+            name="doc_print",
+            tool_executor=tool_executor,
+            logger=self.logger
+        )
+
         # Create the main step with tool manager
         main_step = Step(
             name="main",
@@ -301,11 +312,11 @@ class ForShapeAI:
             logger=self.logger
         )
 
-        # Create AI agent with step
+        # Create AI agent with steps (doc_print runs before main)
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
-            steps=[main_step],
+            steps=[doc_print_step, main_step],
             logger=self.logger,
             api_debugger=self.api_debugger,
             provider=provider,

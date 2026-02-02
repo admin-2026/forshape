@@ -90,20 +90,28 @@ class ToolCallStep:
         """
         messages = []
 
-        # Find ToolCallMessage in initial_messages
-        tool_call_message = None
-        if initial_messages:
-            for msg_element in initial_messages:
-                if isinstance(msg_element, ToolCallMessage):
-                    tool_call_message = msg_element
-                    break
-
-        if not tool_call_message:
-            self._log_error("No ToolCallMessage found in initial_messages")
+        # Validate initial_messages contains only ToolCallMessage
+        if not initial_messages:
+            self._log_error("No initial_messages provided")
             return ToolCallStepResult(
                 messages=[],
                 status="error"
             )
+
+        # Check all messages are ToolCallMessage
+        for msg_element in initial_messages:
+            if not isinstance(msg_element, ToolCallMessage):
+                self._log_error(
+                    f"initial_messages must contain only ToolCallMessage, "
+                    f"got {type(msg_element).__name__}"
+                )
+                return ToolCallStepResult(
+                    messages=[],
+                    status="error"
+                )
+
+        # Use the first ToolCallMessage
+        tool_call_message = initial_messages[0]
 
         # Check for cancellation before starting
         if cancellation_check and cancellation_check():

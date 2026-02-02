@@ -25,7 +25,7 @@ from .ui_config_manager import UIConfigManager
 from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
 from agent.user_input_queue import UserInputQueue
-from agent.request import ImageMessage
+from agent.request import ImageMessage, ToolCallMessage, ToolCall
 from agent.step_config import StepConfigRegistry
 
 if TYPE_CHECKING:
@@ -872,6 +872,12 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Create StepConfigRegistry with the input queue
         step_configs = StepConfigRegistry(default_input_queue=input_queue)
+
+        # Configure doc_print step to call print_document tool
+        doc_print_tool_call = ToolCallMessage(
+            tool_calls=[ToolCall(name="print_document", arguments={})]
+        )
+        step_configs.set_initial_messages("doc_print", [doc_print_tool_call])
 
         # Add initial messages for the main step if there are captured images
         if has_images:

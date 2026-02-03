@@ -880,7 +880,16 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Configure doc_print step to call print_document tool
         doc_print_tool_call = ToolCallMessage(
-            tool_calls=[ToolCall(name="print_document", arguments={}, copy_result_to_response=True,description="The current FreeCAD document structure", key="doc_print_step_print_document", policy=HistoryPolicy.LATEST)]
+            tool_calls=[
+                ToolCall(
+                    name="print_document",
+                    arguments={},
+                    copy_result_to_response=True,
+                    description="The current FreeCAD document structure",
+                    key="doc_print_step_print_document",
+                    policy=HistoryPolicy.LATEST,
+                )
+            ]
         )
         step_configs.append_messages("doc_print", [doc_print_tool_call])
 

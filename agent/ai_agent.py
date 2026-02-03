@@ -237,7 +237,8 @@ class AIAgent:
 
             # Concatenate all assistant message contents for final response
             response_parts = [
-                msg.content for msg in result.history_messages
+                msg.content
+                for msg in result.history_messages
                 if msg.role == "assistant" and isinstance(msg.content, str)
             ]
             if response_parts:

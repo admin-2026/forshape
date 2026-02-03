@@ -1,0 +1,209 @@
+"""
+Python linting tools for AI Agent.
+
+This module provides Python code linting tools
+using ruff to check Python files under a directory.
+"""
+
+import json
+import subprocess
+from pathlib import Path
+from typing import Callable
+
+from .base import ToolBase
+
+
+class PythonLintTools(ToolBase):
+    """
+    Python linting tools using ruff.
+
+    Provides tools to lint Python files under a directory.
+    """
+
+    def get_definitions(self) -> list[dict]:
+        """Get tool definitions in OpenAI function format."""
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": "lint_python",
+                    "description": "Lint and optionally format Python files under a directory using ruff. Returns linting issues found in the code.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "directory": {
+                                "type": "string",
+                                "description": "The directory path containing Python files to lint. Can be absolute or relative path.",
+                            },
+                            "format": {
+                                "type": "boolean",
+                                "description": "Whether to also format the Python files using ruff. Defaults to true.",
+                            },
+                            "fix": {
+                                "type": "boolean",
+                                "description": "Whether to auto-fix linting issues that can be fixed automatically. Defaults to true.",
+                            },
+                            "ignore": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of lint error codes to ignore (e.g., ['F405', 'E501']).",
+                            },
+                        },
+                        "required": ["directory"],
+                    },
+                },
+            }
+        ]
+
+    def get_functions(self) -> dict[str, Callable[..., str]]:
+        """Get mapping of tool names to implementations."""
+        return {
+            "lint_python": self._tool_lint_python,
+        }
+
+    def get_tool_instructions(self) -> str:
+        """Get usage instructions for Python lint tools."""
+        return """
+### Python Lint Tools
+1. **lint_python** - Lint, auto-fix, and format Python files under a directory using ruff
+
+### Lint Tool Examples
+
+**Lint, auto-fix, and format all Python files in the current directory:**
+> Use lint_python with directory="."
+
+**Lint, auto-fix, and format Python files in a specific folder:**
+> Use lint_python with directory="src/mypackage"
+
+**Lint only without formatting or auto-fix:**
+> Use lint_python with directory="src/mypackage", format=false, fix=false
+
+**Lint while ignoring specific error codes:**
+> Use lint_python with directory="src/mypackage", ignore=["F405", "E501"]
+"""
+
+    def _json_error(self, message: str, **kwargs) -> str:
+        """Create a JSON error response."""
+        response = {"error": message}
+        response.update(kwargs)
+        return json.dumps(response, indent=2)
+
+    def _json_success(
+        self,
+        issues: list[dict],
+        directory: str,
+        file_count: int,
+        formatted: bool = False,
+        fixed: bool = False,
+    ) -> str:
+        """Create a JSON success response."""
+        response = {
+            "success": True,
+            "directory": directory,
+            "files_checked": file_count,
+            "formatted": formatted,
+            "fixed": fixed,
+            "issue_count": len(issues),
+            "issues": issues,
+        }
+        return json.dumps(response, indent=2)
+
+    def _tool_lint_python(
+        self,
+        directory: str,
+        format: bool = True,
+        fix: bool = True,
+        ignore: list[str] | None = None,
+    ) -> str:
+        """
+        Implementation of the lint_python tool.
+        Lints and optionally formats/fixes Python files under a directory using ruff.
+
+        Args:
+            directory: The directory path to lint
+            format: Whether to also format the files (default True)
+            fix: Whether to auto-fix linting issues (default True)
+            ignore: List of error codes to ignore (e.g., ["F405", "E501"])
+
+        Returns:
+            JSON string with lint results or error message
+        """
+        try:
+            # Validate directory parameter
+            if not directory or not isinstance(directory, str):
+                return self._json_error("Directory must be a non-empty string")
+
+            directory = directory.strip()
+            if not directory:
+                return self._json_error("Directory cannot be empty")
+
+            # Convert to Path and validate
+            dir_path = Path(directory)
+            if not dir_path.exists():
+                return self._json_error(f"Directory does not exist: {directory}")
+
+            if not dir_path.is_dir():
+                return self._json_error(f"Path is not a directory: {directory}")
+
+            # Count Python files
+            python_files = list(dir_path.rglob("*.py"))
+            file_count = len(python_files)
+
+            if file_count == 0:
+                return self._json_success([], directory, 0, formatted=False, fixed=False)
+
+            # Run ruff format if enabled
+            formatted = False
+            if format:
+                subprocess.run(
+                    ["ruff", "format", str(dir_path)],
+                    capture_output=True,
+                    text=True,
+                )
+                formatted = True
+
+            # Build ignore arguments
+            ignore_args = []
+            if ignore:
+                ignore_args = ["--ignore", ",".join(ignore)]
+
+            # Run ruff check with auto-fix if enabled
+            fixed = False
+            if fix:
+                subprocess.run(
+                    ["ruff", "check", "--fix", str(dir_path)] + ignore_args,
+                    capture_output=True,
+                    text=True,
+                )
+                fixed = True
+
+            # Run ruff check with JSON output to get remaining issues
+            result = subprocess.run(
+                ["ruff", "check", "--output-format=json", str(dir_path)] + ignore_args,
+                capture_output=True,
+                text=True,
+            )
+
+            # Parse ruff JSON output
+            issues = []
+            if result.stdout.strip():
+                ruff_output = json.loads(result.stdout)
+                for item in ruff_output:
+                    issues.append(
+                        {
+                            "file": item.get("filename", ""),
+                            "line": item.get("location", {}).get("row", 0),
+                            "column": item.get("location", {}).get("column", 0),
+                            "code": item.get("code", ""),
+                            "message": item.get("message", ""),
+                        }
+                    )
+
+            return self._json_success(issues, directory, file_count, formatted=formatted, fixed=fixed)
+
+        except FileNotFoundError:
+            return self._json_error("ruff is not installed. Install it with: pip install ruff")
+        except json.JSONDecodeError as e:
+            return self._json_error(f"Failed to parse ruff output: {str(e)}")
+        except Exception as e:
+            return self._json_error(f"Error running lint: {str(e)}")

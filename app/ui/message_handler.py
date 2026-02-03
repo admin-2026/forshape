@@ -7,7 +7,7 @@ message formatting in the conversation display.
 
 import uuid
 
-from PySide2.QtCore import Qt, QSize
+from PySide2.QtCore import QSize, Qt
 from PySide2.QtGui import QFont, QTextCursor
 from PySide2.QtWidgets import QListWidget, QListWidgetItem, QTextBrowser
 
@@ -281,7 +281,7 @@ class MessageHandler:
         Returns:
             Message ID
         """
-        return self.append_message("[ERROR]", error_message)
+        return self.append_message("ERROR", error_message)
 
     def on_log_message(self, level: str, message: str, timestamp: str):
         """

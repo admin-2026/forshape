@@ -63,7 +63,7 @@ class PrestartChecker:
         try:
             import FreeCAD as App
         except ImportError:
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 "❌ **FreeCAD Not Available**\n\n"
                 "FreeCAD module could not be imported. Please run this from FreeCAD's Python console.",
@@ -73,7 +73,7 @@ class PrestartChecker:
 
         # Check 2: Is there an active document?
         if App.ActiveDocument is None:
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 "⚠️ **No Active Document**\n\n"
                 "There is no active FreeCAD document.\n\n"
@@ -88,7 +88,7 @@ class PrestartChecker:
         # Check 3: Is the document saved?
         doc_path = App.ActiveDocument.FileName
         if not doc_path or doc_path == "":
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 f"⚠️ **Document Not Saved**\n\n"
                 f"The active document '{App.ActiveDocument.Name}' has not been saved yet.\n\n"
@@ -104,7 +104,7 @@ class PrestartChecker:
         current_dir = os.path.abspath(self.config.working_dir)
 
         if doc_dir != current_dir:
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 f"⚠️ **Working Directory Mismatch**\n\n"
                 f"The current working directory does not match the document's location.\n\n"
@@ -135,7 +135,7 @@ class PrestartChecker:
         configured_providers = provider_loader.get_providers()
 
         if not configured_providers:
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 "⚠️ **No Providers Configured**\n\n"
                 "No API providers found in provider-config.json. Please check your configuration.",
@@ -168,7 +168,7 @@ class PrestartChecker:
             message_lines.append("**After adding an API key:**")
             message_lines.append("• Type anything (e.g., 'ready') to continue")
 
-            window.append_message("System", "\n".join(message_lines))
+            window.message_handler.append_message("System", "\n".join(message_lines))
             self.status = "need_api_key"
             return "need_api_key"
 
@@ -182,7 +182,7 @@ class PrestartChecker:
         )
 
         keys_message = ", ".join(configured_keys) if configured_keys else "None"
-        window.append_message(
+        window.message_handler.append_message(
             "System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
@@ -213,7 +213,7 @@ class PrestartChecker:
 
             # Show what was created if anything
             if created_items:
-                window.append_message("System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items))
+                window.message_handler.append_message("System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items))
 
             # Copy template files to working directory if they don't exist
             self._setup_template_files(window)
@@ -221,7 +221,7 @@ class PrestartChecker:
             return True
 
         except Exception as e:
-            window.append_message(
+            window.message_handler.append_message(
                 "System", f"❌ **Configuration Setup Failed**\n\nFailed to create configuration directories:\n{str(e)}"
             )
             self.logger.error(f"Failed to setup directories: {e}")
@@ -273,7 +273,7 @@ class PrestartChecker:
         # Inform user if any files were copied
         if copied_files:
             files_list = "\n".join([f"• {f}" for f in copied_files])
-            window.append_message(
+            window.message_handler.append_message(
                 "System",
                 f"✅ **Template Files Created**\n\n"
                 f"The following template files have been created in your working directory:\n"
@@ -295,19 +295,19 @@ class PrestartChecker:
         try:
             import FreeCAD as App
         except ImportError:
-            window.append_message("System", "❌ FreeCAD not available")
+            window.message_handler.append_message("System", "❌ FreeCAD not available")
             return False
 
         response = user_input.strip().lower()
 
         if response == "cancel":
-            window.append_message("System", "❌ Setup cancelled. You can close the window.")
+            window.message_handler.append_message("System", "❌ Setup cancelled. You can close the window.")
             self.status = "error"
             return False
         elif response == "yes":
             doc_path = App.ActiveDocument.FileName if App.ActiveDocument else None
             if not doc_path:
-                window.append_message("System", "⚠️ Document is no longer available. Please save it again.")
+                window.message_handler.append_message("System", "⚠️ Document is no longer available. Please save it again.")
                 return True
 
             doc_dir = os.path.dirname(os.path.abspath(doc_path))
@@ -319,13 +319,13 @@ class PrestartChecker:
                 self.config.update_working_directory(doc_dir)
 
                 self.logger.info(f"Changed working directory to: {doc_dir}")
-                window.append_message(
+                window.message_handler.append_message(
                     "System",
                     f"✅ **Directory Changed**\n\nWorking directory changed to: `{doc_dir}`\n\nRechecking setup...",
                 )
                 return True
             except Exception as e:
-                window.append_message(
+                window.message_handler.append_message(
                     "System",
                     f"❌ **Error Changing Directory**\n\n"
                     f"Failed to change working directory: {str(e)}\n\n"
@@ -338,10 +338,10 @@ class PrestartChecker:
             current_dir = self.config.working_dir
             self.config.update_working_directory(current_dir)
 
-            window.append_message("System", "Continuing with current directory. Rechecking setup...")
+            window.message_handler.append_message("System", "Continuing with current directory. Rechecking setup...")
             return True
         else:
-            window.append_message("System", "⚠️ Please type 'yes', 'no', or 'cancel'")
+            window.message_handler.append_message("System", "⚠️ Please type 'yes', 'no', or 'cancel'")
             return True
 
     def get_status(self) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:

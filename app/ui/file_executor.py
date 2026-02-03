@@ -114,7 +114,7 @@ class FileExecutor:
         Returns:
             None
         """
-        self.message_handler.append_message("[SYSTEM]", f"{action_name}: {file_path}")
+        self.message_handler.append_message("System", f"{action_name}: {file_path}")
 
         # Get absolute path
         abs_path = os.path.abspath(file_path)
@@ -153,7 +153,7 @@ class FileExecutor:
                 # Check results
                 if teardown_result.success and normal_result.success:
                     self.message_handler.append_message(
-                        "[SYSTEM]", f"{action_name} completed successfully: {file_path}"
+                        "System", f"{action_name} completed successfully: {file_path}"
                     )
                 elif not teardown_result.success:
                     error_msg = f"Error during teardown of {file_path}:\n{teardown_result.error}"
@@ -171,7 +171,7 @@ class FileExecutor:
 
                 if result.success:
                     self.message_handler.append_message(
-                        "[SYSTEM]", f"{action_name} completed successfully: {file_path}"
+                        "System", f"{action_name} completed successfully: {file_path}"
                     )
                 else:
                     error_msg = f"Error during {action_name.lower()} of {file_path}:\n{result.error}"
@@ -221,7 +221,7 @@ class FileExecutor:
 
         if not python_files:
             self.message_handler.append_message(
-                "[SYSTEM]",
+                "System",
                 "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
             )
             return
@@ -245,7 +245,7 @@ class FileExecutor:
 
         if not python_files:
             self.message_handler.append_message(
-                "[SYSTEM]",
+                "System",
                 "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
             )
             return
@@ -269,7 +269,7 @@ class FileExecutor:
 
         if not python_files:
             self.message_handler.append_message(
-                "[SYSTEM]",
+                "System",
                 "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
             )
             return
@@ -289,7 +289,7 @@ class FileExecutor:
 
         # Check if export.py exists
         if not os.path.exists(export_file):
-            self.message_handler.append_message("[SYSTEM]", "export.py not found in the working directory.")
+            self.message_handler.append_message("System", "export.py not found in the working directory.")
             return
 
         # Run the export script in normal mode
@@ -303,7 +303,7 @@ class FileExecutor:
 
         # Check if import.py exists
         if not os.path.exists(import_file):
-            self.message_handler.append_message("[SYSTEM]", "import.py not found in the working directory.")
+            self.message_handler.append_message("System", "import.py not found in the working directory.")
             return
 
         # Run the import script in normal mode

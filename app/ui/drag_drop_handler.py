@@ -164,7 +164,7 @@ class DragDropHandler:
             file_path: Path to the dropped image file
         """
         if self.is_ai_busy_callback and self.is_ai_busy_callback():
-            self.message_handler.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            self.message_handler.append_message("System", "AI is currently processing. Please wait...")
             return
 
         try:
@@ -223,7 +223,7 @@ class DragDropHandler:
 
         except Exception:
             error_msg = f"Error processing dropped image:\n{traceback.format_exc()}"
-            self.message_handler.append_message("[SYSTEM]", error_msg)
+            self.message_handler.append_message("System", error_msg)
 
     def handle_dropped_python_file(self, file_path: str):
         """
@@ -233,7 +233,7 @@ class DragDropHandler:
             file_path: Path to the dropped Python file
         """
         if self.is_ai_busy_callback and self.is_ai_busy_callback():
-            self.message_handler.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            self.message_handler.append_message("System", "AI is currently processing. Please wait...")
             return
 
         try:
@@ -260,4 +260,4 @@ class DragDropHandler:
 
         except Exception:
             error_msg = f"Error processing dropped Python file:\n{traceback.format_exc()}"
-            self.message_handler.append_message("[SYSTEM]", error_msg)
+            self.message_handler.append_message("System", error_msg)

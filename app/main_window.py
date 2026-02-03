@@ -104,7 +104,6 @@ class ForShapeMainWindow(QMainWindow):
         self.ui_config_manager.load()
 
         # Initialize handler instances (will be fully configured after UI setup)
-        self.message_handler = None
         self.file_executor = None
         self.drag_drop_handler = None
         self.model_menu_manager = None
@@ -497,14 +496,14 @@ class ForShapeMainWindow(QMainWindow):
         """Handle Rewind button click - show checkpoint selector and restore files."""
         # Get the edits directory from the context provider
         if not self.config:
-            self.append_message("[ERROR]", "Context provider not initialized.")
+            self.message_handler.display_error( "Context provider not initialized.")
             return
 
         edits_dir = self.config.get_edits_dir()
 
         # Check if edits directory exists
         if not edits_dir.exists():
-            self.append_message("System", "No edit history found. The edits directory does not exist yet.")
+            self.message_handler.append_message("System", "No edit history found. The edits directory does not exist yet.")
             return
 
         # Get all sessions using EditHistory
@@ -513,7 +512,7 @@ class ForShapeMainWindow(QMainWindow):
         session_names = EditHistory.list_all_sessions(edits_dir)
 
         if not session_names:
-            self.append_message("System", "No checkpoints found. Edit history is empty.")
+            self.message_handler.append_message("System", "No checkpoints found. Edit history is empty.")
             return
 
         # Get session info for each session
@@ -524,7 +523,7 @@ class ForShapeMainWindow(QMainWindow):
                 sessions.append(session_info)
 
         if not sessions:
-            self.append_message("System", "No valid checkpoints found.")
+            self.message_handler.append_message("System", "No valid checkpoints found.")
             return
 
         # Show checkpoint selector dialog
@@ -545,7 +544,7 @@ class ForShapeMainWindow(QMainWindow):
         conversation_id = session_info.get("conversation_id")
         file_count = session_info.get("file_count", 0)
 
-        self.append_message("System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}...")
+        self.message_handler.append_message("System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}...")
 
         # Get paths
         working_dir = self.config.working_dir
@@ -557,10 +556,10 @@ class ForShapeMainWindow(QMainWindow):
         success, message = EditHistory.restore_from_session(edits_dir, session_name, working_dir, self.logger)
 
         if success:
-            self.append_message("System", f"✓ {message}")
+            self.message_handler.append_message("System", f"✓ {message}")
             self.logger.info(f"Restored checkpoint: {conversation_id}")
         else:
-            self.append_message("[ERROR]", f"Failed to restore checkpoint:\n{message}")
+            self.message_handler.display_error( f"Failed to restore checkpoint:\n{message}")
             self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
     def set_components(
@@ -703,7 +702,7 @@ class ForShapeMainWindow(QMainWindow):
         # Update welcome message to show full AI details now that ai_client is initialized
         if self.ai_client:
             context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
-            self.append_message(
+            self.message_handler.append_message(
                 "System",
                 f"🎉 **Initialization Complete!**\n\n"
                 f"**Using model:** {self.ai_client.get_model()}\n"
@@ -726,7 +725,7 @@ class ForShapeMainWindow(QMainWindow):
             return
 
         # Display user input
-        self.append_message("You", user_input)
+        self.message_handler.append_message("You", user_input)
 
         # Clear input field
         self.input_field.clear()
@@ -741,7 +740,7 @@ class ForShapeMainWindow(QMainWindow):
 
         # Check if AI client is available
         if not self.ai_client:
-            self.append_message("[SYSTEM]", "⚠ AI is not yet initialized. Please wait for setup to complete.")
+            self.message_handler.append_message("System", "⚠ AI is not yet initialized. Please wait for setup to complete.")
             return
 
         # Check if AI is currently busy
@@ -749,9 +748,9 @@ class ForShapeMainWindow(QMainWindow):
             # Add message to the current step config to be processed during next iteration
             if self.current_step_config:
                 self.current_step_config.add_pending_message(user_input)
-                self.append_message("[SYSTEM]", "✓ Your message will be added to the ongoing conversation...")
+                self.message_handler.append_message("System", "✓ Your message will be added to the ongoing conversation...")
             else:
-                self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
+                self.message_handler.append_message("System", "⚠ AI is currently processing. Please wait...")
             return
 
         # Log user input
@@ -764,7 +763,7 @@ class ForShapeMainWindow(QMainWindow):
         # Add attached files as TextMessage
         if self.attached_files:
             file_count = len(self.attached_files)
-            self.append_message(
+            self.message_handler.append_message(
                 "System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message..."
             )
             for file_info in self.attached_files:
@@ -774,13 +773,13 @@ class ForShapeMainWindow(QMainWindow):
         # Add images as ImageMessage
         if self.captured_images:
             image_count = len(self.captured_images)
-            self.append_message(
+            self.message_handler.append_message(
                 "System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message..."
             )
             initial_messages.append(ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images))
 
         # Show in-progress indicator
-        self.append_message("AI", "⏳ Processing...")
+        self.message_handler.append_message("AI", "⏳ Processing...")
 
         # Force UI to update to show the processing indicator
         QCoreApplication.processEvents()
@@ -852,7 +851,7 @@ class ForShapeMainWindow(QMainWindow):
         self.worker.cancel()
 
         # Show cancellation message
-        self.append_message("System", "Cancellation requested. Waiting for AI to stop...")
+        self.message_handler.append_message("System", "Cancellation requested. Waiting for AI to stop...")
 
         # Force UI to update
         QCoreApplication.processEvents()
@@ -886,7 +885,7 @@ class ForShapeMainWindow(QMainWindow):
         """
         # Remove "Processing..." only if no step response was shown (it was already removed)
         if not self._step_response_shown or is_error:
-            self.remove_last_message()
+            self.message_handler.remove_last_message()
 
         # Update the token status label to show final count instead of hiding it
         if token_data:
@@ -902,7 +901,7 @@ class ForShapeMainWindow(QMainWindow):
         if is_error:
             if self.history_logger:
                 self.history_logger.log_conversation("error", message)
-            self.display_error(message)
+            self.message_handler.display_error(message)
 
         # Play notification sound when AI finishes
         self.play_notification_sound()
@@ -940,10 +939,10 @@ class ForShapeMainWindow(QMainWindow):
         self._step_response_shown = True
 
         # Remove the "Processing..." message before showing the step response
-        self.remove_last_message()
+        self.message_handler.remove_last_message()
 
         # Display the step response
-        self.append_message("AI", response)
+        self.message_handler.append_message("AI", response)
 
     def play_notification_sound(self):
         """Play a notification sound when AI finishes processing."""
@@ -959,21 +958,6 @@ class ForShapeMainWindow(QMainWindow):
         except Exception as e:
             self.logger.debug(f"Could not play notification sound: {e}")
 
-    def append_message(self, role: str, message: str, token_data: dict = None):
-        """Delegate to message handler."""
-        if self.message_handler:
-            self.message_handler.append_message(role, message, token_data)
-
-    def remove_last_message(self):
-        """Delegate to message handler."""
-        if self.message_handler:
-            self.message_handler.remove_last_message()
-
-    def display_error(self, error_message: str):
-        """Delegate to message handler."""
-        if self.message_handler:
-            self.message_handler.display_error(error_message)
-
     def toggle_log_panel(self):
         """Toggle the visibility of the log panel."""
         self._set_log_panel_visibility(not self.log_widget.isVisible())
@@ -985,7 +969,7 @@ class ForShapeMainWindow(QMainWindow):
     def toggle_api_dump(self):
         """Toggle API data dumping."""
         if self.api_debugger is None:
-            self.append_message("System", "API debugger not initialized yet.")
+            self.message_handler.append_message("System", "API debugger not initialized yet.")
             self.toggle_api_dump_action.setChecked(False)
             return
 
@@ -998,16 +982,16 @@ class ForShapeMainWindow(QMainWindow):
 
         if new_state:
             dump_dir = self.api_debugger.output_dir
-            self.append_message("System", f"API data dumping enabled. Data will be saved to: {dump_dir}")
+            self.message_handler.append_message("System", f"API data dumping enabled. Data will be saved to: {dump_dir}")
             self.logger.info(f"API data dumping enabled - output: {dump_dir}")
         else:
-            self.append_message("System", "API data dumping disabled.")
+            self.message_handler.append_message("System", "API data dumping disabled.")
             self.logger.info("API data dumping disabled")
 
     def dump_history(self):
         """Dump the conversation history to a file."""
         if not self.ai_client:
-            self.append_message("System", "AI client not initialized yet.")
+            self.message_handler.append_message("System", "AI client not initialized yet.")
             return
 
         try:
@@ -1023,14 +1007,14 @@ class ForShapeMainWindow(QMainWindow):
             # Dump history using chat_history_manager
             dump_path = history_manager.dump_history(history_dir, model_name)
 
-            self.append_message("System", f"Conversation history dumped successfully!\nSaved to: {dump_path}")
+            self.message_handler.append_message("System", f"Conversation history dumped successfully!\nSaved to: {dump_path}")
             self.logger.info(f"History dumped to: {dump_path}")
 
         except Exception as e:
             import traceback
 
             error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
-            self.append_message("[ERROR]", error_msg)
+            self.message_handler.display_error( error_msg)
             self.logger.error(f"Failed to dump history: {str(e)}")
 
     def on_log_level_changed(self, index: int):
@@ -1085,22 +1069,22 @@ class ForShapeMainWindow(QMainWindow):
             image_count = len(self.captured_images)
             self.captured_images = []
             self.update_capture_button_state()
-            self.append_message(
+            self.message_handler.append_message(
                 "System",
                 f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.",
             )
             return
 
         if not self.image_context:
-            self.append_message("[SYSTEM]", "ImageContext not configured")
+            self.message_handler.append_message("System", "ImageContext not configured")
             return
 
         if self.is_ai_busy:
-            self.append_message("[SYSTEM]", "AI is currently processing. Please wait...")
+            self.message_handler.append_message("System", "AI is currently processing. Please wait...")
             return
 
         # Show capturing message
-        self.append_message("System", "Capturing screenshot...")
+        self.message_handler.append_message("System", "Capturing screenshot...")
 
         # Force UI to update
         QCoreApplication.processEvents()
@@ -1113,7 +1097,7 @@ class ForShapeMainWindow(QMainWindow):
             result = self.image_context.capture_encoded(perspective="isometric")
 
             if result is None or not result.get("success"):
-                self.append_message("[SYSTEM]", "Screenshot capture failed")
+                self.message_handler.append_message("System", "Screenshot capture failed")
                 return
 
             file_path = result.get("file", "unknown")
@@ -1140,23 +1124,23 @@ class ForShapeMainWindow(QMainWindow):
 
                     # Show success message
                     image_count = len(self.captured_images)
-                    self.append_message(
+                    self.message_handler.append_message(
                         "System",
                         f"Screenshot confirmed!\n"
                         f"Saved to: {file_path}\n"
                         f"{image_count} {self._pluralize('image', image_count)} ready to attach to your next message.",
                     )
                 except Exception as e:
-                    self.append_message("[SYSTEM]", f"Error encoding annotated image: {str(e)}")
+                    self.message_handler.append_message("System", f"Error encoding annotated image: {str(e)}")
             else:
                 # User cancelled - discard the image
-                self.append_message("System", "Screenshot cancelled. Image will not be attached.")
+                self.message_handler.append_message("System", "Screenshot cancelled. Image will not be attached.")
 
         except Exception:
             import traceback
 
             error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
-            self.append_message("[SYSTEM]", error_msg)
+            self.message_handler.append_message("System", error_msg)
 
     def on_export_clicked(self):
         """Handle Export button click - delegate to file executor."""

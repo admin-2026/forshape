@@ -9,18 +9,19 @@ This module provides a unified interface for executing Python scripts with suppo
 - Proper cleanup and error handling
 """
 
-import sys
-import io
 import builtins
+import io
+import sys
 import traceback
-from pathlib import Path
-from typing import Tuple, Optional
 from contextlib import contextmanager
 from enum import Enum
+from pathlib import Path
+from typing import Optional, Tuple
 
 
 class ExecutionMode(Enum):
     """Execution mode for running scripts."""
+
     NORMAL = "normal"
     TEARDOWN = "teardown"
     INCREMENTAL_BUILD = "incremental_build"
@@ -68,10 +69,7 @@ class ScriptExecutor:
 
     @staticmethod
     def execute(
-        script_content: str,
-        script_path: Path,
-        mode: ExecutionMode = ExecutionMode.NORMAL,
-        import_freecad: bool = True
+        script_content: str, script_path: Path, mode: ExecutionMode = ExecutionMode.NORMAL, import_freecad: bool = True
     ) -> ScriptExecutionResult:
         """
         Execute a Python script in the specified execution mode.
@@ -104,8 +102,8 @@ class ScriptExecutor:
         try:
             # Create execution namespace
             exec_globals = {
-                '__name__': '__main__',
-                '__file__': str(script_path),
+                "__name__": "__main__",
+                "__file__": str(script_path),
             }
 
             # Import FreeCAD modules if requested
@@ -113,12 +111,14 @@ class ScriptExecutor:
                 try:
                     import FreeCAD
                     import FreeCADGui
+
                     from shapes.context import Context
-                    exec_globals['FreeCAD'] = FreeCAD
-                    exec_globals['FreeCADGui'] = FreeCADGui
-                    exec_globals['Context'] = Context
-                    exec_globals['App'] = FreeCAD
-                    exec_globals['Gui'] = FreeCADGui
+
+                    exec_globals["FreeCAD"] = FreeCAD
+                    exec_globals["FreeCADGui"] = FreeCADGui
+                    exec_globals["Context"] = Context
+                    exec_globals["App"] = FreeCAD
+                    exec_globals["Gui"] = FreeCADGui
                 except ImportError:
                     # FreeCAD modules might not be available in all environments
                     pass
@@ -147,7 +147,7 @@ class ScriptExecutor:
 
             for module_name in new_modules:
                 module = sys.modules.get(module_name)
-                if module is not None and hasattr(module, '__file__') and module.__file__:
+                if module is not None and hasattr(module, "__file__") and module.__file__:
                     # Check if module is from the script's directory
                     module_path = Path(module.__file__).parent
                     if str(module_path) == script_dir:
@@ -165,9 +165,7 @@ class ScriptExecutor:
 
     @staticmethod
     def execute_with_teardown(
-        script_content: str,
-        script_path: Path,
-        import_freecad: bool = True
+        script_content: str, script_path: Path, import_freecad: bool = True
     ) -> Tuple[ScriptExecutionResult, ScriptExecutionResult]:
         """
         Execute a script in teardown mode first, then in normal mode.
@@ -194,9 +192,7 @@ class ScriptExecutor:
 
     @staticmethod
     def execute_with_incremental_build(
-        script_content: str,
-        script_path: Path,
-        import_freecad: bool = True
+        script_content: str, script_path: Path, import_freecad: bool = True
     ) -> ScriptExecutionResult:
         """
         Execute a script in incremental build mode.

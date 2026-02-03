@@ -2,13 +2,14 @@ import FreeCAD as App
 
 from .context import Context
 
+
 class Transform:
     @staticmethod
     def translate_to(object_or_label, x, y, z):
         """Translate an object to a specific position (x, y, z)"""
         obj = Context.get_object(object_or_label)
         if obj is None:
-            print(f'Object not found')
+            print("Object not found")
             return
 
         # Check if the object is already at the desired position
@@ -23,7 +24,7 @@ class Transform:
         """Rotate an object around an axis defined by vector (x, y, z) by the given degree"""
         obj = Context.get_object(object_or_label)
         if obj is None:
-            print(f'Object not found')
+            print("Object not found")
             return
 
         # Create a rotation around the specified axis

@@ -6,7 +6,7 @@ for elements that can produce API message dicts.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 
 class MessageElement(ABC):

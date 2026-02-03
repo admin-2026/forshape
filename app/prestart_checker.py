@@ -14,15 +14,15 @@ import shutil
 from typing import TYPE_CHECKING, Literal, Optional
 
 if TYPE_CHECKING:
-    from .main_window import ForShapeMainWindow
     from .config_manager import ConfigurationManager
     from .logger import Logger
+    from .main_window import ForShapeMainWindow
 
 
 class PrestartChecker:
     """Handles prestart checks for configuration setup and FreeCAD document validation."""
 
-    def __init__(self, config: 'ConfigurationManager', logger: 'Logger'):
+    def __init__(self, config: "ConfigurationManager", logger: "Logger"):
         """
         Initialize the prestart checker.
 
@@ -35,7 +35,9 @@ class PrestartChecker:
         self.status: Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"] = "waiting"
         self.api_key: Optional[str] = None
 
-    def check(self, window: 'ForShapeMainWindow') -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
+    def check(
+        self, window: "ForShapeMainWindow"
+    ) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
         """
         Check configuration setup and FreeCAD document status.
 
@@ -61,33 +63,39 @@ class PrestartChecker:
         try:
             import FreeCAD as App
         except ImportError:
-            window.append_message("System",
+            window.append_message(
+                "System",
                 "❌ **FreeCAD Not Available**\n\n"
-                "FreeCAD module could not be imported. Please run this from FreeCAD's Python console.")
+                "FreeCAD module could not be imported. Please run this from FreeCAD's Python console.",
+            )
             self.status = "error"
             return "error"
 
         # Check 2: Is there an active document?
         if App.ActiveDocument is None:
-            window.append_message("System",
+            window.append_message(
+                "System",
                 "⚠️ **No Active Document**\n\n"
                 "There is no active FreeCAD document.\n\n"
                 "**Please do the following:**\n"
                 "1. In FreeCAD, create a new document (File → New)\n"
                 "2. Save the document (File → Save)\n"
-                "3. Come back here and type anything (e.g., 'ready') to continue")
+                "3. Come back here and type anything (e.g., 'ready') to continue",
+            )
             self.status = "waiting"
             return "waiting"
 
         # Check 3: Is the document saved?
         doc_path = App.ActiveDocument.FileName
         if not doc_path or doc_path == "":
-            window.append_message("System",
+            window.append_message(
+                "System",
                 f"⚠️ **Document Not Saved**\n\n"
                 f"The active document '{App.ActiveDocument.Name}' has not been saved yet.\n\n"
                 f"**Please do the following:**\n"
                 f"1. In FreeCAD, save the document (File → Save or Ctrl+S)\n"
-                f"2. Come back here and type anything (e.g., 'ready') to continue")
+                f"2. Come back here and type anything (e.g., 'ready') to continue",
+            )
             self.status = "waiting"
             return "waiting"
 
@@ -96,7 +104,8 @@ class PrestartChecker:
         current_dir = os.path.abspath(self.config.working_dir)
 
         if doc_dir != current_dir:
-            window.append_message("System",
+            window.append_message(
+                "System",
                 f"⚠️ **Working Directory Mismatch**\n\n"
                 f"The current working directory does not match the document's location.\n\n"
                 f"📁 **Document location:** `{doc_dir}`\n"
@@ -104,7 +113,8 @@ class PrestartChecker:
                 f"**Options:**\n"
                 f"• Type **'yes'** to change working directory to match document location\n"
                 f"• Type **'no'** to continue with current directory\n"
-                f"• Type **'cancel'** to exit")
+                f"• Type **'cancel'** to exit",
+            )
             self.status = "dir_mismatch"
             return "dir_mismatch"
 
@@ -125,9 +135,11 @@ class PrestartChecker:
         configured_providers = provider_loader.get_providers()
 
         if not configured_providers:
-            window.append_message("System",
+            window.append_message(
+                "System",
                 "⚠️ **No Providers Configured**\n\n"
-                "No API providers found in provider-config.json. Please check your configuration.")
+                "No API providers found in provider-config.json. Please check your configuration.",
+            )
             self.status = "error"
             return "error"
 
@@ -137,10 +149,7 @@ class PrestartChecker:
 
         for provider in configured_providers:
             api_key = api_key_manager.get_api_key(provider.name)
-            provider_info[provider.name] = {
-                "display_name": provider.display_name,
-                "has_key": api_key is not None
-            }
+            provider_info[provider.name] = {"display_name": provider.display_name, "has_key": api_key is not None}
             if api_key:
                 providers_with_keys.append(provider.name)
 
@@ -167,20 +176,24 @@ class PrestartChecker:
         self.api_key = api_key_manager.get_api_key(providers_with_keys[0])
 
         # All checks passed
-        configured_keys = [f"{provider_info[p]['display_name']}" for p in provider_info if provider_info[p]['has_key']]
-        self.logger.info(f"Prestart checks passed. Document: {doc_path}, Working dir: {self.config.working_dir}, API keys: {', '.join(configured_keys)}")
+        configured_keys = [f"{provider_info[p]['display_name']}" for p in provider_info if provider_info[p]["has_key"]]
+        self.logger.info(
+            f"Prestart checks passed. Document: {doc_path}, Working dir: {self.config.working_dir}, API keys: {', '.join(configured_keys)}"
+        )
 
         keys_message = ", ".join(configured_keys) if configured_keys else "None"
-        window.append_message("System",
+        window.append_message(
+            "System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
             f"📂 Working directory: `{self.config.working_dir}`\n"
             f"🔑 API keys configured: {keys_message}\n\n"
-            f"You can now start chatting with the AI!")
+            f"You can now start chatting with the AI!",
+        )
         self.status = "ready"
         return "ready"
 
-    def _check_and_setup_directories(self, window: 'ForShapeMainWindow') -> bool:
+    def _check_and_setup_directories(self, window: "ForShapeMainWindow") -> bool:
         """
         Check and setup configuration directories and files.
 
@@ -200,9 +213,7 @@ class PrestartChecker:
 
             # Show what was created if anything
             if created_items:
-                window.append_message("System",
-                    "✅ **Configuration Setup**\n\n" +
-                    "\n".join(created_items))
+                window.append_message("System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items))
 
             # Copy template files to working directory if they don't exist
             self._setup_template_files(window)
@@ -210,13 +221,13 @@ class PrestartChecker:
             return True
 
         except Exception as e:
-            window.append_message("System",
-                f"❌ **Configuration Setup Failed**\n\n"
-                f"Failed to create configuration directories:\n{str(e)}")
+            window.append_message(
+                "System", f"❌ **Configuration Setup Failed**\n\nFailed to create configuration directories:\n{str(e)}"
+            )
             self.logger.error(f"Failed to setup directories: {e}")
             return False
 
-    def _setup_template_files(self, window: 'ForShapeMainWindow') -> None:
+    def _setup_template_files(self, window: "ForShapeMainWindow") -> None:
         """
         Copy template files to the working directory if they don't exist.
 
@@ -227,10 +238,10 @@ class PrestartChecker:
         """
         # Get the templates directory path (relative to this module)
         module_dir = os.path.dirname(os.path.abspath(__file__))
-        templates_dir = os.path.join(module_dir, 'templates')
+        templates_dir = os.path.join(module_dir, "templates")
 
         # Template files to copy
-        template_files = ['constants.py', 'main.py', 'export.py', 'import.py']
+        template_files = ["constants.py", "main.py", "export.py", "import.py"]
 
         copied_files = []
 
@@ -262,13 +273,15 @@ class PrestartChecker:
         # Inform user if any files were copied
         if copied_files:
             files_list = "\n".join([f"• {f}" for f in copied_files])
-            window.append_message("System",
+            window.append_message(
+                "System",
                 f"✅ **Template Files Created**\n\n"
                 f"The following template files have been created in your working directory:\n"
                 f"{files_list}\n\n"
-                f"You can now customize these files for your project.")
+                f"You can now customize these files for your project.",
+            )
 
-    def handle_directory_mismatch(self, window: 'ForShapeMainWindow', user_input: str) -> bool:
+    def handle_directory_mismatch(self, window: "ForShapeMainWindow", user_input: str) -> bool:
         """
         Handle user response to directory mismatch.
 
@@ -306,16 +319,18 @@ class PrestartChecker:
                 self.config.update_working_directory(doc_dir)
 
                 self.logger.info(f"Changed working directory to: {doc_dir}")
-                window.append_message("System",
-                    f"✅ **Directory Changed**\n\n"
-                    f"Working directory changed to: `{doc_dir}`\n\n"
-                    f"Rechecking setup...")
+                window.append_message(
+                    "System",
+                    f"✅ **Directory Changed**\n\nWorking directory changed to: `{doc_dir}`\n\nRechecking setup...",
+                )
                 return True
             except Exception as e:
-                window.append_message("System",
+                window.append_message(
+                    "System",
                     f"❌ **Error Changing Directory**\n\n"
                     f"Failed to change working directory: {str(e)}\n\n"
-                    f"You can close the window.")
+                    f"You can close the window.",
+                )
                 self.status = "error"
                 return False
         elif response == "no":

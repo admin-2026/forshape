@@ -1,7 +1,7 @@
-import FreeCAD as App
 import os
 
 from .context import Context
+
 
 class Export:
     @staticmethod
@@ -17,13 +17,13 @@ class Export:
         """
         obj = Context.get_first_body_parent(object_or_label)
         if obj is None:
-            print(f'Object not found')
+            print("Object not found")
             return
 
         # Determine file type from extension if not specified
         if file_type is None:
             _, ext = os.path.splitext(file_path)
-            file_type = ext.lstrip('.').lower()
+            file_type = ext.lstrip(".").lower()
         else:
             file_type = file_type.lower()
 
@@ -34,40 +34,44 @@ class Export:
 
         try:
             # Export based on file type
-            if file_type in ['step', 'stp']:
+            if file_type in ["step", "stp"]:
                 import Import
-                Import.export([obj], file_path)
-                print(f'Exported {obj.Label} to {file_path} as STEP')
 
-            elif file_type == 'stl':
+                Import.export([obj], file_path)
+                print(f"Exported {obj.Label} to {file_path} as STEP")
+
+            elif file_type == "stl":
                 import Mesh
+
                 # Create mesh from object shape
                 mesh = Mesh.Mesh()
                 mesh.addFacets(obj.Shape.tessellate(0.1))
                 mesh.write(file_path)
-                print(f'Exported {obj.Label} to {file_path} as STL')
+                print(f"Exported {obj.Label} to {file_path} as STL")
 
-            elif file_type in ['iges', 'igs']:
+            elif file_type in ["iges", "igs"]:
                 import Import
-                Import.export([obj], file_path)
-                print(f'Exported {obj.Label} to {file_path} as IGES')
 
-            elif file_type == 'obj':
+                Import.export([obj], file_path)
+                print(f"Exported {obj.Label} to {file_path} as IGES")
+
+            elif file_type == "obj":
                 import Mesh
+
                 mesh = Mesh.Mesh()
                 mesh.addFacets(obj.Shape.tessellate(0.1))
-                mesh.write(file_path, 'OBJ')
-                print(f'Exported {obj.Label} to {file_path} as OBJ')
+                mesh.write(file_path, "OBJ")
+                print(f"Exported {obj.Label} to {file_path} as OBJ")
 
-            elif file_type == 'brep':
+            elif file_type == "brep":
                 obj.Shape.exportBrep(file_path)
-                print(f'Exported {obj.Label} to {file_path} as BREP')
+                print(f"Exported {obj.Label} to {file_path} as BREP")
 
             else:
-                print(f'Unsupported file type: {file_type}')
-                print(f'Supported types: step, stp, stl, iges, igs, obj, brep')
+                print(f"Unsupported file type: {file_type}")
+                print("Supported types: step, stp, stl, iges, igs, obj, brep")
                 return
 
         except Exception as e:
-            print(f'Error exporting object: {str(e)}')
+            print(f"Error exporting object: {str(e)}")
             return

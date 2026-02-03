@@ -5,9 +5,10 @@ This module handles checking and installing required dependencies,
 particularly the OpenAI library.
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
+
 from PySide2.QtWidgets import QApplication, QMessageBox
 
 
@@ -16,14 +17,14 @@ class DependencyManager:
 
     # Configuration for all dependencies
     DEPENDENCIES = {
-        'openai': {
-            'prompt_before_install': True,
+        "openai": {
+            "prompt_before_install": True,
         },
-        'markdown': {
-            'prompt_before_install': False,
+        "markdown": {
+            "prompt_before_install": False,
         },
-        'keyring': {
-            'prompt_before_install': False,
+        "keyring": {
+            "prompt_before_install": False,
         },
     }
 
@@ -66,10 +67,7 @@ class DependencyManager:
             return True, ""
 
         # Determine if any missing package requires prompting
-        requires_prompt = any(
-            self.DEPENDENCIES[pkg].get('prompt_before_install', False)
-            for pkg in missing_packages
-        )
+        requires_prompt = any(self.DEPENDENCIES[pkg].get("prompt_before_install", False) for pkg in missing_packages)
 
         if requires_prompt:
             return self._prompt_and_install_all(missing_packages)
@@ -93,28 +91,24 @@ class DependencyManager:
             app = QApplication(sys.argv)
 
         # Build message listing missing packages
-        packages_list = '\n'.join(f'  - {pkg}' for pkg in missing_packages)
+        packages_list = "\n".join(f"  - {pkg}" for pkg in missing_packages)
         message = (
-            f'The following required libraries are not installed:\n\n'
-            f'{packages_list}\n\n'
-            f'Would you like to install them now using pip?'
+            f"The following required libraries are not installed:\n\n"
+            f"{packages_list}\n\n"
+            f"Would you like to install them now using pip?"
         )
 
         # Ask user if they want to install
         reply = QMessageBox.question(
-            None,
-            'Required Libraries Not Found',
-            message,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes
+            None, "Required Libraries Not Found", message, QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
         )
 
         if reply == QMessageBox.No:
             QMessageBox.information(
                 None,
-                'Installation Cancelled',
-                'Some required libraries are not installed.\n\n'
-                'The application will load but some features may not work.'
+                "Installation Cancelled",
+                "Some required libraries are not installed.\n\n"
+                "The application will load but some features may not work.",
             )
             error_msg = "Required libraries not installed. User declined installation."
             for pkg in missing_packages:
@@ -125,10 +119,9 @@ class DependencyManager:
         # Show installing message
         QMessageBox.information(
             None,
-            'Installing',
-            f'Installing required libraries to:\n{self.local_lib_dir}\n\n'
-            'This may take a moment. Click OK to continue.',
-            QMessageBox.Ok
+            "Installing",
+            f"Installing required libraries to:\n{self.local_lib_dir}\n\nThis may take a moment. Click OK to continue.",
+            QMessageBox.Ok,
         )
 
         # Install all missing packages
@@ -137,19 +130,15 @@ class DependencyManager:
         if success:
             QMessageBox.information(
                 None,
-                'Installation Complete',
-                f'All required libraries have been successfully installed!\n\n'
-                f'Location: {self.local_lib_dir}\n\n'
-                'The application will now start.',
-                QMessageBox.Ok
+                "Installation Complete",
+                f"All required libraries have been successfully installed!\n\n"
+                f"Location: {self.local_lib_dir}\n\n"
+                "The application will now start.",
+                QMessageBox.Ok,
             )
         else:
             QMessageBox.critical(
-                None,
-                'Installation Failed',
-                f'{error_msg}\n\n'
-                f'Please try installing manually.',
-                QMessageBox.Ok
+                None, "Installation Failed", f"{error_msg}\n\nPlease try installing manually.", QMessageBox.Ok
             )
 
         return success, error_msg
@@ -172,7 +161,7 @@ class DependencyManager:
                 failed_packages.append((package_name, error_msg))
 
         if failed_packages:
-            failed_list = '\n'.join(f'  - {pkg}: {err}' for pkg, err in failed_packages)
+            failed_list = "\n".join(f"  - {pkg}: {err}" for pkg, err in failed_packages)
             error_msg = f"Failed to install some packages:\n{failed_list}"
             self.error_message = error_msg
             return False, error_msg
@@ -204,7 +193,7 @@ class DependencyManager:
             return True, ""
         except ImportError:
             config = self.DEPENDENCIES[package_name]
-            if config.get('prompt_before_install', False):
+            if config.get("prompt_before_install", False):
                 return self._prompt_and_install_single(package_name, config)
             else:
                 return self._install_package(package_name)
@@ -228,11 +217,10 @@ class DependencyManager:
         # Ask user if they want to install
         reply = QMessageBox.question(
             None,
-            f'{package_name.title()} Library Not Found',
-            f'The {package_name} library is required but not installed.\n\n'
-            f'Would you like to install it now using pip?',
+            f"{package_name.title()} Library Not Found",
+            f"The {package_name} library is required but not installed.\n\nWould you like to install it now using pip?",
             QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.Yes
+            QMessageBox.Yes,
         )
 
         if reply == QMessageBox.No:
@@ -244,10 +232,10 @@ class DependencyManager:
         # Show installing message
         QMessageBox.information(
             None,
-            'Installing',
-            f'Installing {package_name} library to:\n{self.local_lib_dir}\n\n'
-            'This may take a moment. Click OK to continue.',
-            QMessageBox.Ok
+            "Installing",
+            f"Installing {package_name} library to:\n{self.local_lib_dir}\n\n"
+            "This may take a moment. Click OK to continue.",
+            QMessageBox.Ok,
         )
 
         # Try to install
@@ -257,19 +245,19 @@ class DependencyManager:
         if success:
             QMessageBox.information(
                 None,
-                'Installation Complete',
-                f'{package_name} library has been successfully installed!\n\n'
-                f'Location: {self.local_lib_dir}\n\n'
-                'The application will now continue.',
-                QMessageBox.Ok
+                "Installation Complete",
+                f"{package_name} library has been successfully installed!\n\n"
+                f"Location: {self.local_lib_dir}\n\n"
+                "The application will now continue.",
+                QMessageBox.Ok,
             )
         else:
             QMessageBox.critical(
                 None,
-                'Installation Failed',
-                f'{error_msg}\n\n'
-                f'Please install manually using:\npip install --target {self.local_lib_dir} {package_name}',
-                QMessageBox.Ok
+                "Installation Failed",
+                f"{error_msg}\n\n"
+                f"Please install manually using:\npip install --target {self.local_lib_dir} {package_name}",
+                QMessageBox.Ok,
             )
 
         return success, error_msg
@@ -289,7 +277,7 @@ class DependencyManager:
             self.local_lib_dir.mkdir(parents=True, exist_ok=True)
 
             # Install package to the libs subdirectory using pip with --target flag
-            subprocess.check_call(['pip', 'install', '--target', str(self.local_lib_dir), package_name])
+            subprocess.check_call(["pip", "install", "--target", str(self.local_lib_dir), package_name])
 
             # Add the local library directory to sys.path
             if str(self.local_lib_dir) not in sys.path:

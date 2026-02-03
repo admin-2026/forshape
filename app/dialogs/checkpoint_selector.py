@@ -3,10 +3,10 @@ Checkpoint selector dialog for choosing an edit history checkpoint to rewind to.
 """
 
 from datetime import datetime
-from PySide2.QtWidgets import (QDialog, QVBoxLayout, QLabel, QListWidget,
-                                QListWidgetItem, QDialogButtonBox, QTextEdit)
-from PySide2.QtGui import QFont
+
 from PySide2.QtCore import Qt
+from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QDialog, QDialogButtonBox, QLabel, QListWidget, QListWidgetItem, QTextEdit, QVBoxLayout
 
 
 class CheckpointSelector(QDialog):
@@ -115,7 +115,7 @@ class CheckpointSelector(QDialog):
             session = current.data(Qt.UserRole)
 
             # Format timestamp for display
-            timestamp = session.get('timestamp', 'unknown')
+            timestamp = session.get("timestamp", "unknown")
             formatted_time = self._format_timestamp(timestamp)
 
             info_text = f"Conversation ID: {session.get('conversation_id', 'unknown')}\n"
@@ -123,7 +123,7 @@ class CheckpointSelector(QDialog):
             info_text += f"Files backed up: {session.get('file_count', 0)}\n"
 
             # Add user request if available
-            user_request = session.get('user_request')
+            user_request = session.get("user_request")
             if user_request:
                 # Truncate long requests for display
                 if len(user_request) > 200:

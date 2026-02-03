@@ -1,11 +1,12 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.pad;
 # reload(shapes.pad); from shapes.pad import Pad
 # Pad.create_pad('pad1', 'hexagon_sketch', 1)
+
 
 class Pad(Shape):
     @staticmethod
@@ -27,14 +28,12 @@ class Pad(Shape):
             return incremental_build_obj
 
         # Handle teardown mode (sketch is preserved, only pad is removed)
-        if Shape._teardown_if_needed(label, created_children=[label + '_pad']):
+        if Shape._teardown_if_needed(label, created_children=[label + "_pad"]):
             return None
 
         # Check for existing object and get children if they exist
-        pad_label = label + '_pad'
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (pad_label, 'PartDesign::Pad')
-        ])
+        pad_label = label + "_pad"
+        existing_obj, children = Shape._get_or_recreate_body(label, [(pad_label, "PartDesign::Pad")])
 
         if existing_obj is not None:
             # Pad exists, update its properties
@@ -42,7 +41,7 @@ class Pad(Shape):
             needs_recompute = False
 
             # Update height
-            new_height = f'{height} mm'
+            new_height = f"{height} mm"
             if str(existing_pad.Length) != new_height:
                 existing_pad.Length = new_height
                 needs_recompute = True
@@ -54,7 +53,7 @@ class Pad(Shape):
 
             current_sketch = existing_pad.Profile[0] if existing_pad.Profile else None
             if current_sketch != sketch:
-                existing_pad.Profile = (sketch, [''])
+                existing_pad.Profile = (sketch, [""])
                 needs_recompute = True
 
             # Ensure midplane mode is enabled
@@ -63,8 +62,8 @@ class Pad(Shape):
                 needs_recompute = True
 
             # Ensure reference axis is set
-            if existing_pad.ReferenceAxis != (sketch, ['N_Axis']):
-                existing_pad.ReferenceAxis = (sketch, ['N_Axis'])
+            if existing_pad.ReferenceAxis != (sketch, ["N_Axis"]):
+                existing_pad.ReferenceAxis = (sketch, ["N_Axis"])
                 needs_recompute = True
 
             # Ensure sketch is hidden
@@ -87,11 +86,11 @@ class Pad(Shape):
         sketch.Visibility = False
 
         # Create pad
-        obj.newObject('PartDesign::Pad', pad_label)
+        obj.newObject("PartDesign::Pad", pad_label)
         pad = Context.get_object(pad_label)
-        pad.Profile = (sketch, [''])
-        pad.Length = f'{height} mm'
-        pad.ReferenceAxis = (sketch, ['N_Axis'])
+        pad.Profile = (sketch, [""])
+        pad.Length = f"{height} mm"
+        pad.ReferenceAxis = (sketch, ["N_Axis"])
         pad.Midplane = 1
 
         App.ActiveDocument.recompute()

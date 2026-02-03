@@ -6,11 +6,11 @@ in the FreeCAD environment.
 """
 
 import json
-from typing import Dict, List, Callable, Optional
 from pathlib import Path
+from typing import Callable, Dict, List, Optional
 
-from agent.tools.base import ToolBase
 from agent.permission_manager import PermissionManager
+from agent.tools.base import ToolBase
 from app.script_executor import ScriptExecutor
 
 
@@ -21,11 +21,7 @@ class ExecutionTools(ToolBase):
     Provides: run_python_script
     """
 
-    def __init__(
-        self,
-        working_dir: str,
-        permission_manager: Optional[PermissionManager] = None
-    ):
+    def __init__(self, working_dir: str, permission_manager: Optional[PermissionManager] = None):
         """
         Initialize execution tools.
 
@@ -49,16 +45,16 @@ class ExecutionTools(ToolBase):
                         "properties": {
                             "script_path": {
                                 "type": "string",
-                                "description": "The path to the Python script to execute. Can be relative to the working directory or absolute."
+                                "description": "The path to the Python script to execute. Can be relative to the working directory or absolute.",
                             },
                             "description": {
                                 "type": "string",
-                                "description": "A brief description of what the script does (shown to user in permission request)."
-                            }
+                                "description": "A brief description of what the script does (shown to user in permission request).",
+                            },
                         },
-                        "required": ["script_path", "description"]
-                    }
-                }
+                        "required": ["script_path", "description"],
+                    },
+                },
             }
         ]
 
@@ -95,10 +91,7 @@ class ExecutionTools(ToolBase):
         """Check permission for a file/directory operation."""
         if self.permission_manager:
             if not self.permission_manager.request_permission(path, action, is_directory=is_directory):
-                return json.dumps({
-                    "error": f"Permission denied: {path}",
-                    "permission_denied": True
-                })
+                return json.dumps({"error": f"Permission denied: {path}", "permission_denied": True})
         return None
 
     def _validate_file_exists(self, path: Path) -> Optional[str]:
@@ -115,12 +108,7 @@ class ExecutionTools(ToolBase):
         response.update(kwargs)
         return json.dumps(response, indent=2)
 
-    def _tool_run_python_script(
-        self,
-        script_path: str,
-        description: str,
-        teardown_first: bool = True
-    ) -> str:
+    def _tool_run_python_script(self, script_path: str, description: str, teardown_first: bool = True) -> str:
         """
         Implementation of the run_python_script tool.
         Executes a Python script from the working directory with user permission.
@@ -138,7 +126,7 @@ class ExecutionTools(ToolBase):
             resolved_path = self._resolve_path(script_path)
 
             # Validate that it's a Python file
-            if not str(resolved_path).endswith('.py'):
+            if not str(resolved_path).endswith(".py"):
                 return self._json_error(f"File must be a Python script (.py): {resolved_path}")
 
             # Validate file exists
@@ -155,7 +143,7 @@ class ExecutionTools(ToolBase):
                 return json.dumps(error_dict)
 
             # Read the script content
-            with open(resolved_path, 'r', encoding='utf-8') as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 script_content = f.read()
 
             # Execute the script using ScriptExecutor
@@ -170,9 +158,7 @@ class ExecutionTools(ToolBase):
                 teardown_output = teardown_result.output
             else:
                 # Run in normal mode only
-                result = ScriptExecutor.execute(
-                    script_content, resolved_path, teardown_mode=False, import_freecad=True
-                )
+                result = ScriptExecutor.execute(script_content, resolved_path, teardown_mode=False, import_freecad=True)
                 success = result.success
                 output = result.output
                 error_msg = result.error
@@ -184,7 +170,7 @@ class ExecutionTools(ToolBase):
                     "script": str(resolved_path),
                     "description": description,
                     "output": output.strip() if output else "(no output)",
-                    "message": "Script executed successfully"
+                    "message": "Script executed successfully",
                 }
                 if teardown_first and teardown_output is not None:
                     result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"
@@ -196,7 +182,7 @@ class ExecutionTools(ToolBase):
                     "script": str(resolved_path),
                     "description": description,
                     "error": error_msg,
-                    "output": output.strip() if output else "(no output)"
+                    "output": output.strip() if output else "(no output)",
                 }
                 if teardown_first and teardown_output is not None:
                     result["teardown_output"] = teardown_output.strip() if teardown_output else "(no teardown output)"

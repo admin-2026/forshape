@@ -6,13 +6,13 @@ including printing, finding, renaming, and removing objects.
 """
 
 import io
-import sys
 import json
-from typing import Dict, List, Callable, Optional
+import sys
 from contextlib import contextmanager
+from typing import Callable, Dict, List, Optional
 
-from agent.tools.base import ToolBase
 from agent.permission_manager import PermissionManager
+from agent.tools.base import ToolBase
 from shapes.context import Context
 
 
@@ -46,20 +46,20 @@ class FreeCADTools(ToolBase):
                         "properties": {
                             "obj_or_label": {
                                 "type": "string",
-                                "description": "The object label, name, or the object itself to print information about."
+                                "description": "The object label, name, or the object itself to print information about.",
                             },
                             "indent": {
                                 "type": "integer",
-                                "description": "Indentation level for nested objects (default: 0)."
+                                "description": "Indentation level for nested objects (default: 0).",
                             },
                             "verbose": {
                                 "type": "boolean",
-                                "description": "If true, prints detailed information including object types and properties (default: false)."
-                            }
+                                "description": "If true, prints detailed information including object types and properties (default: false).",
+                            },
                         },
-                        "required": ["obj_or_label"]
-                    }
-                }
+                        "required": ["obj_or_label"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -71,12 +71,12 @@ class FreeCADTools(ToolBase):
                         "properties": {
                             "pattern": {
                                 "type": "string",
-                                "description": "A regex pattern string to match against object attributes (Label, Name, or Label2)."
+                                "description": "A regex pattern string to match against object attributes (Label, Name, or Label2).",
                             }
                         },
-                        "required": ["pattern"]
-                    }
-                }
+                        "required": ["pattern"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -88,11 +88,11 @@ class FreeCADTools(ToolBase):
                         "properties": {
                             "verbose": {
                                 "type": "boolean",
-                                "description": "If true, prints detailed information including object types and properties (default: false)."
+                                "description": "If true, prints detailed information including object types and properties (default: false).",
                             }
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             },
             {
                 "type": "function",
@@ -104,16 +104,13 @@ class FreeCADTools(ToolBase):
                         "properties": {
                             "obj_or_label": {
                                 "type": "string",
-                                "description": "The object label or internal name to identify the object to rename."
+                                "description": "The object label or internal name to identify the object to rename.",
                             },
-                            "new_label": {
-                                "type": "string",
-                                "description": "The new label for the object."
-                            }
+                            "new_label": {"type": "string", "description": "The new label for the object."},
                         },
-                        "required": ["obj_or_label", "new_label"]
-                    }
-                }
+                        "required": ["obj_or_label", "new_label"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -125,13 +122,13 @@ class FreeCADTools(ToolBase):
                         "properties": {
                             "obj_or_label": {
                                 "type": "string",
-                                "description": "The object label or internal name to identify the object to remove."
+                                "description": "The object label or internal name to identify the object to remove.",
                             }
                         },
-                        "required": ["obj_or_label"]
-                    }
-                }
-            }
+                        "required": ["obj_or_label"],
+                    },
+                },
+            },
         ]
 
     def get_functions(self) -> Dict[str, Callable[..., str]]:
@@ -239,14 +236,10 @@ When users ask about objects in their FreeCAD document:
 
             # Convert to list of dicts for better JSON representation
             matches_list = [
-                {"matched_string": matched_str, "field_name": field_name}
-                for matched_str, field_name in matches
+                {"matched_string": matched_str, "field_name": field_name} for matched_str, field_name in matches
             ]
 
-            return self._json_success(
-                matches=matches_list,
-                count=len(matches_list)
-            )
+            return self._json_success(matches=matches_list, count=len(matches_list))
 
         except Exception as e:
             return self._json_error(f"Error finding objects by regex: {str(e)}")
@@ -289,10 +282,7 @@ When users ask about objects in their FreeCAD document:
 
             # Check if there was an error message in the output
             if "not found" in output or "cannot rename" in output:
-                return json.dumps({
-                    "success": False,
-                    "message": output.strip()
-                }, indent=2)
+                return json.dumps({"success": False, "message": output.strip()}, indent=2)
 
             return self._json_success(message=output.strip())
 
@@ -313,10 +303,12 @@ When users ask about objects in their FreeCAD document:
             # Check permission (using special deletion permission)
             if self.permission_manager:
                 if not self.permission_manager.request_object_deletion_permission(obj_or_label):
-                    return json.dumps({
-                        "error": f"Permission denied: Cannot delete object '{obj_or_label}'",
-                        "permission_denied": True
-                    })
+                    return json.dumps(
+                        {
+                            "error": f"Permission denied: Cannot delete object '{obj_or_label}'",
+                            "permission_denied": True,
+                        }
+                    )
 
             with self._capture_output() as get_output:
                 Context.remove_object(obj_or_label)
@@ -324,10 +316,7 @@ When users ask about objects in their FreeCAD document:
 
             # Check if there was an error message in the output
             if "not found" in output or "cannot remove" in output or "Unsupported" in output:
-                return json.dumps({
-                    "success": False,
-                    "message": output.strip()
-                }, indent=2)
+                return json.dumps({"success": False, "message": output.strip()}, indent=2)
 
             return self._json_success(message=output.strip())
 

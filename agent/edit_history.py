@@ -7,9 +7,8 @@ them, organized by conversation ID and timestamp.
 
 import json
 import shutil
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 from .logger_protocol import LoggerProtocol
 
@@ -147,9 +146,9 @@ class EditHistory:
                 # File is outside working directory, use absolute path structure
                 # Remove drive letter on Windows and leading slash on Unix
                 if file_path.drive:
-                    relative_path = Path(str(file_path)[len(file_path.drive)+1:])
+                    relative_path = Path(str(file_path)[len(file_path.drive) + 1 :])
                 else:
-                    relative_path = Path(str(file_path).lstrip('/'))
+                    relative_path = Path(str(file_path).lstrip("/"))
 
             # Get version number for this backup
             version = self._get_next_version(relative_path)
@@ -165,13 +164,15 @@ class EditHistory:
             shutil.copy2(file_path, backup_path)
 
             # Track this operation in metadata
-            self.file_operations.append({
-                "action": "edit",
-                "file": str(relative_path),
-                "absolute_path": str(file_path),
-                "backup_path": str(versioned_relative_path),
-                "version": version
-            })
+            self.file_operations.append(
+                {
+                    "action": "edit",
+                    "file": str(relative_path),
+                    "absolute_path": str(file_path),
+                    "backup_path": str(versioned_relative_path),
+                    "version": version,
+                }
+            )
             self._save_metadata()
 
             return True
@@ -179,6 +180,7 @@ class EditHistory:
         except Exception as e:
             # Log failure - edit history is best-effort
             import traceback
+
             self.logger.error(f"Failed to backup {file_path}: {str(e)}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -209,16 +211,12 @@ class EditHistory:
             except ValueError:
                 # File is outside working directory, use absolute path structure
                 if file_path.drive:
-                    relative_path = str(file_path)[len(file_path.drive)+1:]
+                    relative_path = str(file_path)[len(file_path.drive) + 1 :]
                 else:
-                    relative_path = str(file_path).lstrip('/')
+                    relative_path = str(file_path).lstrip("/")
 
             # Track this operation
-            self.file_operations.append({
-                "action": "create",
-                "file": relative_path,
-                "absolute_path": str(file_path)
-            })
+            self.file_operations.append({"action": "create", "file": relative_path, "absolute_path": str(file_path)})
 
             # Save metadata
             self._save_metadata()
@@ -227,6 +225,7 @@ class EditHistory:
 
         except Exception as e:
             import traceback
+
             self.logger.error(f"Failed to track file creation {file_path}: {str(e)}")
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return False
@@ -238,12 +237,16 @@ class EditHistory:
 
         metadata_path = self.session_folder / self.METADATA_FILENAME
         try:
-            with open(metadata_path, 'w', encoding='utf-8') as f:
-                json.dump({
-                    "conversation_id": self.conversation_id,
-                    "user_request": self.user_request,
-                    "file_operations": self.file_operations
-                }, f, indent=2)
+            with open(metadata_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "conversation_id": self.conversation_id,
+                        "user_request": self.user_request,
+                        "file_operations": self.file_operations,
+                    },
+                    f,
+                    indent=2,
+                )
         except Exception as e:
             self.logger.error(f"Failed to save metadata: {str(e)}")
 
@@ -264,7 +267,7 @@ class EditHistory:
             return {"file_operations": []}
 
         try:
-            with open(metadata_path, 'r', encoding='utf-8') as f:
+            with open(metadata_path, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             if logger:
@@ -296,11 +299,7 @@ class EditHistory:
         if not history_base.exists():
             return []
 
-        sessions = [
-            folder.name
-            for folder in history_base.iterdir()
-            if folder.is_dir()
-        ]
+        sessions = [folder.name for folder in history_base.iterdir() if folder.is_dir()]
 
         # Sort by name (which includes timestamp) in reverse order
         sessions.sort(reverse=True)
@@ -330,7 +329,7 @@ class EditHistory:
         conversation_id = session_name
 
         # Extract timestamp from conversation_id if it follows the expected format
-        parts = session_name.split('_')
+        parts = session_name.split("_")
         if len(parts) >= 3 and parts[0] == "conv":
             # Extract date and time parts: conv_YYYYMMDD_HHMMSS_###
             timestamp = f"{parts[1]}_{parts[2]}"
@@ -352,11 +351,13 @@ class EditHistory:
             "timestamp": timestamp,
             "user_request": user_request,
             "path": str(session_path),
-            "file_count": file_count
+            "file_count": file_count,
         }
 
     @staticmethod
-    def restore_from_session(edits_dir: str, session_name: str, working_dir: str, logger: Optional[LoggerProtocol] = None) -> tuple:
+    def restore_from_session(
+        edits_dir: str, session_name: str, working_dir: str, logger: Optional[LoggerProtocol] = None
+    ) -> tuple:
         """
         Restore files from a specific checkpoint session.
         - Restores backed up files (edited files) to their earliest version (before any edits)
@@ -405,7 +406,9 @@ class EditHistory:
                 if action == "edit":
                     version = operation.get("version", 1)
                     # Keep only the earliest version (lowest version number)
-                    if file_path not in earliest_edits or version < earliest_edits[file_path].get("version", float('inf')):
+                    if file_path not in earliest_edits or version < earliest_edits[file_path].get(
+                        "version", float("inf")
+                    ):
                         earliest_edits[file_path] = operation
                 elif action == "create":
                     files_to_delete.append(operation)

@@ -33,10 +33,10 @@ class MessageFormatter:
 
             # Configure markdown extensions for better rendering
             extensions = [
-                'markdown.extensions.fenced_code',  # Code blocks with ```
-                'markdown.extensions.tables',        # Tables
-                'markdown.extensions.nl2br',         # Newline to <br>
-                'markdown.extensions.codehilite',    # Syntax highlighting
+                "markdown.extensions.fenced_code",  # Code blocks with ```
+                "markdown.extensions.tables",  # Tables
+                "markdown.extensions.nl2br",  # Newline to <br>
+                "markdown.extensions.codehilite",  # Syntax highlighting
             ]
 
             try:
@@ -65,7 +65,7 @@ class MessageFormatter:
             Escaped HTML string
         """
         text = html_module.escape(text)
-        text = text.replace('\n', '<br>')
+        text = text.replace("\n", "<br>")
         return text
 
     @staticmethod
@@ -88,11 +88,7 @@ class MessageFormatter:
         total_tokens = token_data.get("total_tokens", 0)
 
         # Base format
-        token_str = (
-            f"Request: {prompt_tokens:,} | "
-            f"Response: {completion_tokens:,} | "
-            f"Total: {total_tokens:,}"
-        )
+        token_str = f"Request: {prompt_tokens:,} | Response: {completion_tokens:,} | Total: {total_tokens:,}"
 
         # Add iteration if requested
         if include_iteration and "iteration" in token_data:
@@ -124,19 +120,19 @@ class MessageFormatter:
                 token_info_html = (
                     f'<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; '
                     f'font-size: 11px; color: #666;">'
-                    f'<strong>Token Usage:</strong> {token_str}'
-                    f'</div>'
+                    f"<strong>Token Usage:</strong> {token_str}"
+                    f"</div>"
                 )
 
             formatted_message = (
                 f'<div style="margin: 15px 0; padding: 8px; background-color: #f9f9f9; '
                 f'border-left: 3px solid #0066CC;">'
                 f'<strong style="color: #0066CC;">{role}:</strong><br>{message_html}'
-                f'{token_info_html}</div>'
+                f"{token_info_html}</div>"
             )
         else:
             # For user messages and system messages, use simpler formatting
-            escaped_message = html_module.escape(message).replace('\n', '<br>')
+            escaped_message = html_module.escape(message).replace("\n", "<br>")
 
             # Use different colors for different roles
             if role == "You":

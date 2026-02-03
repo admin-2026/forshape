@@ -2,8 +2,6 @@
 #
 # This module handles all export operations for your models.
 
-from shapes.export import Export
-
 
 def export_models():
     """Export your models to STEP files.
@@ -15,5 +13,5 @@ def export_models():
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     export_models()

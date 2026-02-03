@@ -1,7 +1,7 @@
-import FreeCAD as App
-import FreeCADGui as Gui
 import os
 from enum import Enum
+
+import FreeCADGui as Gui
 
 from .context import Context
 
@@ -13,6 +13,7 @@ from .context import Context
 
 class Perspective(Enum):
     """Predefined camera perspectives for screenshots."""
+
     FRONT = "front"
     BACK = "back"
     TOP = "top"
@@ -115,7 +116,7 @@ class ImageContext:
 
         # Auto-generate path if not provided
         if path is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Include milliseconds
 
             # Generate filename: target_perspective_timestamp
             if target:
@@ -130,11 +131,11 @@ class ImageContext:
             results = {}
             for persp in perspectives:
                 # Generate path for this perspective
-                if path and '{}' in path:
+                if path and "{}" in path:
                     file_path = path.format(persp)
                 else:
                     # Auto-generate individual paths: target_perspective_timestamp
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
 
                     if target:
                         filename = f"{target}_{persp}_{timestamp}.png"
@@ -158,7 +159,7 @@ class ImageContext:
         if target is not None:
             obj = Context.get_object(target)
             if obj is None:
-                print(f'Object not found: {target}')
+                print(f"Object not found: {target}")
                 return None
 
             Gui.Selection.clearSelection()
@@ -174,10 +175,10 @@ class ImageContext:
 
         # Save screenshot
         try:
-            view.saveImage(path, 1920, 1080, 'Current')
-            msg = f'Screenshot saved: {path}'
+            view.saveImage(path, 1920, 1080, "Current")
+            msg = f"Screenshot saved: {path}"
             if target:
-                msg += f' (object: {target})'
+                msg += f" (object: {target})"
             print(msg)
 
             # Clear selection if we selected an object
@@ -186,7 +187,7 @@ class ImageContext:
 
             return path
         except Exception as e:
-            print(f'Error: {str(e)}')
+            print(f"Error: {str(e)}")
             if target is not None:
                 Gui.Selection.clearSelection()
             return None
@@ -240,8 +241,8 @@ class ImageContext:
         def encode_image(file_path):
             """Encode image file to base64 string."""
             try:
-                with open(file_path, 'rb') as image_file:
-                    return base64.b64encode(image_file.read()).decode('utf-8')
+                with open(file_path, "rb") as image_file:
+                    return base64.b64encode(image_file.read()).decode("utf-8")
             except Exception as e:
                 return f"Error encoding image: {str(e)}"
 
@@ -250,23 +251,12 @@ class ImageContext:
             # Multiple perspectives
             images_data = {}
             for persp, file_path in result.items():
-                images_data[persp] = {
-                    "file": file_path,
-                    "image_base64": encode_image(file_path)
-                }
+                images_data[persp] = {"file": file_path, "image_base64": encode_image(file_path)}
 
-            return {
-                "success": True,
-                "images": images_data,
-                "count": len(result)
-            }
+            return {"success": True, "images": images_data, "count": len(result)}
         else:
             # Single perspective
-            return {
-                "success": True,
-                "file": result,
-                "image_base64": encode_image(result)
-            }
+            return {"success": True, "file": result, "image_base64": encode_image(result)}
 
     @staticmethod
     def set_view(perspective="isometric"):

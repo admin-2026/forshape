@@ -1,6 +1,7 @@
 """
 API Debugger module for dumping LLM API request/response data to files.
 """
+
 import json
 import os
 from datetime import datetime
@@ -63,7 +64,7 @@ class APIDebugger:
         messages: list,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
-        additional_data: Optional[Dict] = None
+        additional_data: Optional[Dict] = None,
     ):
         """
         Dump API request data to a file.
@@ -99,17 +100,12 @@ class APIDebugger:
         filepath = os.path.join(self.output_dir, filename)
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Failed to dump request data: {e}")
 
-    def dump_response(
-        self,
-        response: Any,
-        token_usage: Optional[Dict] = None,
-        additional_data: Optional[Dict] = None
-    ):
+    def dump_response(self, response: Any, token_usage: Optional[Dict] = None, additional_data: Optional[Dict] = None):
         """
         Dump API response data to a file.
 
@@ -134,34 +130,31 @@ class APIDebugger:
 
         # Try to extract response details
         try:
-            if hasattr(response, 'choices') and response.choices:
+            if hasattr(response, "choices") and response.choices:
                 choice = response.choices[0]
                 message_data = {
-                    "role": getattr(choice.message, 'role', None),
-                    "content": getattr(choice.message, 'content', None),
+                    "role": getattr(choice.message, "role", None),
+                    "content": getattr(choice.message, "content", None),
                 }
 
                 # Include tool calls if present
-                if hasattr(choice.message, 'tool_calls') and choice.message.tool_calls:
+                if hasattr(choice.message, "tool_calls") and choice.message.tool_calls:
                     message_data["tool_calls"] = [
                         {
                             "id": tc.id,
                             "type": tc.type,
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments
-                            }
+                            "function": {"name": tc.function.name, "arguments": tc.function.arguments},
                         }
                         for tc in choice.message.tool_calls
                     ]
 
                 response_data["message"] = message_data
-                response_data["finish_reason"] = getattr(choice, 'finish_reason', None)
+                response_data["finish_reason"] = getattr(choice, "finish_reason", None)
 
             # Include model and ID if available
-            if hasattr(response, 'model'):
+            if hasattr(response, "model"):
                 response_data["model"] = response.model
-            if hasattr(response, 'id'):
+            if hasattr(response, "id"):
                 response_data["response_id"] = response.id
 
         except Exception as e:
@@ -176,17 +169,13 @@ class APIDebugger:
         filepath = os.path.join(self.output_dir, filename)
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(response_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Failed to dump response data: {e}")
 
     def dump_tool_execution(
-        self,
-        tool_name: str,
-        tool_arguments: str,
-        tool_result: str,
-        tool_call_id: Optional[str] = None
+        self, tool_name: str, tool_arguments: str, tool_result: str, tool_call_id: Optional[str] = None
     ):
         """
         Dump tool execution data to a file.
@@ -210,7 +199,7 @@ class APIDebugger:
             "tool_call_id": tool_call_id,
             "tool_name": tool_name,
             "arguments": tool_arguments,
-            "result": tool_result
+            "result": tool_result,
         }
 
         # Create a sub-file for each tool execution
@@ -218,7 +207,7 @@ class APIDebugger:
         filepath = os.path.join(self.output_dir, filename)
 
         try:
-            with open(filepath, 'w', encoding='utf-8') as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Failed to dump tool execution data: {e}")

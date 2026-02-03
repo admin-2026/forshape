@@ -7,12 +7,12 @@ ToolCallStep to avoid code duplication.
 """
 
 import json
-from typing import List, Dict, Optional, Any, Callable, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ..tools.tool_manager import ToolManager
 from ..api_debugger import APIDebugger
 from ..logger_protocol import LoggerProtocol
 from ..request.tool_call_message import ToolCall
+from ..tools.tool_manager import ToolManager
 
 
 class ToolExecutor:
@@ -23,11 +23,7 @@ class ToolExecutor:
     message dicts suitable for conversation history.
     """
 
-    def __init__(
-        self,
-        tool_manager: ToolManager,
-        logger: Optional[LoggerProtocol] = None
-    ):
+    def __init__(self, tool_manager: ToolManager, logger: Optional[LoggerProtocol] = None):
         """
         Initialize the ToolExecutor.
 
@@ -47,7 +43,7 @@ class ToolExecutor:
         self,
         tool_calls: List[Any],
         api_debugger: Optional[APIDebugger] = None,
-        cancellation_check: Optional[Callable[[], bool]] = None
+        cancellation_check: Optional[Callable[[], bool]] = None,
     ) -> Tuple[List[Dict], bool]:
         """
         Execute tool calls and return result messages.
@@ -98,15 +94,13 @@ class ToolExecutor:
                     tool_name=tool_name,
                     tool_arguments=raw_arguments,
                     tool_result=tool_result,
-                    tool_call_id=tool_call_id
+                    tool_call_id=tool_call_id,
                 )
 
             # Get the provider and let it process the result
             tool_provider = self.tool_manager.get_provider(tool_name)
             if tool_provider:
-                provider_result_messages = tool_provider.process_result(
-                    tool_call_id, tool_name, tool_result
-                )
+                provider_result_messages = tool_provider.process_result(tool_call_id, tool_name, tool_result)
                 for result_message in provider_result_messages:
                     message_dict = result_message.get_message()
                     if message_dict:

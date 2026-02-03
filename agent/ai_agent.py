@@ -7,17 +7,15 @@ each of which can call tools to interact with the file system.
 Supports multiple API providers: OpenAI, Fireworks, and more.
 """
 
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
-from .step import Step, StepResult
-from .request import MessageElement
 from .api_debugger import APIDebugger
-from .chat_history_manager import ChatHistoryManager
 from .api_provider import APIProvider, create_api_provider
-from .step_config import StepConfigRegistry
-
-from .logger_protocol import LoggerProtocol
+from .chat_history_manager import ChatHistoryManager
 from .edit_history import EditHistory
+from .logger_protocol import LoggerProtocol
+from .step import Step, StepResult
+from .step_config import StepConfigRegistry
 
 
 class AIAgent:
@@ -64,7 +62,9 @@ class AIAgent:
         self._conversation_counter = 0
         self.edit_history = edit_history
 
-    def _initialize_provider(self, provider_name: str, api_key: Optional[str], provider_config=None) -> Optional[APIProvider]:
+    def _initialize_provider(
+        self, provider_name: str, api_key: Optional[str], provider_config=None
+    ) -> Optional[APIProvider]:
         """
         Initialize the API provider.
 
@@ -81,6 +81,7 @@ class AIAgent:
 
         try:
             from .api_provider import create_api_provider_from_config
+
             if provider_config:
                 provider = create_api_provider_from_config(provider_config, api_key)
             else:
@@ -106,6 +107,7 @@ class AIAgent:
             Unique conversation ID string
         """
         from datetime import datetime
+
         self._conversation_counter += 1
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
@@ -195,14 +197,16 @@ class AIAgent:
                 total_tokens = token_data["total_tokens"]
 
                 if token_callback:
-                    token_callback({
-                        "prompt_tokens": total_prompt_tokens,
-                        "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens,
-                        "iteration": token_data.get("iteration", 0),
-                        "step": step.name,
-                        "step_index": i + 1
-                    })
+                    token_callback(
+                        {
+                            "prompt_tokens": total_prompt_tokens,
+                            "completion_tokens": total_completion_tokens,
+                            "total_tokens": total_tokens,
+                            "iteration": token_data.get("iteration", 0),
+                            "step": step.name,
+                            "step_index": i + 1,
+                        }
+                    )
 
             # Get step-specific config from registry
             step_input_queue = step_configs.get_input_queue(step.name)
@@ -226,7 +230,7 @@ class AIAgent:
                 initial_messages=step_initial_messages,
                 api_debugger=self.api_debugger,
                 token_callback=step_token_callback,
-                cancellation_check=self._is_cancelled
+                cancellation_check=self._is_cancelled,
             )
 
             final_response = result.response
@@ -249,7 +253,7 @@ class AIAgent:
         self.last_token_usage = {
             "prompt_tokens": total_prompt_tokens,
             "completion_tokens": total_completion_tokens,
-            "total_tokens": total_tokens
+            "total_tokens": total_tokens,
         }
 
         return final_response

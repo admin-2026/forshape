@@ -2,10 +2,8 @@
 API Key input dialog for adding provider API keys.
 """
 
-from PySide2.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
-                                QDialogButtonBox, QTextEdit)
 from PySide2.QtGui import QFont
-from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QDialog, QDialogButtonBox, QLabel, QLineEdit, QVBoxLayout
 
 
 class ApiKeyDialog(QDialog):
@@ -40,8 +38,7 @@ class ApiKeyDialog(QDialog):
 
         # Add info label
         info_label = QLabel(
-            f"Enter your {self.display_name} API key below.\n"
-            f"The key will be securely stored in your system keyring."
+            f"Enter your {self.display_name} API key below.\nThe key will be securely stored in your system keyring."
         )
         info_label.setFont(QFont("Consolas", 9))
         info_label.setWordWrap(True)
@@ -93,6 +90,7 @@ class ApiKeyDialog(QDialog):
         if not api_key:
             # Show error if empty
             from PySide2.QtWidgets import QMessageBox
+
             QMessageBox.warning(self, "Invalid Input", "Please enter a valid API key.")
             return
 

@@ -8,25 +8,23 @@ for evaluating arithmetic expressions.
 import json
 import math
 import re
-from typing import Dict, List, Callable, Union
-
+from typing import Callable, Dict, List, Union
 
 from .base import ToolBase
-
 
 # Regex pattern for valid math expressions
 # Allows: numbers, operators (+, -, *, /, **, %), parentheses, decimal points,
 # whitespace, and common math functions
 MATH_EXPRESSION_PATTERN = re.compile(
-    r'^[\d\s\+\-\*\/\%\.\(\)]+$|'  # Basic arithmetic
-    r'^[\d\s\+\-\*\/\%\.\(\)]*'    # With optional math functions
-    r'(sqrt|pow|abs|sin|cos|tan|log|log10|exp|floor|ceil|round)'
-    r'[\d\s\+\-\*\/\%\.\(\)]*$',
-    re.IGNORECASE
+    r"^[\d\s\+\-\*\/\%\.\(\)]+$|"  # Basic arithmetic
+    r"^[\d\s\+\-\*\/\%\.\(\)]*"  # With optional math functions
+    r"(sqrt|pow|abs|sin|cos|tan|log|log10|exp|floor|ceil|round)"
+    r"[\d\s\+\-\*\/\%\.\(\)]*$",
+    re.IGNORECASE,
 )
 
 # Stricter pattern: only numbers, basic operators, parentheses, decimal, whitespace
-SAFE_MATH_PATTERN = re.compile(r'^[\d\s\+\-\*\/\%\.\(\)\^]+$')
+SAFE_MATH_PATTERN = re.compile(r"^[\d\s\+\-\*\/\%\.\(\)\^]+$")
 
 
 class CalculatorTools(ToolBase):
@@ -49,12 +47,12 @@ class CalculatorTools(ToolBase):
                         "properties": {
                             "expression": {
                                 "type": "string",
-                                "description": "The mathematical expression to evaluate. Examples: '2 + 3 * 4', '(10 + 5) / 3', 'sqrt(16)', 'pow(2, 8)'."
+                                "description": "The mathematical expression to evaluate. Examples: '2 + 3 * 4', '(10 + 5) / 3', 'sqrt(16)', 'pow(2, 8)'.",
                             }
                         },
-                        "required": ["expression"]
-                    }
-                }
+                        "required": ["expression"],
+                    },
+                },
             }
         ]
 
@@ -98,11 +96,7 @@ class CalculatorTools(ToolBase):
 
     def _json_success(self, result: Union[int, float], expression: str) -> str:
         """Create a JSON success response."""
-        response = {
-            "success": True,
-            "expression": expression,
-            "result": result
-        }
+        response = {"success": True, "expression": expression, "result": result}
         return json.dumps(response, indent=2)
 
     def _is_valid_expression(self, expression: str) -> bool:
@@ -117,12 +111,24 @@ class CalculatorTools(ToolBase):
         """
         # Remove allowed math function names for validation
         allowed_functions = [
-            'sqrt', 'pow', 'abs', 'sin', 'cos', 'tan',
-            'log', 'log10', 'exp', 'floor', 'ceil', 'round', 'pi', 'e'
+            "sqrt",
+            "pow",
+            "abs",
+            "sin",
+            "cos",
+            "tan",
+            "log",
+            "log10",
+            "exp",
+            "floor",
+            "ceil",
+            "round",
+            "pi",
+            "e",
         ]
         temp_expr = expression.lower()
         for func in allowed_functions:
-            temp_expr = temp_expr.replace(func, '')
+            temp_expr = temp_expr.replace(func, "")
 
         # After removing function names, only safe characters should remain
         return bool(SAFE_MATH_PATTERN.match(temp_expr))
@@ -149,30 +155,27 @@ class CalculatorTools(ToolBase):
 
             # Validate expression contains only safe characters
             if not self._is_valid_expression(expression):
-                return self._json_error(
-                    "Invalid expression: contains disallowed characters",
-                    expression=expression
-                )
+                return self._json_error("Invalid expression: contains disallowed characters", expression=expression)
 
             # Replace ^ with ** for power operations
-            safe_expression = expression.replace('^', '**')
+            safe_expression = expression.replace("^", "**")
 
             # Create a safe namespace with only math functions
             safe_namespace = {
-                'sqrt': math.sqrt,
-                'pow': math.pow,
-                'abs': abs,
-                'sin': math.sin,
-                'cos': math.cos,
-                'tan': math.tan,
-                'log': math.log,
-                'log10': math.log10,
-                'exp': math.exp,
-                'floor': math.floor,
-                'ceil': math.ceil,
-                'round': round,
-                'pi': math.pi,
-                'e': math.e,
+                "sqrt": math.sqrt,
+                "pow": math.pow,
+                "abs": abs,
+                "sin": math.sin,
+                "cos": math.cos,
+                "tan": math.tan,
+                "log": math.log,
+                "log10": math.log10,
+                "exp": math.exp,
+                "floor": math.floor,
+                "ceil": math.ceil,
+                "round": round,
+                "pi": math.pi,
+                "e": math.e,
             }
 
             # Evaluate the expression

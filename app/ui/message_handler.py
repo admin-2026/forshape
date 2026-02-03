@@ -59,7 +59,7 @@ class MessageHandler:
         self.conversation_display.insertHtml(formatted_message)
 
         # Add a line break after each message to separate consecutive messages
-        self.conversation_display.insertHtml('<br>')
+        self.conversation_display.insertHtml("<br>")
 
         # Scroll to bottom
         cursor = self.conversation_display.textCursor()
@@ -89,11 +89,11 @@ class MessageHandler:
         if last_div_start != -1:
             # Find the closing </div> after this opening tag
             search_from = last_div_start + 10
-            div_end = html_content.find('</div>', search_from)
+            div_end = html_content.find("</div>", search_from)
 
             if div_end != -1:
                 # Also remove the <br> that follows
-                br_end = html_content.find('<br>', div_end)
+                br_end = html_content.find("<br>", div_end)
                 if br_end != -1 and br_end - div_end < 20:  # Make sure it's the immediate <br>
                     end_pos = br_end + 4  # Include the <br>
                 else:
@@ -132,12 +132,7 @@ class MessageHandler:
             timestamp: Timestamp of the log
         """
         # Color code based on log level
-        color_map = {
-            "DEBUG": "#888888",
-            "INFO": "#0066CC",
-            "WARN": "#FF8800",
-            "ERROR": "#CC0000"
-        }
+        color_map = {"DEBUG": "#888888", "INFO": "#0066CC", "WARN": "#FF8800", "ERROR": "#CC0000"}
         color = color_map.get(level, "#000000")
 
         # Format the log message with color
@@ -163,13 +158,15 @@ class MessageHandler:
             # On Windows, this will play the system default beep
             # On other platforms, it will attempt to play a system sound
             import platform
-            if platform.system() == 'Windows':
+
+            if platform.system() == "Windows":
                 # Use winsound for a simple beep on Windows
                 import winsound
+
                 winsound.MessageBeep(winsound.MB_ICONASTERISK)
             else:
                 # On other platforms, try to use system bell
-                print('\a')  # ASCII bell character
+                print("\a")  # ASCII bell character
         except Exception as e:
             # If sound fails, just log it and continue
             self.logger.debug(f"Could not play notification sound: {e}")

@@ -9,9 +9,8 @@ if no requester is provided.
 """
 
 from enum import Enum
-from typing import Set, Optional, Protocol, Any
-
 from pathlib import Path
+from typing import Any, Optional, Protocol, Set
 
 
 class PermissionRequester(Protocol):
@@ -38,8 +37,9 @@ class PermissionRequester(Protocol):
 
 class PermissionResponse(Enum):
     """Response types for permission requests."""
-    DENY = 0           # Deny the operation
-    ALLOW_ONCE = 1     # Allow this operation only (don't store)
+
+    DENY = 0  # Deny the operation
+    ALLOW_ONCE = 1  # Allow this operation only (don't store)
     ALLOW_SESSION = 2  # Allow and store for the entire session
 
 
@@ -99,14 +99,14 @@ class PermissionManager:
         Returns:
             PermissionResponse indicating the user's choice
         """
-        print(f"\n[Permission Request]")
+        print("\n[Permission Request]")
         print(f"Operation: {operation}")
         print(f"Resource: {resource}")
         response = input("Grant permission? (y/n/session): ").strip().lower()
 
-        if response == 'session':
+        if response == "session":
             return PermissionResponse.ALLOW_SESSION
-        elif response in ['y', 'yes']:
+        elif response in ["y", "yes"]:
             return PermissionResponse.ALLOW_ONCE
         else:
             return PermissionResponse.DENY
@@ -228,10 +228,7 @@ class PermissionManager:
         Returns:
             Dictionary with 'files' and 'directories' lists
         """
-        return {
-            "files": list(self.granted_paths),
-            "directories": list(self.granted_directories)
-        }
+        return {"files": list(self.granted_paths), "directories": list(self.granted_directories)}
 
     def has_any_permissions(self) -> bool:
         """

@@ -2,10 +2,9 @@
 Clarification dialog for AI agent to ask user questions.
 """
 
-from PySide2.QtWidgets import (QDialog, QVBoxLayout, QLabel, QLineEdit,
-                                QDialogButtonBox, QScrollArea, QWidget, QTextEdit)
-from PySide2.QtGui import QFont
 from PySide2.QtCore import Qt
+from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QDialog, QDialogButtonBox, QLabel, QScrollArea, QTextEdit, QVBoxLayout, QWidget
 
 
 class ClarificationDialog(QDialog):
@@ -89,10 +88,7 @@ class ClarificationDialog(QDialog):
         # Collect all responses
         for i, (question, input_field) in enumerate(zip(self.questions, self.input_fields)):
             response = input_field.toPlainText().strip()
-            self.responses[f"question_{i+1}"] = {
-                "question": question,
-                "response": response
-            }
+            self.responses[f"question_{i + 1}"] = {"question": question, "response": response}
 
         # Check if at least one question has a response
         has_response = any(r["response"] for r in self.responses.values())
@@ -100,11 +96,8 @@ class ClarificationDialog(QDialog):
         if not has_response:
             # Show warning if no responses provided
             from PySide2.QtWidgets import QMessageBox
-            QMessageBox.warning(
-                self,
-                "No Responses",
-                "Please provide at least one response before submitting."
-            )
+
+            QMessageBox.warning(self, "No Responses", "Please provide at least one response before submitting.")
             return
 
         self.accept()

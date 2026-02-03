@@ -6,7 +6,7 @@ allowing AIWorker to specify messages and input_queue for specific steps.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 from .request import MessageElement
 from .user_input_queue import UserInputQueue
@@ -15,6 +15,7 @@ from .user_input_queue import UserInputQueue
 @dataclass
 class StepConfig:
     """Runtime configuration for a specific step execution."""
+
     messages: Optional[List[MessageElement]] = None
     input_queue: Optional[UserInputQueue] = None
 

@@ -1,12 +1,13 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.folder;
 # reload(shapes.folder); from shapes.folder import Folder
 # Folder.create_folder('my_folder')
 # Folder.add_to_folder('my_folder', 'object_label')
+
 
 class Folder(Shape):
     @staticmethod
@@ -21,7 +22,7 @@ class Folder(Shape):
             The folder object, or None if in teardown mode
         """
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(label, 'App::DocumentObjectGroup')
+        incremental_build_obj = Shape._incremental_build_if_possible(label, "App::DocumentObjectGroup")
         if incremental_build_obj is not None:
             return incremental_build_obj
 
@@ -34,14 +35,14 @@ class Folder(Shape):
 
         if existing_folder is not None:
             # Check if it's already a folder
-            if existing_folder.TypeId == 'App::DocumentObjectGroup':
+            if existing_folder.TypeId == "App::DocumentObjectGroup":
                 return existing_folder
             else:
                 # Not a folder, move to trash and create new
                 Shape._move_to_trash_bin(existing_folder)
 
         # Create new folder
-        App.ActiveDocument.addObject('App::DocumentObjectGroup', label)
+        App.ActiveDocument.addObject("App::DocumentObjectGroup", label)
         folder = Context.get_object(label)
 
         return folder
@@ -69,16 +70,16 @@ class Folder(Shape):
         # Handle single object
         folder = Context.get_object(folder_label)
         if folder is None:
-            print(f'Folder not found: {folder_label}')
+            print(f"Folder not found: {folder_label}")
             return False
 
-        if folder.TypeId != 'App::DocumentObjectGroup':
-            print(f'Object is not a folder: {folder_label} (Type: {folder.TypeId})')
+        if folder.TypeId != "App::DocumentObjectGroup":
+            print(f"Object is not a folder: {folder_label} (Type: {folder.TypeId})")
             return False
 
         obj = Context.get_object(obj_or_label_or_list)
         if obj is None:
-            print(f'Object not found: {obj_or_label_or_list}')
+            print(f"Object not found: {obj_or_label_or_list}")
             return False
 
         # Get the root parent if it exists, otherwise use the object itself

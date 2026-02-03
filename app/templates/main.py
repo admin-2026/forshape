@@ -3,10 +3,6 @@
 # This script builds your 3D model using the shapes library.
 # Import constants from constants.py and use shapes to create geometry.
 
-from shapes.additive_box import AdditiveBox
-from shapes.additive_cylinder import AdditiveCylinder
-from shapes.boolean import Boolean
-from shapes.folder import Folder
 
 # Import all constants from the separate constants file
 from constants import *
@@ -25,5 +21,5 @@ def build_model():
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     build_model()

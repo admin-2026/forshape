@@ -2,9 +2,8 @@
 File selector dialog for choosing Python files to run.
 """
 
-from PySide2.QtWidgets import (QDialog, QVBoxLayout, QLabel, QListWidget,
-                                QListWidgetItem, QDialogButtonBox)
 from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QDialog, QDialogButtonBox, QLabel, QListWidget, QListWidgetItem, QVBoxLayout
 
 
 class PythonFileSelector(QDialog):

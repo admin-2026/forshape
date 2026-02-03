@@ -7,14 +7,13 @@ reading files, editing files, and searching Python files.
 
 import json
 import re
-from typing import Dict, List, Callable, Optional
 from pathlib import Path
+from typing import Callable, Dict, List, Optional
 
-from .base import ToolBase
+from ..edit_history import EditHistory
 from ..logger_protocol import LoggerProtocol
 from ..permission_manager import PermissionManager, PermissionResponse
-from ..edit_history import EditHistory
-
+from .base import ToolBase
 
 # Large file read protection threshold (in bytes)
 LARGE_FILE_SIZE_THRESHOLD = 50000  # 50KB
@@ -34,7 +33,7 @@ class FileAccessTools(ToolBase):
         permission_manager: Optional[PermissionManager] = None,
         edit_history: Optional[EditHistory] = None,
         exclude_folders: Optional[List[str]] = None,
-        exclude_patterns: Optional[List[str]] = None
+        exclude_patterns: Optional[List[str]] = None,
     ):
         """
         Initialize file access tools.
@@ -67,12 +66,12 @@ class FileAccessTools(ToolBase):
                         "properties": {
                             "folder_path": {
                                 "type": "string",
-                                "description": "The path to the folder to list files from. Can be relative to the working directory or absolute."
+                                "description": "The path to the folder to list files from. Can be relative to the working directory or absolute.",
                             }
                         },
-                        "required": ["folder_path"]
-                    }
-                }
+                        "required": ["folder_path"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -84,12 +83,12 @@ class FileAccessTools(ToolBase):
                         "properties": {
                             "file_path": {
                                 "type": "string",
-                                "description": "The path to the file to read. Can be relative to the working directory or absolute."
+                                "description": "The path to the file to read. Can be relative to the working directory or absolute.",
                             }
                         },
-                        "required": ["file_path"]
-                    }
-                }
+                        "required": ["file_path"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -101,20 +100,20 @@ class FileAccessTools(ToolBase):
                         "properties": {
                             "file_path": {
                                 "type": "string",
-                                "description": "The path to the file to edit. Can be relative to the working directory or absolute."
+                                "description": "The path to the file to edit. Can be relative to the working directory or absolute.",
                             },
                             "old_content": {
                                 "type": "string",
-                                "description": "The exact content to be replaced in the file. Use empty string for new files."
+                                "description": "The exact content to be replaced in the file. Use empty string for new files.",
                             },
                             "new_content": {
                                 "type": "string",
-                                "description": "The new content to replace the old content with. For new files, this is the entire file content."
-                            }
+                                "description": "The new content to replace the old content with. For new files, this is the entire file content.",
+                            },
                         },
-                        "required": ["file_path", "old_content", "new_content"]
-                    }
-                }
+                        "required": ["file_path", "old_content", "new_content"],
+                    },
+                },
             },
             {
                 "type": "function",
@@ -126,21 +125,21 @@ class FileAccessTools(ToolBase):
                         "properties": {
                             "pattern": {
                                 "type": "string",
-                                "description": "The regex pattern to search for in Python files."
+                                "description": "The regex pattern to search for in Python files.",
                             },
                             "recursive": {
                                 "type": "boolean",
-                                "description": "If true, searches recursively in subdirectories (default: true)."
+                                "description": "If true, searches recursively in subdirectories (default: true).",
                             },
                             "case_sensitive": {
                                 "type": "boolean",
-                                "description": "If true, performs case-sensitive search (default: true)."
-                            }
+                                "description": "If true, performs case-sensitive search (default: true).",
+                            },
                         },
-                        "required": ["pattern"]
-                    }
-                }
-            }
+                        "required": ["pattern"],
+                    },
+                },
+            },
         ]
 
     def get_functions(self) -> Dict[str, Callable[..., str]]:
@@ -198,10 +197,7 @@ When users ask you to generate or modify files:
         """Check permission for a file/directory operation."""
         if self.permission_manager:
             if not self.permission_manager.request_permission(path, action, is_directory=is_directory):
-                return json.dumps({
-                    "error": f"Permission denied: {path}",
-                    "permission_denied": True
-                })
+                return json.dumps({"error": f"Permission denied: {path}", "permission_denied": True})
         return None
 
     def _validate_file_exists(self, path: Path) -> Optional[str]:
@@ -269,24 +265,27 @@ When users ask you to generate or modify files:
                     continue
 
                 # If only_python is True, filter out non-Python files
-                if only_python and item.is_file() and not item.name.endswith('.py'):
+                if only_python and item.is_file() and not item.name.endswith(".py"):
                     continue
 
                 item_info = {
                     "name": item.name,
                     "type": "directory" if item.is_dir() else "file",
-                    "path": str(item.relative_to(working_dir)) if item.is_relative_to(working_dir) else str(item)
+                    "path": str(item.relative_to(working_dir)) if item.is_relative_to(working_dir) else str(item),
                 }
                 items.append(item_info)
 
             # Sort: directories first, then files, alphabetically
             items.sort(key=lambda x: (x["type"] != "directory", x["name"].lower()))
 
-            return json.dumps({
-                "folder": str(resolved_path),
-                "items": items,
-                "count": len(items),
-            }, indent=2)
+            return json.dumps(
+                {
+                    "folder": str(resolved_path),
+                    "items": items,
+                    "count": len(items),
+                },
+                indent=2,
+            )
 
         except Exception as e:
             return self._json_error(f"Error listing files: {str(e)}")
@@ -320,24 +319,23 @@ When users ask you to generate or modify files:
                 # Request permission for large file read
                 if self.permission_manager:
                     result = self.permission_manager._request_user_permission(
-                        str(resolved_path),
-                        f"read_large_file ({file_size:,} bytes, exceeds 50KB limit)"
+                        str(resolved_path), f"read_large_file ({file_size:,} bytes, exceeds 50KB limit)"
                     )
                     if result == PermissionResponse.DENY:
-                        return json.dumps({
-                            "error": f"Permission denied: File is too large ({file_size:,} bytes)",
-                            "file_size": file_size,
-                            "permission_denied": True
-                        })
+                        return json.dumps(
+                            {
+                                "error": f"Permission denied: File is too large ({file_size:,} bytes)",
+                                "file_size": file_size,
+                                "permission_denied": True,
+                            }
+                        )
 
-            with open(resolved_path, 'r', encoding='utf-8') as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 content = f.read()
 
-            return json.dumps({
-                "file": str(resolved_path),
-                "content": content,
-                "size_bytes": len(content.encode('utf-8'))
-            }, indent=2)
+            return json.dumps(
+                {"file": str(resolved_path), "content": content, "size_bytes": len(content.encode("utf-8"))}, indent=2
+            )
 
         except UnicodeDecodeError:
             return self._json_error(f"Cannot read file (not a text file or encoding issue): {file_path}")
@@ -370,7 +368,7 @@ When users ask you to generate or modify files:
                 resolved_path.parent.mkdir(parents=True, exist_ok=True)
 
                 # Create new file with new_content
-                with open(resolved_path, 'w', encoding='utf-8') as f:
+                with open(resolved_path, "w", encoding="utf-8") as f:
                     f.write(new_content)
 
                 # Track file creation in edit history (for deletion during rewind)
@@ -381,10 +379,7 @@ When users ask you to generate or modify files:
                     else:
                         self.logger.warn(f"Failed to track file creation in edit history: {resolved_path}")
 
-                return self._json_success(
-                    file=str(resolved_path),
-                    message="File created successfully"
-                )
+                return self._json_success(file=str(resolved_path), message="File created successfully")
 
             if not resolved_path.is_file():
                 return self._json_error(f"Path is not a file: {resolved_path}")
@@ -398,37 +393,26 @@ When users ask you to generate or modify files:
                     self.logger.warn(f"Failed to backup file to edit history: {resolved_path}")
 
             # Read current content
-            with open(resolved_path, 'r', encoding='utf-8') as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 current_content = f.read()
 
             # Check if old_content exists in the file
             if old_content not in current_content:
-                return self._json_error(
-                    "Content to replace not found in file",
-                    file=str(resolved_path)
-                )
+                return self._json_error("Content to replace not found in file", file=str(resolved_path))
 
             # Replace content
             updated_content = current_content.replace(old_content, new_content)
 
             # Write back to file
-            with open(resolved_path, 'w', encoding='utf-8') as f:
+            with open(resolved_path, "w", encoding="utf-8") as f:
                 f.write(updated_content)
 
-            return self._json_success(
-                file=str(resolved_path),
-                message="File edited successfully"
-            )
+            return self._json_success(file=str(resolved_path), message="File edited successfully")
 
         except Exception as e:
             return self._json_error(f"Error editing file: {str(e)}")
 
-    def _tool_search_python_files(
-        self,
-        pattern: str,
-        recursive: bool = True,
-        case_sensitive: bool = True
-    ) -> str:
+    def _tool_search_python_files(self, pattern: str, recursive: bool = True, case_sensitive: bool = True) -> str:
         """
         Implementation of the search_python_files tool.
 
@@ -443,7 +427,9 @@ When users ask you to generate or modify files:
         try:
             # Always use working directory
             search_path = Path(self.working_dir)
-            self.logger.info(f"Searching Python files for pattern: '{pattern}' (recursive={recursive}, case_sensitive={case_sensitive})")
+            self.logger.info(
+                f"Searching Python files for pattern: '{pattern}' (recursive={recursive}, case_sensitive={case_sensitive})"
+            )
 
             # Check permission for search_python_files tool
             perm_error = self._check_permission(str(search_path), "search_python_files", is_directory=True)
@@ -481,19 +467,21 @@ When users ask you to generate or modify files:
                     continue
                 self.logger.info(f"Search file: {py_file}")
                 try:
-                    with open(py_file, 'r', encoding='utf-8') as f:
+                    with open(py_file, encoding="utf-8") as f:
                         for line_num, line in enumerate(f, start=1):
                             if regex.search(line):
                                 # Compute relative path for better readability
-                                relative_path = str(py_file.relative_to(working_dir)) if py_file.is_relative_to(working_dir) else str(py_file)
+                                relative_path = (
+                                    str(py_file.relative_to(working_dir))
+                                    if py_file.is_relative_to(working_dir)
+                                    else str(py_file)
+                                )
 
-                                self.logger.info(f"Found match in: {py_file}, line: {line_num}, content: {line.rstrip()}")
+                                self.logger.info(
+                                    f"Found match in: {py_file}, line: {line_num}, content: {line.rstrip()}"
+                                )
 
-                                matches.append({
-                                    "file": relative_path,
-                                    "line": line_num,
-                                    "content": line.rstrip()
-                                })
+                                matches.append({"file": relative_path, "line": line_num, "content": line.rstrip()})
                 except (UnicodeDecodeError, PermissionError):
                     # Skip files that can't be read
                     continue
@@ -505,7 +493,7 @@ When users ask you to generate or modify files:
                 search_path=str(search_path),
                 matches=matches,
                 total_matches=len(matches),
-                files_searched=len(python_files)
+                files_searched=len(python_files),
             )
 
         except Exception as e:

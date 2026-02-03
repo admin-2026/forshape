@@ -5,15 +5,17 @@ This module provides a logger with multiple log levels (debug, info, warn, error
 that can be displayed in the GUI and optionally written to files.
 """
 
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional
+
 from PySide2.QtCore import QObject, Signal
 
 
 class LogLevel(Enum):
     """Log level enumeration."""
+
     DEBUG = 1
     INFO = 2
     WARN = 3
@@ -63,9 +65,9 @@ class Logger(QObject):
         # Write to file if configured
         if self.log_file:
             try:
-                with open(self.log_file, 'a', encoding='utf-8') as f:
+                with open(self.log_file, "a", encoding="utf-8") as f:
                     f.write(f"[{timestamp}] [{level_str}] {message}\n")
-            except Exception as e:
+            except Exception:
                 # Avoid infinite recursion if file logging fails
                 pass
 

@@ -84,7 +84,6 @@ class ConfigurationManager:
 
         return created_items
 
-
     def get_base_dir(self) -> Path:
         """Get the base directory."""
         return self.base_dir
@@ -143,7 +142,7 @@ class ConfigurationManager:
 # Add any additional notes or context that would help the AI understand your project better.
 """
         try:
-            with open(self.forshape_md_file, 'w', encoding='utf-8') as f:
+            with open(self.forshape_md_file, "w", encoding="utf-8") as f:
                 f.write(default_content)
         except Exception as e:
             print(f"Error creating default FORSHAPE.md: {e}")

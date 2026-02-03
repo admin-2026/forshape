@@ -2,8 +2,9 @@
 Worker thread for handling AI API calls asynchronously.
 """
 
-from PySide2.QtCore import QThread, Signal
 from typing import TYPE_CHECKING
+
+from PySide2.QtCore import QThread, Signal
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
@@ -20,7 +21,7 @@ class AIWorker(QThread):
     # Signal emitted during processing to update token usage
     token_update = Signal(object)  # (token_data)
 
-    def __init__(self, ai_client: 'AIAgent', user_input: str, step_configs: StepConfigRegistry):
+    def __init__(self, ai_client: "AIAgent", user_input: str, step_configs: StepConfigRegistry):
         """
         Initialize the AI worker thread.
 

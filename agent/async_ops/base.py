@@ -7,7 +7,7 @@ following the same pattern as ToolBase for tool providers.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 if TYPE_CHECKING:
     from .wait_manager import WaitManager
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 @dataclass
 class UserInputRequest:
     """Represents a request for user input."""
+
     type_id: str
     data: Dict[str, Any]
     request_id: str = ""
@@ -24,6 +25,7 @@ class UserInputRequest:
 @dataclass
 class UserInputResponse:
     """Response to a user input request."""
+
     request_id: str
     cancelled: bool = False
     data: Any = None  # Response payload (type depends on input type)
@@ -39,7 +41,7 @@ class UserInputBase(ABC):
 
     def __init__(self):
         """Initialize the provider with no manager reference."""
-        self._manager: Optional["WaitManager"] = None
+        self._manager: Optional[WaitManager] = None
 
     def set_manager(self, manager: "WaitManager") -> None:
         """
@@ -115,8 +117,4 @@ class UserInputBase(ABC):
         Returns:
             UserInputRequest instance
         """
-        return UserInputRequest(
-            type_id=self.type_id,
-            data=data,
-            request_id=request_id
-        )
+        return UserInputRequest(type_id=self.type_id, data=data, request_id=request_id)

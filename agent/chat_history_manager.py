@@ -7,9 +7,9 @@ Simplified manager for conversation history with support for:
 - API-ready message formatting
 """
 
-from typing import List, Dict, Optional, Any
-from datetime import datetime
 import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 class ChatHistoryManager:
@@ -35,10 +35,7 @@ class ChatHistoryManager:
             content: Message content (can be string or list for multi-modal content)
             metadata: Optional metadata (timestamp, tokens, etc.)
         """
-        message = {
-            "role": role,
-            "content": content
-        }
+        message = {"role": role, "content": content}
 
         # Add metadata if provided
         if metadata:
@@ -56,7 +53,7 @@ class ChatHistoryManager:
 
         # Apply message limit if set
         if self.max_messages is not None and len(self._history) > self.max_messages:
-            self._history = self._history[-self.max_messages:]
+            self._history = self._history[-self.max_messages :]
 
     def add_user_message(self, content: Any, metadata: Optional[Dict] = None) -> None:
         """Add a user message to the history."""
@@ -79,10 +76,7 @@ class ChatHistoryManager:
         # Create clean message dicts for API (without internal metadata like timestamps)
         filtered = []
         for msg in self._history:
-            api_msg = {
-                "role": msg["role"],
-                "content": msg["content"]
-            }
+            api_msg = {"role": msg["role"], "content": msg["content"]}
             filtered.append(api_msg)
 
         # Return last N messages if specified
@@ -129,7 +123,7 @@ class ChatHistoryManager:
         dump_path = os.path.join(output_dir, dump_filename)
 
         # Write history to file
-        with open(dump_path, 'w', encoding='utf-8') as f:
+        with open(dump_path, "w", encoding="utf-8") as f:
             f.write("=" * 80 + "\n")
             f.write("ForShape AI - Conversation History Dump\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
@@ -138,10 +132,10 @@ class ChatHistoryManager:
             f.write("=" * 80 + "\n\n")
 
             for i, message in enumerate(self._history, 1):
-                role = message.get('role', 'unknown')
-                content = message.get('content', '')
-                timestamp_str = message.get('timestamp', 'N/A')
-                conversation_id = message.get('conversation_id', 'N/A')
+                role = message.get("role", "unknown")
+                content = message.get("content", "")
+                timestamp_str = message.get("timestamp", "N/A")
+                conversation_id = message.get("conversation_id", "N/A")
 
                 f.write(f"\n{'=' * 80}\n")
                 f.write(f"Message #{i} - Role: {role.upper()}\n")
@@ -153,9 +147,9 @@ class ChatHistoryManager:
                 if isinstance(content, list):
                     for item in content:
                         if isinstance(item, dict):
-                            if item.get('type') == 'text':
+                            if item.get("type") == "text":
                                 f.write(f"{item.get('text', '')}\n")
-                            elif item.get('type') == 'image_url':
+                            elif item.get("type") == "image_url":
                                 f.write(f"[IMAGE: {item.get('image_url', {}).get('url', 'N/A')[:100]}...]\n")
                             else:
                                 f.write(f"[{item.get('type', 'unknown').upper()} CONTENT]\n")

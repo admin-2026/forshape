@@ -1,11 +1,12 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.clone;
 # reload(shapes.clone); from shapes.clone import Clone
 # Clone.create_clone('my_clone', 'slider_tab_base')
+
 
 class Clone(Shape):
     @staticmethod
@@ -28,20 +29,18 @@ class Clone(Shape):
             return incremental_build_obj
 
         # Handle teardown mode
-        clone_label = label + '_clone'
+        clone_label = label + "_clone"
         if Shape._teardown_if_needed(label, created_children=[clone_label]):
             return None
 
         # Get the base object
         base_obj = Context.get_object(base_obj_or_label)
         if base_obj is None:
-            print(f'Base object not found: {base_obj_or_label}')
+            print(f"Base object not found: {base_obj_or_label}")
             return None
 
         # Check for existing object and get children if they exist
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (clone_label, 'PartDesign::FeatureBase')
-        ])
+        existing_obj, children = Shape._get_or_recreate_body(label, [(clone_label, "PartDesign::FeatureBase")])
 
         if existing_obj is not None:
             # Clone exists, update its properties
@@ -55,8 +54,7 @@ class Clone(Shape):
 
             # Create placement from offset and rotation
             target_placement = App.Placement(
-                App.Vector(offset[0], offset[1], offset[2]),
-                App.Rotation(rotation[0], rotation[1], rotation[2])
+                App.Vector(offset[0], offset[1], offset[2]), App.Rotation(rotation[0], rotation[1], rotation[2])
             )
             if existing_clone.Placement != target_placement:
                 existing_clone.Placement = target_placement
@@ -81,7 +79,7 @@ class Clone(Shape):
         obj = Shape._create_object(label)
 
         # Create Clone (PartDesign::FeatureBase)
-        App.ActiveDocument.addObject('PartDesign::FeatureBase', clone_label)
+        App.ActiveDocument.addObject("PartDesign::FeatureBase", clone_label)
         clone = Context.get_object(clone_label)
 
         # Add Clone to Body's Group
@@ -95,8 +93,7 @@ class Clone(Shape):
 
         # Set Placement from offset and rotation
         clone.Placement = App.Placement(
-            App.Vector(offset[0], offset[1], offset[2]),
-            App.Rotation(rotation[0], rotation[1], rotation[2])
+            App.Vector(offset[0], offset[1], offset[2]), App.Rotation(rotation[0], rotation[1], rotation[2])
         )
 
         App.ActiveDocument.recompute()

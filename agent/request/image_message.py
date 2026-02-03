@@ -5,7 +5,7 @@ This module provides the ImageMessage class for building
 API messages with a description and optional image content.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from .message_element import MessageElement
 
@@ -111,21 +111,13 @@ class ImageMessage(MessageElement):
         Returns:
             Message dict with description and multiple image_url content
         """
-        content = [
-            {
-                "type": "text",
-                "text": self._description
-            }
-        ]
+        content = [{"type": "text", "text": self._description}]
 
         # Add all images to the content array
         for base64_image in base64_images:
             content.append(self._create_image_url_content(base64_image))
 
-        return {
-            "role": "user",
-            "content": content
-        }
+        return {"role": "user", "content": content}
 
     @staticmethod
     def _create_image_url_content(base64_image: str) -> Dict[str, Any]:
@@ -138,12 +130,4 @@ class ImageMessage(MessageElement):
         Returns:
             Image URL content dict
         """
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/png;base64,{base64_image}",
-                "detail": "high"
-            }
-        }
-
-
+        return {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}", "detail": "high"}}

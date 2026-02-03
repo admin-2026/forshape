@@ -40,14 +40,8 @@ class ClarificationHandler(GuiInputHandlerBase):
             responses = dialog.get_responses()
             if self._logger:
                 self._logger.info(f"User clarification response: {responses}")
-            self._bridge.send_response(
-                request.request_id,
-                data={"responses": responses}
-            )
+            self._bridge.send_response(request.request_id, data={"responses": responses})
         else:
             if self._logger:
                 self._logger.info("User cancelled clarification dialog")
-            self._bridge.send_response(
-                request.request_id,
-                cancelled=True
-            )
+            self._bridge.send_response(request.request_id, cancelled=True)

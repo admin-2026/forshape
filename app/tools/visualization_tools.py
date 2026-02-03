@@ -6,13 +6,13 @@ visual representations of FreeCAD content.
 """
 
 import io
-import sys
 import json
-from typing import Dict, List, Callable, Optional
+import sys
 from contextlib import contextmanager
+from typing import Callable, Dict, List, Optional
 
+from agent.request import ImageMessage, MessageElement, ToolResultMessage
 from agent.tools.base import ToolBase
-from agent.request import MessageElement, ToolResultMessage, ImageMessage
 from shapes.image_context import ImageContext
 
 
@@ -45,23 +45,21 @@ class VisualizationTools(ToolBase):
                         "properties": {
                             "target": {
                                 "type": "string",
-                                "description": "Optional object label/name to focus on. If not specified, captures entire scene."
+                                "description": "Optional object label/name to focus on. If not specified, captures entire scene.",
                             },
                             "perspective": {
                                 "type": "string",
-                                "description": "View angle: 'front', 'back', 'top', 'bottom', 'left', 'right', or 'isometric' (default: 'isometric'). Ignored if perspectives is specified."
+                                "description": "View angle: 'front', 'back', 'top', 'bottom', 'left', 'right', or 'isometric' (default: 'isometric'). Ignored if perspectives is specified.",
                             },
                             "perspectives": {
                                 "type": "array",
-                                "items": {
-                                    "type": "string"
-                                },
-                                "description": "Optional list of perspectives for multiple captures. Example: ['front', 'top', 'isometric']. When provided, ignores the 'perspective' parameter."
-                            }
+                                "items": {"type": "string"},
+                                "description": "Optional list of perspectives for multiple captures. Example: ['front', 'top', 'isometric']. When provided, ignores the 'perspective' parameter.",
+                            },
                         },
-                        "required": []
-                    }
-                }
+                        "required": [],
+                    },
+                },
             }
         ]
 
@@ -92,12 +90,7 @@ class VisualizationTools(ToolBase):
 > Use capture_screenshot to capture an image of the object and return the image
 """
 
-    def process_result(
-        self,
-        tool_call_id: str,
-        tool_name: str,
-        tool_result: str
-    ) -> List[MessageElement]:
+    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> List[MessageElement]:
         """
         Process a tool result and return MessageElements for the conversation.
 
@@ -143,17 +136,18 @@ class VisualizationTools(ToolBase):
                 # Single image
                 base64_image = result_data["image_base64"]
                 if base64_image and not base64_image.startswith("Error"):
-                    messages.append(ImageMessage(
-                        "Here is the screenshot that was just captured:",
-                        {"success": True, "image_base64": base64_image}
-                    ))
+                    messages.append(
+                        ImageMessage(
+                            "Here is the screenshot that was just captured:",
+                            {"success": True, "image_base64": base64_image},
+                        )
+                    )
 
             elif "images" in result_data:
                 # Multiple images with perspective labels
-                messages.append(ImageMessage(
-                    "Here are the screenshots that were just captured:",
-                    result_data["images"]
-                ))
+                messages.append(
+                    ImageMessage("Here are the screenshots that were just captured:", result_data["images"])
+                )
 
         except (json.JSONDecodeError, Exception):
             pass  # Silently ignore errors in screenshot message building
@@ -181,10 +175,7 @@ class VisualizationTools(ToolBase):
             sys.stderr = old_stderr
 
     def _tool_capture_screenshot(
-        self,
-        target: Optional[str] = None,
-        perspective: str = "isometric",
-        perspectives: Optional[List[str]] = None
+        self, target: Optional[str] = None, perspective: str = "isometric", perspectives: Optional[List[str]] = None
     ) -> str:
         """
         Implementation of the capture_screenshot tool.
@@ -202,26 +193,20 @@ class VisualizationTools(ToolBase):
         try:
             # Check if image_context is available
             if self.image_context is None:
-                return json.dumps({
-                    "success": False,
-                    "message": "ImageContext not configured"
-                })
+                return json.dumps({"success": False, "message": "ImageContext not configured"})
 
             with self._capture_output() as get_output:
                 # Call image_context.capture_encoded() - handles both capture and base64 encoding
                 result = self.image_context.capture_encoded(
-                    target=target,
-                    perspective=perspective,
-                    perspectives=perspectives
+                    target=target, perspective=perspective, perspectives=perspectives
                 )
                 output = get_output()
 
             # Check if capture was successful
             if result is None:
-                return json.dumps({
-                    "success": False,
-                    "message": output.strip() if output else "Screenshot capture failed"
-                }, indent=2)
+                return json.dumps(
+                    {"success": False, "message": output.strip() if output else "Screenshot capture failed"}, indent=2
+                )
 
             # Add captured output to the result
             result["output"] = output.strip()

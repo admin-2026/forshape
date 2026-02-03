@@ -8,7 +8,7 @@ Follows the same pattern as ToolManager for consistency.
 """
 
 import threading
-from typing import Dict, List, Optional, Callable, Any
+from typing import Any, Callable, Dict, List, Optional
 
 from .base import UserInputBase, UserInputRequest, UserInputResponse
 

@@ -6,6 +6,7 @@ from .shape import Shape
 # from shapes.additive_cylinder import AdditiveCylinder
 # AdditiveCylinder.create_cylinder('addcylinder', 'XY_Plane', 2, 10)
 
+
 class AdditiveCylinder(Shape):
     @staticmethod
     def create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
@@ -17,14 +18,12 @@ class AdditiveCylinder(Shape):
             return incremental_build_obj
 
         # Handle teardown mode
-        if Shape._teardown_if_needed(label, created_children=[label + '_cylinder']):
+        if Shape._teardown_if_needed(label, created_children=[label + "_cylinder"]):
             return None
 
         # Check for existing object and get children if they exist
-        cylinder_label = label + '_cylinder'
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (cylinder_label, 'PartDesign::AdditiveCylinder')
-        ])
+        cylinder_label = label + "_cylinder"
+        existing_obj, children = Shape._get_or_recreate_body(label, [(cylinder_label, "PartDesign::AdditiveCylinder")])
 
         if existing_obj is not None:
             # AdditiveCylinder exists, update its properties
@@ -32,8 +31,8 @@ class AdditiveCylinder(Shape):
             needs_recompute = False
 
             # Update dimensions
-            new_radius = f'{radius} mm'
-            new_height = f'{height} mm'
+            new_radius = f"{radius} mm"
+            new_height = f"{height} mm"
 
             if str(existing_cylinder.Radius) != new_radius:
                 existing_cylinder.Radius = new_radius
@@ -43,18 +42,20 @@ class AdditiveCylinder(Shape):
                 needs_recompute = True
 
             # Update angle properties
-            if str(existing_cylinder.Angle) != '360.00 °':
-                existing_cylinder.Angle = '360.00 °'
+            if str(existing_cylinder.Angle) != "360.00 °":
+                existing_cylinder.Angle = "360.00 °"
                 needs_recompute = True
-            if str(existing_cylinder.FirstAngle) != '0.00 °':
-                existing_cylinder.FirstAngle = '0.00 °'
+            if str(existing_cylinder.FirstAngle) != "0.00 °":
+                existing_cylinder.FirstAngle = "0.00 °"
                 needs_recompute = True
-            if str(existing_cylinder.SecondAngle) != '0.00 °':
-                existing_cylinder.SecondAngle = '0.00 °'
+            if str(existing_cylinder.SecondAngle) != "0.00 °":
+                existing_cylinder.SecondAngle = "0.00 °"
                 needs_recompute = True
 
             # Update attachment, offset, and rotation
-            if Shape._update_attachment_and_offset(existing_cylinder, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll):
+            if Shape._update_attachment_and_offset(
+                existing_cylinder, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+            ):
                 needs_recompute = True
 
             if needs_recompute:
@@ -65,15 +66,15 @@ class AdditiveCylinder(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        cylinder_label = label+'_cylinder'
-        App.ActiveDocument.addObject('PartDesign::AdditiveCylinder', cylinder_label)
+        cylinder_label = label + "_cylinder"
+        App.ActiveDocument.addObject("PartDesign::AdditiveCylinder", cylinder_label)
         cylinder = Context.get_object(cylinder_label)
         obj.addObject(cylinder)
-        cylinder.Radius=f'{radius} mm'
-        cylinder.Height=f'{height} mm'
-        cylinder.Angle='360.00 °'
-        cylinder.FirstAngle='0.00 °'
-        cylinder.SecondAngle='0.00 °'
+        cylinder.Radius = f"{radius} mm"
+        cylinder.Height = f"{height} mm"
+        cylinder.Angle = "360.00 °"
+        cylinder.FirstAngle = "0.00 °"
+        cylinder.SecondAngle = "0.00 °"
 
         Shape._update_attachment_and_offset(cylinder, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
         App.ActiveDocument.recompute()

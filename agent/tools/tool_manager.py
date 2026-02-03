@@ -6,10 +6,10 @@ and execution. All tools are injected via register_provider().
 """
 
 import json
-from typing import List, Dict, Callable, Any, Optional
+from typing import Any, Callable, Dict, List, Optional
 
-from .base import ToolBase
 from ..logger_protocol import LoggerProtocol
+from .base import ToolBase
 
 
 class ToolManager:
@@ -143,7 +143,7 @@ class ToolManager:
         parts = [
             "\n## Available Tools\n",
             "You have access to the following tools:\n",
-            "Use these tools proactively to provide a better user experience!\n"
+            "Use these tools proactively to provide a better user experience!\n",
         ]
 
         # Add provider-specific instructions

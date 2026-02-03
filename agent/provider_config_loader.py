@@ -7,7 +7,7 @@ available API providers and their models.
 
 import json
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 
 class ProviderConfig:
@@ -27,7 +27,7 @@ class ProviderConfig:
         self.default_model = data.get("default_model")
         self.models = [ModelConfig(m) for m in data.get("models", [])]
 
-    def get_model_by_name(self, model_name: str) -> Optional['ModelConfig']:
+    def get_model_by_name(self, model_name: str) -> Optional["ModelConfig"]:
         """
         Get a model config by its name.
 
@@ -87,7 +87,7 @@ class ProviderConfigLoader:
             return
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Parse provider configurations

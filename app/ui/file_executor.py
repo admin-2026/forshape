@@ -5,15 +5,16 @@ This module provides functionality for scanning, selecting, and executing
 Python files in various modes (build, teardown, incremental build).
 """
 
+import glob
 import os
 import sys
-import glob
 import traceback
 from pathlib import Path
+
 from PySide2.QtWidgets import QDialog
 
-from ..script_executor import ScriptExecutor, ExecutionMode
 from ..dialogs import PythonFileSelector
+from ..script_executor import ExecutionMode, ScriptExecutor
 
 
 class FileExecutor:
@@ -82,13 +83,13 @@ class FileExecutor:
                 filename = os.path.basename(file_path)
 
                 # Skip import.py and export.py (they will have separate buttons)
-                if filename in ['import.py', 'export.py']:
+                if filename in ["import.py", "export.py"]:
                     continue
 
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, encoding="utf-8") as f:
                     content = f.read()
                     # Check if the file contains __main__
-                    if '__main__' in content:
+                    if "__main__" in content:
                         rel_path = os.path.relpath(file_path, working_dir)
                         runnable_files.append(rel_path)
             except Exception as e:
@@ -129,13 +130,13 @@ class FileExecutor:
 
         try:
             # Read the script content
-            with open(abs_path, 'r', encoding='utf-8') as f:
+            with open(abs_path, encoding="utf-8") as f:
                 script_content = f.read()
 
             path_obj = Path(abs_path)
 
             # Execute based on mode
-            if mode == 'with_teardown':
+            if mode == "with_teardown":
                 # Execute with teardown first, then normal
                 teardown_result, normal_result = ScriptExecutor.execute_with_teardown(
                     script_content, path_obj, import_freecad=False
@@ -151,7 +152,9 @@ class FileExecutor:
 
                 # Check results
                 if teardown_result.success and normal_result.success:
-                    self.message_handler.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
+                    self.message_handler.append_message(
+                        "[SYSTEM]", f"{action_name} completed successfully: {file_path}"
+                    )
                 elif not teardown_result.success:
                     error_msg = f"Error during teardown of {file_path}:\n{teardown_result.error}"
                     self.message_handler.display_error(error_msg)
@@ -160,21 +163,21 @@ class FileExecutor:
                     self.message_handler.display_error(error_msg)
             else:
                 # Execute with specific mode
-                result = ScriptExecutor.execute(
-                    script_content, path_obj, mode=mode, import_freecad=False
-                )
+                result = ScriptExecutor.execute(script_content, path_obj, mode=mode, import_freecad=False)
 
                 # Display output if any
                 if result.output.strip():
                     self.message_handler.append_message("[OUTPUT]", result.output.strip())
 
                 if result.success:
-                    self.message_handler.append_message("[SYSTEM]", f"{action_name} completed successfully: {file_path}")
+                    self.message_handler.append_message(
+                        "[SYSTEM]", f"{action_name} completed successfully: {file_path}"
+                    )
                 else:
                     error_msg = f"Error during {action_name.lower()} of {file_path}:\n{result.error}"
                     self.message_handler.display_error(error_msg)
 
-        except Exception as e:
+        except Exception:
             # Format and display the error
             error_msg = f"Error executing {file_path}:\n{traceback.format_exc()}"
             self.message_handler.display_error(error_msg)
@@ -186,7 +189,7 @@ class FileExecutor:
         Args:
             file_path: Path to the Python file to run
         """
-        self._execute_python_file_with_mode(file_path, 'with_teardown', "Building (with teardown)")
+        self._execute_python_file_with_mode(file_path, "with_teardown", "Building (with teardown)")
 
     def redo_python_file(self, file_path):
         """
@@ -217,7 +220,10 @@ class FileExecutor:
         python_files = self.scan_runnable_python_files()
 
         if not python_files:
-            self.message_handler.append_message("[SYSTEM]", "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)")
+            self.message_handler.append_message(
+                "[SYSTEM]",
+                "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
+            )
             return
 
         # Show file selector dialog
@@ -238,7 +244,10 @@ class FileExecutor:
         python_files = self.scan_runnable_python_files()
 
         if not python_files:
-            self.message_handler.append_message("[SYSTEM]", "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)")
+            self.message_handler.append_message(
+                "[SYSTEM]",
+                "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
+            )
             return
 
         # Show file selector dialog
@@ -259,7 +268,10 @@ class FileExecutor:
         python_files = self.scan_runnable_python_files()
 
         if not python_files:
-            self.message_handler.append_message("[SYSTEM]", "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)")
+            self.message_handler.append_message(
+                "[SYSTEM]",
+                "No runnable Python files found in the working directory.\n(Only files with __main__ are shown)",
+            )
             return
 
         # Show file selector dialog

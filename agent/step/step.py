@@ -5,15 +5,15 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
-from typing import List, Dict, Optional, Callable
+from typing import Callable, Dict, List, Optional
 
-from ..request import RequestBuilder, Instruction, TextMessage, MessageElement
-from .tool_executor import ToolExecutor
-from .step_result import StepResult
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
+from ..request import Instruction, MessageElement, RequestBuilder, TextMessage
 from ..user_input_queue import UserInputQueue
+from .step_result import StepResult
+from .tool_executor import ToolExecutor
 
 
 class Step:
@@ -31,7 +31,7 @@ class Step:
         request_builder: RequestBuilder,
         tool_executor: ToolExecutor,
         max_iterations: int = 50,
-        logger: Optional[LoggerProtocol] = None
+        logger: Optional[LoggerProtocol] = None,
     ):
         """
         Initialize a Step.
@@ -68,7 +68,7 @@ class Step:
         initial_messages: Optional[List[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[Dict], None]] = None,
-        cancellation_check: Optional[Callable[[], bool]] = None
+        cancellation_check: Optional[Callable[[], bool]] = None,
     ) -> StepResult:
         """
         Run the step with a user message. Executes the tool-calling loop.
@@ -93,11 +93,7 @@ class Step:
             if user_message:
                 user_messages.append(Instruction(user_message, description="User Request"))
 
-        messages = self.request_builder.build_messages(
-            history,
-            user_messages,
-            initial_messages
-        )
+        messages = self.request_builder.build_messages(history, user_messages, initial_messages)
 
         # Initialize token usage tracking
         total_prompt_tokens = 0
@@ -114,9 +110,9 @@ class Step:
                     token_usage={
                         "prompt_tokens": total_prompt_tokens,
                         "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens
+                        "total_tokens": total_tokens,
                     },
-                    status="cancelled"
+                    status="cancelled",
                 )
 
             # Check for new user input from the queue
@@ -134,7 +130,7 @@ class Step:
                         messages=messages,
                         tools=self.tool_executor.tool_manager.get_tools(),
                         tool_choice="auto",
-                        additional_data={"iteration": iteration + 1, "step": self.name}
+                        additional_data={"iteration": iteration + 1, "step": self.name},
                     )
 
                 # Call API provider with tools
@@ -142,11 +138,11 @@ class Step:
                     model=model,
                     messages=messages,
                     tools=self.tool_executor.tool_manager.get_tools(),
-                    tool_choice="auto"
+                    tool_choice="auto",
                 )
 
                 # Track token usage from this API call
-                if hasattr(response, 'usage') and response.usage:
+                if hasattr(response, "usage") and response.usage:
                     total_prompt_tokens += response.usage.prompt_tokens
                     total_completion_tokens += response.usage.completion_tokens
                     total_tokens += response.usage.total_tokens
@@ -158,7 +154,7 @@ class Step:
                             "completion_tokens": total_completion_tokens,
                             "total_tokens": total_tokens,
                             "iteration": iteration + 1,
-                            "step": self.name
+                            "step": self.name,
                         }
                         token_callback(token_data)
 
@@ -169,9 +165,9 @@ class Step:
                         token_usage={
                             "prompt_tokens": total_prompt_tokens,
                             "completion_tokens": total_completion_tokens,
-                            "total_tokens": total_tokens
+                            "total_tokens": total_tokens,
                         },
-                        additional_data={"iteration": iteration + 1, "step": self.name}
+                        additional_data={"iteration": iteration + 1, "step": self.name},
                     )
 
                 response_message = response.choices[0].message
@@ -187,7 +183,7 @@ class Step:
                     result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
                         tool_calls=response_message.tool_calls,
                         api_debugger=api_debugger,
-                        cancellation_check=cancellation_check
+                        cancellation_check=cancellation_check,
                     )
 
                     if was_cancelled:
@@ -197,9 +193,9 @@ class Step:
                             token_usage={
                                 "prompt_tokens": total_prompt_tokens,
                                 "completion_tokens": total_completion_tokens,
-                                "total_tokens": total_tokens
+                                "total_tokens": total_tokens,
                             },
-                            status="cancelled"
+                            status="cancelled",
                         )
 
                     messages.extend(result_messages)
@@ -216,9 +212,9 @@ class Step:
                     token_usage={
                         "prompt_tokens": total_prompt_tokens,
                         "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens
+                        "total_tokens": total_tokens,
                     },
-                    status="completed"
+                    status="completed",
                 )
 
             except Exception as e:
@@ -228,9 +224,9 @@ class Step:
                     token_usage={
                         "prompt_tokens": total_prompt_tokens,
                         "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens
+                        "total_tokens": total_tokens,
                     },
-                    status="error"
+                    status="error",
                 )
 
         # If we hit max iterations
@@ -240,7 +236,7 @@ class Step:
             token_usage={
                 "prompt_tokens": total_prompt_tokens,
                 "completion_tokens": total_completion_tokens,
-                "total_tokens": total_tokens
+                "total_tokens": total_tokens,
             },
-            status="max_iterations"
+            status="max_iterations",
         )

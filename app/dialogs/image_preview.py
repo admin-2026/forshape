@@ -2,11 +2,19 @@
 Image preview and annotation dialog.
 """
 
-from PySide2.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                                QPushButton, QScrollArea, QComboBox,
-                                QDialogButtonBox, QColorDialog)
 from PySide2.QtCore import Qt
-from PySide2.QtGui import QFont, QPixmap, QColor
+from PySide2.QtGui import QColor, QFont, QPixmap
+from PySide2.QtWidgets import (
+    QColorDialog,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+)
 
 from ..widgets.drawable_label import DrawableImageLabel
 
@@ -64,13 +72,15 @@ class ImagePreviewDialog(QDialog):
             ("Blue", QColor(0, 0, 255)),
             ("Yellow", QColor(255, 255, 0)),
             ("White", QColor(255, 255, 255)),
-            ("Black", QColor(0, 0, 0))
+            ("Black", QColor(0, 0, 0)),
         ]
 
         for name, color in preset_colors:
             btn = QPushButton(name)
             btn.setFixedSize(60, 25)
-            btn.setStyleSheet(f"background-color: {color.name()}; color: {'white' if color.lightness() < 128 else 'black'};")
+            btn.setStyleSheet(
+                f"background-color: {color.name()}; color: {'white' if color.lightness() < 128 else 'black'};"
+            )
             btn.clicked.connect(lambda checked, c=color: self.set_pen_color(c))
             tools_layout.addWidget(btn)
             self.color_buttons.append(btn)
@@ -166,10 +176,7 @@ class ImagePreviewDialog(QDialog):
 
         # Scale pixmap to fit while maintaining aspect ratio
         scaled_pixmap = self.original_pixmap.scaled(
-            target_width,
-            target_height,
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation
+            target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation
         )
 
         # Set the scaled image to the drawable label

@@ -4,8 +4,8 @@ Custom widgets for ForShape AI GUI.
 This module provides custom widget classes used in the main window.
 """
 
-from PySide2.QtWidgets import QTextEdit
 from PySide2.QtCore import Qt
+from PySide2.QtWidgets import QTextEdit
 
 
 class MultiLineInputField(QTextEdit):

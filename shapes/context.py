@@ -1,6 +1,6 @@
+import re
 
 import FreeCAD as App
-import re
 
 # from shapes.context import Context
 # from importlib import reload
@@ -8,6 +8,7 @@ import re
 # Context.print_object('b3')
 # Context.print_document()
 # Context.remove_object('b3')
+
 
 class Context:
     _epsilon = 0.01  # Default epsilon for fillet operations (mm)
@@ -39,122 +40,124 @@ class Context:
     @staticmethod
     def print_object(obj_or_label, indent=0, verbose=False):
         obj = Context.get_object(obj_or_label)
-        prefix = '  ' * indent
+        prefix = "  " * indent
         type_id = obj.TypeId
-        if type_id == 'Sketcher::SketchObject':
+        if type_id == "Sketcher::SketchObject":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: SketchObject')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: SketchObject")
             return
-        if type_id == 'PartDesign::Pad':
+        if type_id == "PartDesign::Pad":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: Pad')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: Pad")
             return
-        if type_id == 'PartDesign::Boolean':
+        if type_id == "PartDesign::Boolean":
             if verbose:
-                print(f'{prefix}{obj.Label}')
+                print(f"{prefix}{obj.Label}")
                 # obj.Type returns the operation name as a string
-                operation = obj.Type if hasattr(obj, 'Type') else 'Unknown'
-                print(f'{prefix}  Type: Boolean')
-                print(f'{prefix}  Operation: {operation}')
+                operation = obj.Type if hasattr(obj, "Type") else "Unknown"
+                print(f"{prefix}  Type: Boolean")
+                print(f"{prefix}  Operation: {operation}")
                 # Print secondary operands recursively
-                if hasattr(obj, 'Group') and obj.Group:
-                    print(f'{prefix}  Operands:')
+                if hasattr(obj, "Group") and obj.Group:
+                    print(f"{prefix}  Operands:")
                     for operand in obj.Group:
                         Context.print_object(operand, indent + 2, verbose)
             return
-        if type_id == 'PartDesign::AdditiveBox':
+        if type_id == "PartDesign::AdditiveBox":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: AdditiveBox')
-                print(f'{prefix}  Dimensions: Length={obj.Length}, Width={obj.Width}, Height={obj.Height}')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditiveBox")
+                print(f"{prefix}  Dimensions: Length={obj.Length}, Width={obj.Width}, Height={obj.Height}")
                 attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
-                print(f'{prefix}  Attachment: {attachment}')
-                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+                print(f"{prefix}  Attachment: {attachment}")
+                print(f"{prefix}  Attachment Offset: {obj.AttachmentOffset}")
             return
-        if type_id == 'PartDesign::AdditiveCylinder':
+        if type_id == "PartDesign::AdditiveCylinder":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: AdditiveCylinder')
-                print(f'{prefix}  Dimensions: Radius={obj.Radius}, Height={obj.Height}')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditiveCylinder")
+                print(f"{prefix}  Dimensions: Radius={obj.Radius}, Height={obj.Height}")
                 attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
-                print(f'{prefix}  Attachment: {attachment}')
-                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+                print(f"{prefix}  Attachment: {attachment}")
+                print(f"{prefix}  Attachment Offset: {obj.AttachmentOffset}")
             return
-        if type_id == 'PartDesign::AdditivePrism':
+        if type_id == "PartDesign::AdditivePrism":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: AdditivePrism')
-                print(f'{prefix}  Dimensions: Polygon={obj.Polygon}, Circumradius={obj.Circumradius}, Height={obj.Height}')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditivePrism")
+                print(
+                    f"{prefix}  Dimensions: Polygon={obj.Polygon}, Circumradius={obj.Circumradius}, Height={obj.Height}"
+                )
                 attachment = [item[0].Label for item in obj.AttachmentSupport] if obj.AttachmentSupport else None
-                print(f'{prefix}  Attachment: {attachment}')
-                print(f'{prefix}  Attachment Offset: {obj.AttachmentOffset}')
+                print(f"{prefix}  Attachment: {attachment}")
+                print(f"{prefix}  Attachment Offset: {obj.AttachmentOffset}")
             return
-        if type_id == 'PartDesign::Fillet':
+        if type_id == "PartDesign::Fillet":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: Fillet')
-                print(f'{prefix}  Radius: {obj.Radius}')
-                if hasattr(obj, 'Base') and obj.Base:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: Fillet")
+                print(f"{prefix}  Radius: {obj.Radius}")
+                if hasattr(obj, "Base") and obj.Base:
                     base_obj, edges = obj.Base
-                    print(f'{prefix}  Base: {base_obj.Label}')
-                    print(f'{prefix}  Edges: {edges}')
+                    print(f"{prefix}  Base: {base_obj.Label}")
+                    print(f"{prefix}  Edges: {edges}")
             return
-        if type_id == 'PartDesign::Chamfer':
+        if type_id == "PartDesign::Chamfer":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: Chamfer')
-                print(f'{prefix}  Size: {obj.Size}')
-                if hasattr(obj, 'Base') and obj.Base:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: Chamfer")
+                print(f"{prefix}  Size: {obj.Size}")
+                if hasattr(obj, "Base") and obj.Base:
                     base_obj, edges = obj.Base
-                    print(f'{prefix}  Base: {base_obj.Label}')
-                    print(f'{prefix}  Edges: {edges}')
+                    print(f"{prefix}  Base: {base_obj.Label}")
+                    print(f"{prefix}  Edges: {edges}")
             return
-        if type_id == 'PartDesign::Draft':
+        if type_id == "PartDesign::Draft":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: Draft')
-                print(f'{prefix}  Angle: {obj.Angle}')
-                if hasattr(obj, 'Base') and obj.Base:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: Draft")
+                print(f"{prefix}  Angle: {obj.Angle}")
+                if hasattr(obj, "Base") and obj.Base:
                     base_obj, faces = obj.Base
-                    print(f'{prefix}  Base: {base_obj.Label}')
-                    print(f'{prefix}  Faces: {faces}')
-                if hasattr(obj, 'NeutralPlane') and obj.NeutralPlane:
-                    print(f'{prefix}  Neutral Plane: {obj.NeutralPlane.Label}')
+                    print(f"{prefix}  Base: {base_obj.Label}")
+                    print(f"{prefix}  Faces: {faces}")
+                if hasattr(obj, "NeutralPlane") and obj.NeutralPlane:
+                    print(f"{prefix}  Neutral Plane: {obj.NeutralPlane.Label}")
             return
-        if type_id == 'PartDesign::FeatureBase':
+        if type_id == "PartDesign::FeatureBase":
             if verbose:
-                print(f'{prefix}{obj.Label}')
-                print(f'{prefix}  Type: FeatureBase (Clone)')
-                if hasattr(obj, 'BaseFeature') and obj.BaseFeature:
-                    print(f'{prefix}  BaseFeature: {obj.BaseFeature.Label}')
-                if hasattr(obj, 'Placement') and obj.Placement:
-                    print(f'{prefix}  Placement: {obj.Placement}')
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: FeatureBase (Clone)")
+                if hasattr(obj, "BaseFeature") and obj.BaseFeature:
+                    print(f"{prefix}  BaseFeature: {obj.BaseFeature.Label}")
+                if hasattr(obj, "Placement") and obj.Placement:
+                    print(f"{prefix}  Placement: {obj.Placement}")
             return
-        if type_id == 'PartDesign::Body':
-            print(f'{prefix}{obj.Label}')
-            print(f'{prefix}  Type: Body')
+        if type_id == "PartDesign::Body":
+            print(f"{prefix}{obj.Label}")
+            print(f"{prefix}  Type: Body")
             if verbose:
                 for child in obj.Group:
                     Context.print_object(child, indent + 1, verbose)
             return
-        if type_id == 'App::DocumentObjectGroup':
-            print(f'{prefix}{obj.Label}')
-            print(f'{prefix}  Type: DocumentObjectGroup')
+        if type_id == "App::DocumentObjectGroup":
+            print(f"{prefix}{obj.Label}")
+            print(f"{prefix}  Type: DocumentObjectGroup")
             for child in obj.Group:
                 Context.print_object(child, indent + 1, verbose)
             return
-        if type_id == 'App::Document':
-            print(f'{prefix}{obj.Label}')
-            print(f'{prefix}  Type: Document')
+        if type_id == "App::Document":
+            print(f"{prefix}{obj.Label}")
+            print(f"{prefix}  Type: Document")
             for child in obj.Objects:
                 # only print top level object
                 if child.getParent() is None:
                     Context.print_object(child, indent + 1, verbose)
             return
         if verbose:
-            print(f'{prefix}  Unsupported object type: {type_id}')
+            print(f"{prefix}  Unsupported object type: {type_id}")
 
     @staticmethod
     def get_object(obj_or_label):
@@ -192,7 +195,7 @@ class Context:
 
         while current is not None:
             # Check if current object is a Body
-            if current.TypeId == 'PartDesign::Body':
+            if current.TypeId == "PartDesign::Body":
                 return current
 
             # Check for cycles
@@ -226,7 +229,7 @@ class Context:
             return None
 
         # Check if the object has a Parents attribute
-        if hasattr(obj, 'Parents') and obj.Parents:
+        if hasattr(obj, "Parents") and obj.Parents:
             # Return Parents[0][0] if it exists
             if len(obj.Parents) > 0 and len(obj.Parents[0]) > 0:
                 return obj.Parents[0][0]
@@ -251,16 +254,16 @@ class Context:
 
         for obj in App.ActiveDocument.Objects:
             # Check Label
-            if hasattr(obj, 'Label') and regex.search(obj.Label):
-                matches.append((obj.Label, 'Label'))
+            if hasattr(obj, "Label") and regex.search(obj.Label):
+                matches.append((obj.Label, "Label"))
 
             # Check Name (internal name)
-            if hasattr(obj, 'Name') and regex.search(obj.Name):
-                matches.append((obj.Name, 'Name'))
+            if hasattr(obj, "Name") and regex.search(obj.Name):
+                matches.append((obj.Name, "Name"))
 
             # Check Label2 (if it exists)
-            if hasattr(obj, 'Label2') and obj.Label2 and regex.search(obj.Label2):
-                matches.append((obj.Label2, 'Label2'))
+            if hasattr(obj, "Label2") and obj.Label2 and regex.search(obj.Label2):
+                matches.append((obj.Label2, "Label2"))
 
         return matches
 
@@ -272,22 +275,22 @@ class Context:
     def remove_object(obj_or_label):
         obj = Context.get_object(obj_or_label)
         if obj is None:
-            print(f'object not found: {obj_or_label}')
+            print(f"object not found: {obj_or_label}")
             return
         type_id = obj.TypeId
-        print(f'Removing object: {obj.Label} (Type: {type_id})')
+        print(f"Removing object: {obj.Label} (Type: {type_id})")
 
         # Object types that need to be removed from their parent first
         partdesign_child_types = {
-            'PartDesign::Pad',
-            'PartDesign::AdditiveBox',
-            'PartDesign::AdditiveCylinder',
-            'PartDesign::AdditivePrism',
-            'PartDesign::Boolean',
-            'PartDesign::Fillet',
-            'PartDesign::Chamfer',
-            'PartDesign::Draft',
-            'PartDesign::FeatureBase'
+            "PartDesign::Pad",
+            "PartDesign::AdditiveBox",
+            "PartDesign::AdditiveCylinder",
+            "PartDesign::AdditivePrism",
+            "PartDesign::Boolean",
+            "PartDesign::Fillet",
+            "PartDesign::Chamfer",
+            "PartDesign::Draft",
+            "PartDesign::FeatureBase",
         }
 
         if type_id in partdesign_child_types:
@@ -298,22 +301,22 @@ class Context:
             App.ActiveDocument.recompute()
             return
 
-        if type_id == 'Sketcher::SketchObject':
+        if type_id == "Sketcher::SketchObject":
             App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
 
-        if type_id == 'PartDesign::Body':
+        if type_id == "PartDesign::Body":
             obj.removeObjectsFromDocument()
             App.ActiveDocument.removeObject(obj.Name)
             App.ActiveDocument.recompute()
             return
 
-        if type_id == 'App::Document':
-            print('cannot remove document')
+        if type_id == "App::Document":
+            print("cannot remove document")
             return
 
-        print(f'Unsupported object type: {type_id}')
+        print(f"Unsupported object type: {type_id}")
 
     @staticmethod
     def rename_object(obj_or_label, new_label):
@@ -329,10 +332,10 @@ class Context:
         """
         obj = Context.get_object(obj_or_label)
         if obj is None:
-            print(f'object not found: {obj_or_label}')
+            print(f"object not found: {obj_or_label}")
             return
-        if obj.TypeId == 'App::Document':
-            print('cannot rename document')
+        if obj.TypeId == "App::Document":
+            print("cannot rename document")
             return
         old_label = obj.Label
         obj.Label = new_label

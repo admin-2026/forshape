@@ -5,7 +5,7 @@ This module defines the abstract base class that all tool providers must impleme
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Callable, Any
+from typing import Callable, Dict, List
 
 from ..request import MessageElement, ToolResultMessage
 
@@ -60,12 +60,7 @@ class ToolBase(ABC):
         """
         return ""
 
-    def process_result(
-        self,
-        tool_call_id: str,
-        tool_name: str,
-        tool_result: str
-    ) -> List[MessageElement]:
+    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> List[MessageElement]:
         """
         Process a tool result and return MessageElements for the conversation.
 

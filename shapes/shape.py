@@ -1,36 +1,43 @@
-import FreeCAD as App
 from datetime import datetime
 
+import FreeCAD as App
+
 from .context import Context
+
 
 class Shape:
     @staticmethod
     def _create_object(label):
-        App.activeDocument().addObject('PartDesign::Body', label)
+        App.activeDocument().addObject("PartDesign::Body", label)
         return Context.get_object(label)
 
     @staticmethod
     def _create_sketch(sketch_label, parent_object, plane_label):
-        parent_object.newObject('Sketcher::SketchObject', sketch_label)
+        parent_object.newObject("Sketcher::SketchObject", sketch_label)
         sketch = Context.get_object(sketch_label)
         plane = Context.get_object(plane_label)
-        sketch.AttachmentSupport = (plane,[''])
-        sketch.MapMode = 'FlatFace'
+        sketch.AttachmentSupport = (plane, [""])
+        sketch.MapMode = "FlatFace"
         return sketch
 
     @staticmethod
     def _create_pad(pad_label, parent_obj, sketch, z):
-        parent_obj.newObject('PartDesign::Pad', pad_label)
+        parent_obj.newObject("PartDesign::Pad", pad_label)
         pad = Context.get_object(pad_label)
-        pad.Profile = (sketch, ['',])
+        pad.Profile = (
+            sketch,
+            [
+                "",
+            ],
+        )
         pad.Length = z
         # App.ActiveDocument.recompute()
-        pad.ReferenceAxis = (sketch,['N_Axis'])
+        pad.ReferenceAxis = (sketch, ["N_Axis"])
         pad.Midplane = 1
         return pad
 
     @staticmethod
-    def _incremental_build_if_possible(label, expected_type='PartDesign::Body'):
+    def _incremental_build_if_possible(label, expected_type="PartDesign::Body"):
         """
         Check if we're in incremental build mode and can skip construction.
         Only checks label and type - if both match, returns existing object.
@@ -46,7 +53,8 @@ class Shape:
             None otherwise (caller should proceed with normal construction/update)
         """
         import builtins
-        incremental_build_mode = getattr(builtins, 'INCREMENTAL_BUILD_MODE', False)
+
+        incremental_build_mode = getattr(builtins, "INCREMENTAL_BUILD_MODE", False)
 
         if not incremental_build_mode:
             return None
@@ -63,7 +71,7 @@ class Shape:
 
         # Check if type matches (support prefix matching)
         type_matches = False
-        if expected_type.endswith('::'):
+        if expected_type.endswith("::"):
             # Prefix match (e.g., 'PartDesign::')
             type_matches = existing_obj.TypeId.startswith(expected_type)
         else:
@@ -97,7 +105,8 @@ class Shape:
                   False if not in teardown mode (caller should proceed normally)
         """
         import builtins
-        teardown_mode = getattr(builtins, 'TEARDOWN_MODE', False)
+
+        teardown_mode = getattr(builtins, "TEARDOWN_MODE", False)
 
         if not teardown_mode:
             return False
@@ -113,7 +122,7 @@ class Shape:
             return True
 
         # Get all children of the object
-        if hasattr(obj, 'Group'):
+        if hasattr(obj, "Group"):
             all_children = list(obj.Group)
         else:
             all_children = []
@@ -163,7 +172,7 @@ class Shape:
                 return None, {}
 
             # Check the type of the existing object
-            if existing_obj.TypeId != 'PartDesign::Body':
+            if existing_obj.TypeId != "PartDesign::Body":
                 # Not a Body, move to trash and create new
                 Shape._move_to_trash_bin(existing_obj)
                 return None, {}
@@ -177,7 +186,9 @@ class Shape:
                 if child is not None and Context.get_first_body_parent(child) != existing_obj:
                     other_parent = Context.get_first_body_parent(child)
                     other_parent_label = other_parent.Label if other_parent else "None"
-                    raise ValueError(f"Creating object with conflicting label: '{child_label}' already exists with different parent '{other_parent_label}'")
+                    raise ValueError(
+                        f"Creating object with conflicting label: '{child_label}' already exists with different parent '{other_parent_label}'"
+                    )
 
                 # Check if child exists and has correct type
                 if child is None or child.TypeId != expected_type:
@@ -213,18 +224,20 @@ class Shape:
         current_plane = obj.AttachmentSupport[0][0] if obj.AttachmentSupport else None
         if current_plane != plane_obj:
             obj.AttachmentSupport = plane_obj
-            obj.MapMode = 'FlatFace'
+            obj.MapMode = "FlatFace"
             needs_recompute = True
 
         # Update offset and rotation based on plane type
-        if 'XY_Plane' in plane_label:
+        if "XY_Plane" in plane_label:
             new_offset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
-        elif 'YZ_Plane' in plane_label:
+        elif "YZ_Plane" in plane_label:
             new_offset = App.Placement(App.Vector(y_offset, z_offset, x_offset), App.Rotation(pitch, roll, yaw))
-        elif 'XZ_Plane' in plane_label:
+        elif "XZ_Plane" in plane_label:
             new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch))
         else:
-            raise ValueError(f"Unknown plane type in plane_label '{plane_label}'. Expected XY_Plane, YZ_Plane, or XZ_Plane.")
+            raise ValueError(
+                f"Unknown plane type in plane_label '{plane_label}'. Expected XY_Plane, YZ_Plane, or XZ_Plane."
+            )
 
         if obj.AttachmentOffset != new_offset:
             obj.AttachmentOffset = new_offset
@@ -243,13 +256,13 @@ class Shape:
             obj: The object to move to trash_bin
         """
         # Get or create trash_bin folder
-        trash_bin = Context.get_object('trash_bin')
+        trash_bin = Context.get_object("trash_bin")
         if trash_bin is None:
-            App.ActiveDocument.addObject('App::DocumentObjectGroup', 'trash_bin')
-            trash_bin = Context.get_object('trash_bin')
+            App.ActiveDocument.addObject("App::DocumentObjectGroup", "trash_bin")
+            trash_bin = Context.get_object("trash_bin")
 
         # Generate new name with timestamp
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         new_label = f"{obj.Label}_{timestamp}"
 
         # Rename the object
@@ -258,4 +271,4 @@ class Shape:
         # Move to trash_bin folder
         trash_bin.addObject(obj)
 
-        print(f'Moved object to trash_bin: {new_label}')
+        print(f"Moved object to trash_bin: {new_label}")

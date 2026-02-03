@@ -3,8 +3,6 @@
 # This script imports external geometry and places it in your model.
 # Useful for importing PCBs, components, or other reference geometry.
 
-from shapes.import_geometry import ImportGeometry
-from shapes.transform import Transform
 
 from constants import *
 
@@ -27,5 +25,5 @@ def import_and_place_geometry():
     pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import_and_place_geometry()

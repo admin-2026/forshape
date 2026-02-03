@@ -2,4 +2,4 @@
 
 from .variables_view import VariablesView
 
-__all__ = ['VariablesView']
+__all__ = ["VariablesView"]

@@ -6,11 +6,11 @@ are shown on the main thread. Provides paired registration of
 providers and handlers for simplified setup.
 """
 
-from PySide2.QtCore import QObject, Signal
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional
 
-from agent.async_ops import UserInputBase, UserInputRequest, UserInputResponse
-from agent.async_ops import WaitManager
+from PySide2.QtCore import QObject, Signal
+
+from agent.async_ops import UserInputBase, UserInputRequest, UserInputResponse, WaitManager
 
 if TYPE_CHECKING:
     from .user_input import GuiInputHandlerBase
@@ -44,7 +44,7 @@ class UserInputBridge(QObject):
         self._manager = wait_manager
         self._parent = parent
         self._logger = logger
-        self._handlers: Dict[str, "GuiInputHandlerBase"] = {}
+        self._handlers: Dict[str, GuiInputHandlerBase] = {}
 
         # Register as the handler for user input requests
         self._manager.set_handler(self._handle_request)
@@ -52,11 +52,7 @@ class UserInputBridge(QObject):
         # Connect the generic signal to dispatch handler
         self.input_requested.connect(self._dispatch_request)
 
-    def register_input_type(
-        self,
-        provider: UserInputBase,
-        handler: "GuiInputHandlerBase"
-    ) -> None:
+    def register_input_type(self, provider: UserInputBase, handler: "GuiInputHandlerBase") -> None:
         """
         Register a provider/handler pair for a user input type.
 
@@ -73,10 +69,7 @@ class UserInputBridge(QObject):
             ValueError: If type_ids don't match
         """
         if provider.type_id != handler.type_id:
-            raise ValueError(
-                f"type_id mismatch: provider has '{provider.type_id}', "
-                f"handler has '{handler.type_id}'"
-            )
+            raise ValueError(f"type_id mismatch: provider has '{provider.type_id}', handler has '{handler.type_id}'")
 
         # Register provider with wait manager
         self._manager.register_provider(provider)
@@ -139,9 +132,5 @@ class UserInputBridge(QObject):
             data: Response payload (type depends on request type)
             cancelled: Whether user cancelled the dialog
         """
-        response = UserInputResponse(
-            request_id=request_id,
-            cancelled=cancelled,
-            data=data
-        )
+        response = UserInputResponse(request_id=request_id, cancelled=cancelled, data=data)
         self._manager.set_response(response)

@@ -4,42 +4,61 @@ Main window GUI for ForShape AI.
 This module provides the interactive GUI interface using PySide2.
 """
 
-from PySide2.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-                                QTextEdit, QLineEdit, QLabel, QPushButton,
-                                QAction, QDialog, QComboBox, QWidgetAction)
-from PySide2.QtCore import QCoreApplication, Qt, QUrl
-from PySide2.QtGui import QFont, QTextCursor, QDragEnterEvent, QDropEvent
-
 import os
-import sys
-import traceback
 from typing import TYPE_CHECKING
 
-from .dialogs import PythonFileSelector, ImagePreviewDialog, ApiKeyDialog, CheckpointSelector
-from .workers import AIWorker
+from PySide2.QtCore import QCoreApplication, Qt
+from PySide2.QtGui import QDragEnterEvent, QDropEvent, QFont
+from PySide2.QtWidgets import (
+    QAction,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSplitter,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+    QWidgetAction,
+)
+
+from agent.provider_config_loader import ProviderConfigLoader
+from agent.request import ImageMessage, TextMessage, ToolCall, ToolCallMessage
+from agent.step_config import StepConfigRegistry
+from agent.user_input_queue import UserInputQueue
+
+from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .formatters import MessageFormatter
 from .logger import LogLevel
-from .script_executor import ScriptExecutor, ExecutionMode
-from agent.provider_config_loader import ProviderConfigLoader
+from .ui import DragDropHandler, FileExecutor, MessageHandler, ModelMenuManager, MultiLineInputField
 from .ui_config_manager import UIConfigManager
-from .ui import MultiLineInputField, MessageHandler, FileExecutor, DragDropHandler, ModelMenuManager
 from .variables import VariablesView
-from agent.user_input_queue import UserInputQueue
-from agent.request import ImageMessage, TextMessage, ToolCallMessage, ToolCall
-from agent.step_config import StepConfigRegistry
+from .workers import AIWorker
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
     from agent.history_logger import HistoryLogger
+
     from .logger import Logger
 
 
 class ForShapeMainWindow(QMainWindow):
     """Main window for the ForShape AI GUI application."""
 
-    def __init__(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger',
-                 logger: 'Logger', config, exit_handler,
-                 image_context=None, prestart_checker=None, completion_callback=None, window_close_callback=None):
+    def __init__(
+        self,
+        ai_client: "AIAgent",
+        history_logger: "HistoryLogger",
+        logger: "Logger",
+        config,
+        exit_handler,
+        image_context=None,
+        prestart_checker=None,
+        completion_callback=None,
+        window_close_callback=None,
+    ):
         """
         Initialize the main window.
 
@@ -70,7 +89,9 @@ class ForShapeMainWindow(QMainWindow):
 
         # Prestart check mode
         self.prestart_checker = prestart_checker
-        self.prestart_check_mode = True if prestart_checker else False  # Start in prestart check mode if checker provided
+        self.prestart_check_mode = (
+            True if prestart_checker else False
+        )  # Start in prestart check mode if checker provided
         self.completion_callback = completion_callback
         self.window_close_callback = window_close_callback
 
@@ -82,7 +103,8 @@ class ForShapeMainWindow(QMainWindow):
 
         # Initialize UI config manager for persisting menu selections
         from pathlib import Path
-        forshape_dir = Path(self.config.working_dir) / '.forshape'
+
+        forshape_dir = Path(self.config.working_dir) / ".forshape"
         self.ui_config_manager = UIConfigManager(forshape_dir)
         self.ui_config_manager.load()
 
@@ -127,7 +149,7 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_logs_action.setChecked(visible)
 
         # Save to config
-        self.ui_config_manager.set('show_logs', visible)
+        self.ui_config_manager.set("show_logs", visible)
 
     def _set_variables_panel_visibility(self, visible: bool):
         """
@@ -146,7 +168,7 @@ class ForShapeMainWindow(QMainWindow):
         self.toggle_variables_action.setChecked(visible)
 
         # Save to config
-        self.ui_config_manager.set('show_variables', visible)
+        self.ui_config_manager.set("show_variables", visible)
 
     def setup_ui(self):
         """Setup the user interface components."""
@@ -193,8 +215,8 @@ class ForShapeMainWindow(QMainWindow):
         self.log_level_combo.addItem("ERROR", LogLevel.ERROR)
 
         # Restore log level from config, default to INFO if not set
-        saved_log_level = self.ui_config_manager.get('log_level', 'INFO')
-        log_level_index = {'DEBUG': 0, 'INFO': 1, 'WARN': 2, 'ERROR': 3}.get(saved_log_level, 1)
+        saved_log_level = self.ui_config_manager.get("log_level", "INFO")
+        log_level_index = {"DEBUG": 0, "INFO": 1, "WARN": 2, "ERROR": 3}.get(saved_log_level, 1)
         self.log_level_combo.setCurrentIndex(log_level_index)
 
         self.log_level_combo.currentIndexChanged.connect(self.on_log_level_changed)
@@ -305,11 +327,11 @@ class ForShapeMainWindow(QMainWindow):
         splitter.setSizes([600, 200, 200])
 
         # Restore show_logs state from config, default to hidden
-        show_logs = self.ui_config_manager.get('show_logs', False)
+        show_logs = self.ui_config_manager.get("show_logs", False)
         self._set_log_panel_visibility(show_logs)
 
         # Restore show_variables state from config, default to visible
-        show_variables = self.ui_config_manager.get('show_variables', True)
+        show_variables = self.ui_config_manager.get("show_variables", True)
         self._set_variables_panel_visibility(show_variables)
 
         main_layout.addWidget(splitter, stretch=1)
@@ -328,7 +350,9 @@ class ForShapeMainWindow(QMainWindow):
         # Add Capture button
         self.capture_button = QPushButton("Capture")
         self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip("Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!")
+        self.capture_button.setToolTip(
+            "Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!"
+        )
         self.capture_button.clicked.connect(self.on_capture_screenshot)
 
         # Add New Chat button
@@ -356,7 +380,9 @@ class ForShapeMainWindow(QMainWindow):
         input_label = QLabel("You:")
         self.input_field = MultiLineInputField()
         self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText("Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line")
+        self.input_field.setPlaceholderText(
+            "Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line"
+        )
         self.input_field.submit_callback = self.on_user_input
 
         # Configure for 5 lines high with word wrap and scrolling
@@ -389,7 +415,9 @@ class ForShapeMainWindow(QMainWindow):
         # Add Incremental Build button
         self.incremental_build_button = QPushButton("Incremental Build")
         self.incremental_build_button.setFont(QFont("Consolas", 10))
-        self.incremental_build_button.setToolTip("Incremental Build - run a script in incremental build mode (skips construction if objects exist)")
+        self.incremental_build_button.setToolTip(
+            "Incremental Build - run a script in incremental build mode (skips construction if objects exist)"
+        )
         self.incremental_build_button.clicked.connect(self.on_incremental_build_script)
 
         # Add Rebuild button
@@ -440,47 +468,25 @@ class ForShapeMainWindow(QMainWindow):
 
         # Initialize handler instances now that UI components are created
         self.message_handler = MessageHandler(
-            self.conversation_display,
-            self.log_display,
-            self.message_formatter,
-            self.logger
+            self.conversation_display, self.log_display, self.message_formatter, self.logger
         )
 
         # Connect logger signal to message handler
         self.logger.log_message.connect(self.message_handler.on_log_message)
 
-        self.file_executor = FileExecutor(
-            self.config,
-            self.message_handler,
-            self.logger
-        )
+        self.file_executor = FileExecutor(self.config, self.message_handler, self.logger)
 
-        self.drag_drop_handler = DragDropHandler(
-            self.message_handler,
-            self.logger,
-            self.image_context
-        )
+        self.drag_drop_handler = DragDropHandler(self.message_handler, self.logger, self.image_context)
         # Set state references for drag drop handler
         self.drag_drop_handler.set_state_references(
-            self.captured_images,
-            self.attached_files,
-            lambda: self.is_ai_busy,
-            self.capture_button,
-            self.input_field
+            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.capture_button, self.input_field
         )
 
         self.model_menu_manager = ModelMenuManager(
-            self.provider_config_loader,
-            self.message_handler,
-            self.logger,
-            self.ui_config_manager
+            self.provider_config_loader, self.message_handler, self.logger, self.ui_config_manager
         )
         self.model_menu_manager.set_ai_client(self.ai_client)
-        self.model_menu_manager.set_callbacks(
-            self.prestart_checker,
-            self.completion_callback,
-            self.enable_ai_mode
-        )
+        self.model_menu_manager.set_callbacks(self.prestart_checker, self.completion_callback, self.enable_ai_mode)
 
         # IMPORTANT: Refresh the entire Model menu to use the real manager
         # The menu was created with a temp manager, and Add/Delete API Key actions
@@ -488,7 +494,7 @@ class ForShapeMainWindow(QMainWindow):
         self.model_menu_manager.refresh_model_menu(self)
 
         # Clean up temp manager references
-        if hasattr(self, '_temp_model_combos'):
+        if hasattr(self, "_temp_model_combos"):
             del self._temp_model_combos
 
         # Display welcome message
@@ -512,11 +518,11 @@ class ForShapeMainWindow(QMainWindow):
                 self.provider_config_loader,
                 None,  # message_handler not yet initialized
                 self.logger,
-                self.ui_config_manager
+                self.ui_config_manager,
             )
             temp_manager.create_model_menu_items(model_menu, self)
             # Store the model_combos for later use
-            if hasattr(temp_manager, 'model_combos'):
+            if hasattr(temp_manager, "model_combos"):
                 self._temp_model_combos = temp_manager.model_combos
 
     def display_welcome(self):
@@ -535,20 +541,20 @@ class ForShapeMainWindow(QMainWindow):
 
         welcome_html = f"""
 <div style="font-family: Consolas, monospace; margin: 10px 0;">
-<pre style="margin: 0;">{'='*60}
+<pre style="margin: 0;">{"=" * 60}
 Welcome to ForShape AI - Interactive 3D Shape Generator
-{'='*60}</pre>
+{"=" * 60}</pre>
 <p style="margin: 5px 0;">{model_info}{context_info}</p>
 
 <p style="margin: 5px 0;"><strong>Tip:</strong> Drag & drop images or .py files to attach them to your messages</p>
 
 <p style="margin: 5px 0;">{start_message}</p>
-<pre style="margin: 0;">{'='*60}</pre>
+<pre style="margin: 0;">{"=" * 60}</pre>
 </div>
 """
         self.conversation_display.insertHtml(welcome_html)
         # Add line breaks after welcome message to separate from first user message
-        self.conversation_display.insertHtml('<br><br>')
+        self.conversation_display.insertHtml("<br><br>")
 
     def clear_conversation(self):
         """Clear the conversation display and AI history."""
@@ -578,7 +584,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             return
 
         working_dir = self.config.working_dir
-        edits_dir = os.path.join(working_dir, '.forshape', 'edits')
+        edits_dir = os.path.join(working_dir, ".forshape", "edits")
 
         # Check if edits directory exists
         if not os.path.exists(edits_dir):
@@ -587,6 +593,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Get all sessions using EditHistory
         from agent.edit_history import EditHistory
+
         session_names = EditHistory.list_all_sessions(edits_dir)
 
         if not session_names:
@@ -626,10 +633,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Get paths
         working_dir = self.config.working_dir
-        edits_dir = os.path.join(working_dir, '.forshape', 'edits')
+        edits_dir = os.path.join(working_dir, ".forshape", "edits")
 
         # Restore using EditHistory
         from agent.edit_history import EditHistory
+
         success, message = EditHistory.restore_from_session(edits_dir, session_name, working_dir, self.logger)
 
         if success:
@@ -639,7 +647,16 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.append_message("[ERROR]", f"Failed to restore checkpoint:\n{message}")
             self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
-    def set_components(self, ai_client: 'AIAgent', history_logger: 'HistoryLogger', wait_manager, permission_input, logger: 'Logger' = None, image_context=None, api_debugger=None):
+    def set_components(
+        self,
+        ai_client: "AIAgent",
+        history_logger: "HistoryLogger",
+        wait_manager,
+        permission_input,
+        logger: "Logger" = None,
+        image_context=None,
+        api_debugger=None,
+    ):
         """
         Set the AI client and history logger after initialization completes.
 
@@ -656,22 +673,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.history_logger = history_logger
 
         # Create bridge to connect agent's wait manager to GUI dialogs
-        from .async_ops import UserInputBridge
-        from .async_ops import ClarificationHandler, PermissionHandler
         from agent.async_ops import ClarificationInput
 
+        from .async_ops import ClarificationHandler, PermissionHandler, UserInputBridge
+
         # Create bridge and register provider/handler pairs
-        self.user_input_bridge = UserInputBridge(
-            wait_manager,
-            parent=self,
-            logger=self.logger
-        )
-        self.user_input_bridge.register_input_type(
-            ClarificationInput(), ClarificationHandler()
-        )
-        self.user_input_bridge.register_input_type(
-            permission_input, PermissionHandler()
-        )
+        self.user_input_bridge = UserInputBridge(wait_manager, parent=self, logger=self.logger)
+        self.user_input_bridge.register_input_type(ClarificationInput(), ClarificationHandler())
+        self.user_input_bridge.register_input_type(permission_input, PermissionHandler())
 
         # Update image_context if provided
         if image_context is not None:
@@ -685,7 +694,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.api_debugger = api_debugger
 
             # Restore dump_api_data state from config
-            saved_dump_api_data = self.ui_config_manager.get('dump_api_data', False)
+            saved_dump_api_data = self.ui_config_manager.get("dump_api_data", False)
             if saved_dump_api_data:
                 self.api_debugger.set_enabled(True)
                 self.toggle_api_dump_action.setChecked(True)
@@ -694,7 +703,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if logger is not None:
             # Disconnect old logger
             try:
-                self.logger.log_message.disconnect(self.message_handler.on_log_message if self.message_handler else lambda: None)
+                self.logger.log_message.disconnect(
+                    self.message_handler.on_log_message if self.message_handler else lambda: None
+                )
             except:
                 pass
 
@@ -721,8 +732,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Restore saved model selection to AI client, or sync dropdown with current model
         if self.ai_client and self.model_menu_manager:
             # Try to restore saved model selection
-            saved_provider = self.ui_config_manager.get('selected_provider')
-            saved_model = self.ui_config_manager.get('selected_model')
+            saved_provider = self.ui_config_manager.get("selected_provider")
+            saved_model = self.ui_config_manager.get("selected_model")
 
             restored = False
             if saved_provider and saved_model:
@@ -776,11 +787,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Update welcome message to show full AI details now that ai_client is initialized
         if self.ai_client:
             context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
-            self.append_message("System",
+            self.append_message(
+                "System",
                 f"🎉 **Initialization Complete!**\n\n"
                 f"**Using model:** {self.ai_client.get_model()}\n"
                 f"**Context:** {context_status}\n\n"
-                f"You can now chat with the AI to generate 3D shapes!")
+                f"You can now chat with the AI to generate 3D shapes!",
+            )
 
         # Bring window to front after initialization completes
         self.raise_()
@@ -835,18 +848,19 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Add attached files as TextMessage
         if self.attached_files:
             file_count = len(self.attached_files)
-            self.append_message("System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message...")
+            self.append_message(
+                "System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message..."
+            )
             for file_info in self.attached_files:
-                file_content = (
-                    f"[Attached Python file: {file_info['name']}]\n"
-                    f"```python\n{file_info['content']}\n```"
-                )
+                file_content = f"[Attached Python file: {file_info['name']}]\n```python\n{file_info['content']}\n```"
                 initial_messages.append(TextMessage("user", file_content))
 
         # Add images as ImageMessage
         if self.captured_images:
             image_count = len(self.captured_images)
-            self.append_message("System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message...")
+            self.append_message(
+                "System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message..."
+            )
             initial_messages.append(ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images))
 
         # Show in-progress indicator
@@ -1024,7 +1038,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.api_debugger.set_enabled(new_state)
 
         # Save to config
-        self.ui_config_manager.set('dump_api_data', new_state)
+        self.ui_config_manager.set("dump_api_data", new_state)
 
         if new_state:
             dump_dir = self.api_debugger.output_dir
@@ -1045,7 +1059,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             history_manager = self.ai_client.get_history_manager()
 
             # Use working directory's .forshape folder for history dumps
-            history_dir = os.path.join(self.config.working_dir, '.forshape', 'history_dumps')
+            history_dir = os.path.join(self.config.working_dir, ".forshape", "history_dumps")
 
             # Get model name
             model_name = self.ai_client.get_model()
@@ -1058,6 +1072,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         except Exception as e:
             import traceback
+
             error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
             self.append_message("[ERROR]", error_msg)
             self.logger.error(f"Failed to dump history: {str(e)}")
@@ -1076,12 +1091,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         self.logger.set_min_level(log_level)
 
         # Save to config
-        self.ui_config_manager.set('log_level', log_level.name)
+        self.ui_config_manager.set("log_level", log_level.name)
 
         # Show a brief message in the log display
         level_name = log_level.name
         self.logger.info(f"Log level changed to {level_name}")
-
 
     def on_run_script(self):
         """Handle Rebuild button click - delegate to file executor."""
@@ -1115,7 +1129,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             image_count = len(self.captured_images)
             self.captured_images = []
             self.update_capture_button_state()
-            self.append_message("System", f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.")
+            self.append_message(
+                "System",
+                f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.",
+            )
             return
 
         if not self.image_context:
@@ -1151,9 +1168,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 # User confirmed - the annotated image has been saved to file_path
                 # Re-encode the potentially modified image
                 import base64
+
                 try:
-                    with open(file_path, 'rb') as image_file:
-                        image_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+                    with open(file_path, "rb") as image_file:
+                        image_base64 = base64.b64encode(image_file.read()).decode("utf-8")
 
                     # Update the result with the new base64 encoding
                     result["image_base64"] = image_base64
@@ -1166,18 +1184,21 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
                     # Show success message
                     image_count = len(self.captured_images)
-                    self.append_message("System",
+                    self.append_message(
+                        "System",
                         f"Screenshot confirmed!\n"
                         f"Saved to: {file_path}\n"
-                        f"{image_count} {self._pluralize('image', image_count)} ready to attach to your next message.")
+                        f"{image_count} {self._pluralize('image', image_count)} ready to attach to your next message.",
+                    )
                 except Exception as e:
                     self.append_message("[SYSTEM]", f"Error encoding annotated image: {str(e)}")
             else:
                 # User cancelled - discard the image
                 self.append_message("System", "Screenshot cancelled. Image will not be attached.")
 
-        except Exception as e:
+        except Exception:
             import traceback
+
             error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
             self.append_message("[SYSTEM]", error_msg)
 

@@ -30,8 +30,9 @@ class PermissionHandler(GuiInputHandlerBase):
         Args:
             request: UserInputRequest with data containing resource and operation
         """
-        from PySide2.QtWidgets import QMessageBox
         from PySide2.QtCore import Qt
+        from PySide2.QtWidgets import QMessageBox
+
         from agent.permission_manager import PermissionResponse
 
         resource = request.data.get("resource", "")

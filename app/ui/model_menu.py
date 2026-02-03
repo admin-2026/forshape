@@ -5,8 +5,8 @@ This module provides functionality for managing the model selection menu,
 including provider selection, model dropdowns, and API key management.
 """
 
-from PySide2.QtWidgets import QLabel, QComboBox, QWidget, QHBoxLayout, QWidgetAction, QAction, QDialog
 from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QAction, QComboBox, QDialog, QHBoxLayout, QLabel, QWidget, QWidgetAction
 
 
 class ModelMenuManager:
@@ -53,6 +53,7 @@ class ModelMenuManager:
         """Get or create the API key manager instance."""
         if self._api_key_manager is None:
             from agent.api_key_manager import ApiKeyManager
+
             self._api_key_manager = ApiKeyManager()
         return self._api_key_manager
 
@@ -80,7 +81,7 @@ class ModelMenuManager:
         Returns:
             Initialized provider instance or None if failed
         """
-        from agent.api_provider import create_api_provider_from_config, create_api_provider
+        from agent.api_provider import create_api_provider, create_api_provider_from_config
 
         provider_config = self.provider_config_loader.get_provider(provider_name)
         if provider_config:
@@ -118,15 +119,14 @@ class ModelMenuManager:
 
             # Save to config
             if self.ui_config_manager:
-                self.ui_config_manager.update({
-                    'selected_provider': provider_name,
-                    'selected_model': model
-                })
+                self.ui_config_manager.update({"selected_provider": provider_name, "selected_model": model})
 
             # Show confirmation message
             if self.message_handler and model_name:
                 display_name = self._get_provider_display_name(provider_name)
-                self.message_handler.append_message("System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})")
+                self.message_handler.append_message(
+                    "System", f"Provider changed to: {display_name}\nModel changed to: {model_name} ({model})"
+                )
 
             return True
         else:
@@ -171,8 +171,10 @@ class ModelMenuManager:
         Returns:
             Handler function
         """
+
         def handler(idx):
             self.on_model_changed(idx, provider_name)
+
         return handler
 
     def create_model_menu_items(self, model_menu, parent_window):
@@ -248,15 +250,18 @@ class ModelMenuManager:
                 model_menu.addAction(provider_action)
 
                 # Add "Delete API Key" action below the dropdown
-                delete_key_action = QAction(f"      → Delete API Key", parent_window)
+                delete_key_action = QAction("      → Delete API Key", parent_window)
 
                 # Use a closure-safe connection
                 def make_delete_handler(prov, disp, parent):
                     def handler():
                         self.on_delete_api_key(prov, disp, parent)
+
                     return handler
 
-                delete_key_action.triggered.connect(make_delete_handler(provider.name, provider.display_name, parent_window))
+                delete_key_action.triggered.connect(
+                    make_delete_handler(provider.name, provider.display_name, parent_window)
+                )
                 model_menu.addAction(delete_key_action)
             else:
                 # API key missing - show a clickable menu action instead of a button widget
@@ -266,12 +271,13 @@ class ModelMenuManager:
                 model_menu.addAction(provider_action)
 
                 # Then add a clickable "Add API Key" action
-                add_key_action = QAction(f"      → Add API Key", parent_window)
+                add_key_action = QAction("      → Add API Key", parent_window)
 
                 # Use a closure-safe connection
                 def make_handler(prov, disp, parent):
                     def handler():
                         self.on_add_api_key(prov, disp, parent)
+
                     return handler
 
                 add_key_action.triggered.connect(make_handler(provider.name, provider.display_name, parent_window))
@@ -287,7 +293,9 @@ class ModelMenuManager:
         """
         if not self.ai_client:
             if self.message_handler:
-                self.message_handler.append_message("System", "AI client not ready. Please wait for initialization to complete.")
+                self.message_handler.append_message(
+                    "System", "AI client not ready. Please wait for initialization to complete."
+                )
             return
 
         # Get the combo box for this provider
@@ -332,7 +340,9 @@ class ModelMenuManager:
 
                     # Show success message
                     if self.message_handler:
-                        self.message_handler.append_message("System", f"API key for {display_name} has been saved successfully!")
+                        self.message_handler.append_message(
+                            "System", f"API key for {display_name} has been saved successfully!"
+                        )
 
                     # Check if this is the first API key being added
                     is_first_key = not any(
@@ -378,7 +388,9 @@ class ModelMenuManager:
 
             # Show success message
             if self.message_handler:
-                self.message_handler.append_message("System", f"API key for {display_name} has been deleted successfully!")
+                self.message_handler.append_message(
+                    "System", f"API key for {display_name} has been deleted successfully!"
+                )
 
             # Check if the deleted key was for the active provider
             was_active_provider = self.ai_client and self.ai_client.provider_name == provider_name
@@ -396,7 +408,9 @@ class ModelMenuManager:
                 if not self._select_first_available_provider():
                     # No other providers with API keys found
                     if self.message_handler:
-                        self.message_handler.append_message("System", "AI client reset. Please select a new provider and model.")
+                        self.message_handler.append_message(
+                            "System", "AI client reset. Please select a new provider and model."
+                        )
 
         except Exception as e:
             self.logger.error(f"Error deleting API key: {e}")

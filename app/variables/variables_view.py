@@ -2,12 +2,20 @@
 
 import os
 import re
-import sys
-from pathlib import Path
-from PySide2.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                                QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QLineEdit)
-from PySide2.QtGui import QFont, QColor
+
 from PySide2.QtCore import QFileSystemWatcher
+from PySide2.QtGui import QColor, QFont
+from PySide2.QtWidgets import (
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class VariablesView(QWidget):
@@ -162,7 +170,7 @@ class VariablesView(QWidget):
             return
 
         try:
-            with open(self.constants_path, 'r', encoding='utf-8') as f:
+            with open(self.constants_path, encoding="utf-8") as f:
                 content = f.read()
 
             # Get both parsed expressions and resolved values
@@ -184,14 +192,14 @@ class VariablesView(QWidget):
 
         # First, parse the file to get expressions
         expressions = {}
-        lines = content.split('\n')
+        lines = content.split("\n")
         for line in lines:
             stripped = line.strip()
-            if not stripped or stripped.startswith('#'):
+            if not stripped or stripped.startswith("#"):
                 continue
 
             # Match variable assignments (NAME = value)
-            match = re.match(r'^([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)(?:\s*#.*)?$', stripped)
+            match = re.match(r"^([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)(?:\s*#.*)?$", stripped)
             if match:
                 name = match.group(1)
                 expression = match.group(2).strip()
@@ -226,11 +234,11 @@ class VariablesView(QWidget):
             # Extract only uppercase variables (constants)
             resolved = {}
             for name, value in namespace.items():
-                if name.isupper() and not name.startswith('_'):
+                if name.isupper() and not name.startswith("_"):
                     resolved[name] = str(value)
 
             return resolved
-        except Exception as e:
+        except Exception:
             # If execution fails, return empty dict
             return {}
 
@@ -285,7 +293,7 @@ class VariablesView(QWidget):
         """
         # Define colors
         highlight_color = QColor(255, 255, 200)  # Light yellow
-        default_color = QColor(255, 255, 255)    # White
+        default_color = QColor(255, 255, 255)  # White
 
         search_lower = search_text.lower()
 

@@ -7,7 +7,7 @@ All provider configuration is driven by provider-config.json.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 
 class APIProvider(ABC):
@@ -31,12 +31,7 @@ class APIProvider(ABC):
 
     @abstractmethod
     def create_completion(
-        self,
-        model: str,
-        messages: List[Dict],
-        tools: Optional[List[Dict]] = None,
-        tool_choice: str = "auto",
-        **kwargs
+        self, model: str, messages: List[Dict], tools: Optional[List[Dict]] = None, tool_choice: str = "auto", **kwargs
     ) -> Any:
         """
         Create a chat completion.
@@ -130,12 +125,7 @@ class OpenAICompatibleProvider(APIProvider):
             return None
 
     def create_completion(
-        self,
-        model: str,
-        messages: List[Dict],
-        tools: Optional[List[Dict]] = None,
-        tool_choice: str = "auto",
-        **kwargs
+        self, model: str, messages: List[Dict], tools: Optional[List[Dict]] = None, tool_choice: str = "auto", **kwargs
     ) -> Any:
         """
         Create a chat completion using the OpenAI-compatible API.
@@ -240,18 +230,11 @@ def create_api_provider_from_config(provider_config, api_key: Optional[str]) -> 
     provider_class_type = provider_config.provider_class
 
     if provider_class_type == "openai_compatible":
-        return OpenAICompatibleProvider(
-            api_key,
-            provider_name=provider_config.display_name,
-            **kwargs
-        )
+        return OpenAICompatibleProvider(api_key, provider_name=provider_config.display_name, **kwargs)
     # Future provider classes can be added here:
     # elif provider_class_type == "anthropic_native":
     #     return AnthropicNativeProvider(api_key, provider_name=provider_config.display_name, **kwargs)
     # elif provider_class_type == "google_gemini":
     #     return GoogleGeminiProvider(api_key, provider_name=provider_config.display_name, **kwargs)
     else:
-        raise ValueError(
-            f"Unsupported provider class: {provider_class_type}. "
-            f"Supported classes: openai_compatible"
-        )
+        raise ValueError(f"Unsupported provider class: {provider_class_type}. Supported classes: openai_compatible")

@@ -43,5 +43,5 @@ class FileLoader(RequestElement):
                 raise FileNotFoundError(f"Required file not found: {self.file_path}")
             return ""
 
-        with open(self.file_path, 'r', encoding='utf-8') as f:
+        with open(self.file_path, encoding="utf-8") as f:
             return f.read()

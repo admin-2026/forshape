@@ -5,16 +5,16 @@ This module provides a ToolCallStep that directly calls tools (no AI)
 and puts responses in history for other steps to process.
 """
 
-from typing import List, Dict, Optional, Callable
+from typing import Callable, Dict, List, Optional
 
-from .tool_executor import ToolExecutor
-from .step_result import StepResult
-from ..request import MessageElement
-from ..request.tool_call_message import ToolCallMessage
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
+from ..request import MessageElement
+from ..request.tool_call_message import ToolCallMessage
 from ..user_input_queue import UserInputQueue
+from .step_result import StepResult
+from .tool_executor import ToolExecutor
 
 
 class ToolCallStep:
@@ -26,12 +26,7 @@ class ToolCallStep:
     conversation history.
     """
 
-    def __init__(
-        self,
-        name: str,
-        tool_executor: ToolExecutor,
-        logger: Optional[LoggerProtocol] = None
-    ):
+    def __init__(self, name: str, tool_executor: ToolExecutor, logger: Optional[LoggerProtocol] = None):
         """
         Initialize a ToolCallStep.
 
@@ -57,13 +52,13 @@ class ToolCallStep:
     def step_run(
         self,
         provider: APIProvider,  # Ignored - no AI calls
-        model: str,             # Ignored - no AI calls
+        model: str,  # Ignored - no AI calls
         history: List[Dict],
         input_queue: Optional[UserInputQueue] = None,  # Ignored - no user input processing
         initial_messages: Optional[List[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[Dict], None]] = None,  # Ignored - no tokens
-        cancellation_check: Optional[Callable[[], bool]] = None
+        cancellation_check: Optional[Callable[[], bool]] = None,
     ) -> StepResult:
         """
         Run the step by executing tool calls from initial_messages.
@@ -86,38 +81,20 @@ class ToolCallStep:
         # Validate initial_messages contains only ToolCallMessage
         if not initial_messages:
             self._log_error("No initial_messages provided")
-            return StepResult(
-                response="",
-                messages=[],
-                token_usage={},
-                status="error"
-            )
+            return StepResult(response="", messages=[], token_usage={}, status="error")
 
         # Check all messages are ToolCallMessage
         for msg_element in initial_messages:
             if not isinstance(msg_element, ToolCallMessage):
-                self._log_error(
-                    f"initial_messages must contain only ToolCallMessage, "
-                    f"got {type(msg_element).__name__}"
-                )
-                return StepResult(
-                    response="",
-                    messages=[],
-                    token_usage={},
-                    status="error"
-                )
+                self._log_error(f"initial_messages must contain only ToolCallMessage, got {type(msg_element).__name__}")
+                return StepResult(response="", messages=[], token_usage={}, status="error")
 
         # Use the first ToolCallMessage
         tool_call_message = initial_messages[0]
 
         # Check for cancellation before starting
         if cancellation_check and cancellation_check():
-            return StepResult(
-                response="",
-                messages=[],
-                token_usage={},
-                status="cancelled"
-            )
+            return StepResult(response="", messages=[], token_usage={}, status="cancelled")
 
         # Add the assistant message with tool_calls to output
         assistant_message = tool_call_message.get_message()
@@ -132,18 +109,11 @@ class ToolCallStep:
         try:
             # Execute tools using shared executor
             result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
-                tool_calls=tool_calls,
-                api_debugger=api_debugger,
-                cancellation_check=cancellation_check
+                tool_calls=tool_calls, api_debugger=api_debugger, cancellation_check=cancellation_check
             )
 
             if was_cancelled:
-                return StepResult(
-                    response="",
-                    messages=messages,
-                    token_usage={},
-                    status="cancelled"
-                )
+                return StepResult(response="", messages=messages, token_usage={}, status="cancelled")
 
             messages.extend(result_messages)
 
@@ -159,18 +129,8 @@ class ToolCallStep:
                             response_parts.append(content)
                 response = "\n".join(response_parts)
 
-            return StepResult(
-                response=response,
-                messages=messages,
-                token_usage={},
-                status="completed"
-            )
+            return StepResult(response=response, messages=messages, token_usage={}, status="completed")
 
         except Exception as e:
             self._log_error(f"Error during tool execution: {str(e)}")
-            return StepResult(
-                response="",
-                messages=messages,
-                token_usage={},
-                status="error"
-            )
+            return StepResult(response="", messages=messages, token_usage={}, status="error")

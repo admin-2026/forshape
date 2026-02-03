@@ -2,9 +2,9 @@
 Drawable image label widget for annotating images.
 """
 
+from PySide2.QtCore import QPoint, Qt
+from PySide2.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide2.QtWidgets import QLabel
-from PySide2.QtCore import Qt, QPoint
-from PySide2.QtGui import QColor, QPixmap, QPainter, QPen
 
 
 class DrawableImageLabel(QLabel):

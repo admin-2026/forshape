@@ -7,8 +7,8 @@ from .shape import Shape
 # reload(boolean)
 # boolean.Boolean.cut('c', 'b3', 'b4')
 
-class Boolean:
 
+class Boolean:
     @staticmethod
     def _create_boolean(label, primary, secondary, boolean_type):
         """
@@ -39,7 +39,7 @@ class Boolean:
 
         if existing_boolean is not None:
             # Check the type of the existing object
-            if existing_boolean.TypeId != 'PartDesign::Boolean':
+            if existing_boolean.TypeId != "PartDesign::Boolean":
                 # Not a Boolean, remove it and create new
                 Context.remove_object(existing_boolean)
                 existing_boolean = None
@@ -78,7 +78,7 @@ class Boolean:
 
         # Create new boolean object if it doesn't exist
         ### Begin command PartDesign_Boolean
-        primary.newObject('PartDesign::Boolean', label)
+        primary.newObject("PartDesign::Boolean", label)
         boolean_obj = Context.get_object(label)
         ### End command PartDesign_Boolean
 
@@ -89,7 +89,7 @@ class Boolean:
     @staticmethod
     def fuse(fuse_label, primary, secondary):
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(fuse_label, 'PartDesign::Boolean')
+        incremental_build_obj = Shape._incremental_build_if_possible(fuse_label, "PartDesign::Boolean")
         if incremental_build_obj is not None:
             return incremental_build_obj
 
@@ -101,7 +101,7 @@ class Boolean:
     @staticmethod
     def common(common_label, primary, secondary):
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(common_label, 'PartDesign::Boolean')
+        incremental_build_obj = Shape._incremental_build_if_possible(common_label, "PartDesign::Boolean")
         if incremental_build_obj is not None:
             return incremental_build_obj
 
@@ -113,7 +113,7 @@ class Boolean:
     @staticmethod
     def cut(cut_label, primary, secondary):
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(cut_label, 'PartDesign::Boolean')
+        incremental_build_obj = Shape._incremental_build_if_possible(cut_label, "PartDesign::Boolean")
         if incremental_build_obj is not None:
             return incremental_build_obj
 

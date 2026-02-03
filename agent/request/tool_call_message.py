@@ -5,9 +5,9 @@ This module provides the ToolCallMessage class for building
 API messages that represent assistant tool calls (without AI involvement).
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional, Any, List
 import uuid
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from .message_element import MessageElement
 
@@ -15,6 +15,7 @@ from .message_element import MessageElement
 @dataclass
 class ToolCall:
     """Represents a tool call to be executed."""
+
     name: str
     arguments: Dict[str, Any]
     id: Optional[str] = None
@@ -33,11 +34,7 @@ class ToolCallMessage(MessageElement):
     Used by ToolCallStep to create tool calls without AI involvement.
     """
 
-    def __init__(
-        self,
-        tool_calls: List[ToolCall],
-        content: Optional[str] = None
-    ):
+    def __init__(self, tool_calls: List[ToolCall], content: Optional[str] = None):
         """
         Initialize the tool call message.
 
@@ -61,20 +58,15 @@ class ToolCallMessage(MessageElement):
 
         tool_calls_data = []
         for tc in self._tool_calls:
-            tool_calls_data.append({
-                "id": tc.id,
-                "type": "function",
-                "function": {
-                    "name": tc.name,
-                    "arguments": self._serialize_arguments(tc.arguments)
+            tool_calls_data.append(
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {"name": tc.name, "arguments": self._serialize_arguments(tc.arguments)},
                 }
-            })
+            )
 
-        return {
-            "role": "assistant",
-            "content": self._content,
-            "tool_calls": tool_calls_data
-        }
+        return {"role": "assistant", "content": self._content, "tool_calls": tool_calls_data}
 
     def get_tool_calls(self) -> List[ToolCall]:
         """
@@ -96,4 +88,5 @@ class ToolCallMessage(MessageElement):
             JSON string representation of arguments
         """
         import json
+
         return json.dumps(arguments)

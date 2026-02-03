@@ -28,6 +28,7 @@ class ApiKeyManager:
         """
         try:
             import keyring
+
             return keyring.get_password(KEYRING_SERVICE, provider.lower())
         except Exception as e:
             print(f"Error reading {provider} key from keyring: {e}")
@@ -43,6 +44,7 @@ class ApiKeyManager:
         """
         try:
             import keyring
+
             keyring.set_password(KEYRING_SERVICE, provider.lower(), api_key)
             print(f"Provider API key updated: {provider}")
         except Exception as e:
@@ -57,11 +59,12 @@ class ApiKeyManager:
         """
         try:
             import keyring
+
             keyring.delete_password(KEYRING_SERVICE, provider.lower())
             print(f"Provider API key removed: {provider}")
         except Exception as e:
             # Check if it's a PasswordDeleteError (key didn't exist)
-            if 'PasswordDeleteError' in type(e).__name__:
+            if "PasswordDeleteError" in type(e).__name__:
                 pass
             else:
                 print(f"Error deleting keyring entry for {provider}: {e}")

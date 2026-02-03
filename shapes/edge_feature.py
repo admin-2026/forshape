@@ -1,11 +1,12 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.edge_feature;
 # reload(shapes.edge_feature); from shapes.edge_feature import EdgeFeature
 # EdgeFeature.add_fillet('fillet1', 'b4', ['Edge1', 'Edge2'], 2)
+
 
 class EdgeFeature(Shape):
     @staticmethod
@@ -23,7 +24,7 @@ class EdgeFeature(Shape):
             The fillet object
         """
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(label, 'PartDesign::Fillet')
+        incremental_build_obj = Shape._incremental_build_if_possible(label, "PartDesign::Fillet")
         if incremental_build_obj is not None:
             return incremental_build_obj
 
@@ -37,7 +38,7 @@ class EdgeFeature(Shape):
             raise ValueError(f"Object not found: '{object_label}'")
 
         # Get the body (parent of the object)
-        if parent_obj.TypeId == 'PartDesign::Body':
+        if parent_obj.TypeId == "PartDesign::Body":
             body = parent_obj
             # Get the last feature in the body to apply fillet to
             if not body.Group:
@@ -46,7 +47,7 @@ class EdgeFeature(Shape):
         else:
             # Object is a feature, get its parent body
             body = Context.get_first_body_parent(parent_obj)
-            if body is None or body.TypeId != 'PartDesign::Body':
+            if body is None or body.TypeId != "PartDesign::Body":
                 raise ValueError(f"Object '{object_label}' is not part of a Body")
             base_feature = parent_obj
 
@@ -58,10 +59,12 @@ class EdgeFeature(Shape):
             if Context.get_first_body_parent(existing_fillet) != body:
                 other_parent = Context.get_first_body_parent(existing_fillet)
                 other_parent_label = other_parent.Label if other_parent else "None"
-                raise ValueError(f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'")
+                raise ValueError(
+                    f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'"
+                )
 
             # Update existing fillet
-            if existing_fillet.TypeId != 'PartDesign::Fillet':
+            if existing_fillet.TypeId != "PartDesign::Fillet":
                 Shape._move_to_trash_bin(existing_fillet)
             else:
                 needs_recompute = False
@@ -83,7 +86,7 @@ class EdgeFeature(Shape):
                 return existing_fillet
 
         # Create new fillet
-        body.newObject('PartDesign::Fillet', label)
+        body.newObject("PartDesign::Fillet", label)
         fillet = Context.get_object(label)
         fillet.Base = (base_feature, edges)
         fillet.Radius = radius
@@ -107,7 +110,7 @@ class EdgeFeature(Shape):
             The chamfer object
         """
         # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(label, 'PartDesign::Chamfer')
+        incremental_build_obj = Shape._incremental_build_if_possible(label, "PartDesign::Chamfer")
         if incremental_build_obj is not None:
             return incremental_build_obj
 
@@ -121,7 +124,7 @@ class EdgeFeature(Shape):
             raise ValueError(f"Object not found: '{object_label}'")
 
         # Get the body (parent of the object)
-        if parent_obj.TypeId == 'PartDesign::Body':
+        if parent_obj.TypeId == "PartDesign::Body":
             body = parent_obj
             # Get the last feature in the body to apply chamfer to
             if not body.Group:
@@ -130,7 +133,7 @@ class EdgeFeature(Shape):
         else:
             # Object is a feature, get its parent body
             body = Context.get_first_body_parent(parent_obj)
-            if body is None or body.TypeId != 'PartDesign::Body':
+            if body is None or body.TypeId != "PartDesign::Body":
                 raise ValueError(f"Object '{object_label}' is not part of a Body")
             base_feature = parent_obj
 
@@ -142,10 +145,12 @@ class EdgeFeature(Shape):
             if Context.get_first_body_parent(existing_chamfer) != body:
                 other_parent = Context.get_first_body_parent(existing_chamfer)
                 other_parent_label = other_parent.Label if other_parent else "None"
-                raise ValueError(f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'")
+                raise ValueError(
+                    f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'"
+                )
 
             # Update existing chamfer
-            if existing_chamfer.TypeId != 'PartDesign::Chamfer':
+            if existing_chamfer.TypeId != "PartDesign::Chamfer":
                 Shape._move_to_trash_bin(existing_chamfer)
             else:
                 needs_recompute = False
@@ -159,8 +164,8 @@ class EdgeFeature(Shape):
                 # Update chamfer type and parameters
                 if angle is not None:
                     # Distance and Angle mode
-                    if existing_chamfer.ChamferType != 'Distance and Angle':
-                        existing_chamfer.ChamferType = 'Distance and Angle'
+                    if existing_chamfer.ChamferType != "Distance and Angle":
+                        existing_chamfer.ChamferType = "Distance and Angle"
                         needs_recompute = True
 
                     if existing_chamfer.Size != size:
@@ -172,8 +177,8 @@ class EdgeFeature(Shape):
                         needs_recompute = True
                 else:
                     # Equal distance mode (default)
-                    if existing_chamfer.ChamferType != 'Equal distance':
-                        existing_chamfer.ChamferType = 'Equal distance'
+                    if existing_chamfer.ChamferType != "Equal distance":
+                        existing_chamfer.ChamferType = "Equal distance"
                         needs_recompute = True
 
                     if existing_chamfer.Size != size:
@@ -186,18 +191,18 @@ class EdgeFeature(Shape):
                 return existing_chamfer
 
         # Create new chamfer
-        body.newObject('PartDesign::Chamfer', label)
+        body.newObject("PartDesign::Chamfer", label)
         chamfer = Context.get_object(label)
         chamfer.Base = (base_feature, edges)
 
         if angle is not None:
             # Distance and Angle mode
-            chamfer.ChamferType = 'Distance and Angle'
+            chamfer.ChamferType = "Distance and Angle"
             chamfer.Size = size
             chamfer.Angle = angle
         else:
             # Equal distance mode (default)
-            chamfer.ChamferType = 'Equal distance'
+            chamfer.ChamferType = "Equal distance"
             chamfer.Size = size
 
         App.ActiveDocument.recompute()

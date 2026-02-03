@@ -40,11 +40,11 @@ class HistoryLogger:
         if self.history_file is None:
             return
 
-        with open(self.history_file, 'a', encoding='utf-8') as f:
+        with open(self.history_file, "a", encoding="utf-8") as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"\n{'='*60}\n")
+            f.write(f"\n{'=' * 60}\n")
             f.write(f"Session started: {timestamp}\n")
-            f.write(f"{'='*60}\n\n")
+            f.write(f"{'=' * 60}\n\n")
 
     def log_conversation(self, role: str, content: str):
         """
@@ -58,7 +58,7 @@ class HistoryLogger:
             return
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(self.history_file, 'a', encoding='utf-8') as f:
+        with open(self.history_file, "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] {role.upper()}:\n")
             f.write(f"{content}\n\n")
 
@@ -67,11 +67,11 @@ class HistoryLogger:
         if self.history_file is None:
             return
 
-        with open(self.history_file, 'a', encoding='utf-8') as f:
+        with open(self.history_file, "a", encoding="utf-8") as f:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"{'='*60}\n")
+            f.write(f"{'=' * 60}\n")
             f.write(f"Session ended: {timestamp}\n")
-            f.write(f"{'='*60}\n\n")
+            f.write(f"{'=' * 60}\n\n")
 
     def get_history_file(self) -> Optional[Path]:
         """

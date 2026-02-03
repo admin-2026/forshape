@@ -1,15 +1,18 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.additive_prism;
 # from shapes.additive_prism import AdditivePrism
 # AdditivePrism.create_prism('hexprism', 'XY_Plane', 6, 5, 10)
 
+
 class AdditivePrism(Shape):
     @staticmethod
-    def create_prism(label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_prism(
+        label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0
+    ):
         """
         Create a prism shape using FreeCAD's PartDesign AdditivePrism feature.
 
@@ -35,14 +38,12 @@ class AdditivePrism(Shape):
             return incremental_build_obj
 
         # Handle teardown mode
-        if Shape._teardown_if_needed(label, created_children=[label + '_prism']):
+        if Shape._teardown_if_needed(label, created_children=[label + "_prism"]):
             return None
 
         # Check for existing object and get children if they exist
-        prism_label = label + '_prism'
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (prism_label, 'PartDesign::AdditivePrism')
-        ])
+        prism_label = label + "_prism"
+        existing_obj, children = Shape._get_or_recreate_body(label, [(prism_label, "PartDesign::AdditivePrism")])
 
         if existing_obj is not None:
             # AdditivePrism exists, update its properties
@@ -50,8 +51,8 @@ class AdditivePrism(Shape):
             needs_recompute = False
 
             # Update dimensions
-            new_circumradius = f'{circumradius} mm'
-            new_height = f'{height} mm'
+            new_circumradius = f"{circumradius} mm"
+            new_height = f"{height} mm"
 
             if existing_prism.Polygon != polygon:
                 existing_prism.Polygon = polygon
@@ -64,15 +65,17 @@ class AdditivePrism(Shape):
                 needs_recompute = True
 
             # Update angle properties
-            if str(existing_prism.FirstAngle) != '0.00 °':
-                existing_prism.FirstAngle = '0.00 °'
+            if str(existing_prism.FirstAngle) != "0.00 °":
+                existing_prism.FirstAngle = "0.00 °"
                 needs_recompute = True
-            if str(existing_prism.SecondAngle) != '0.00 °':
-                existing_prism.SecondAngle = '0.00 °'
+            if str(existing_prism.SecondAngle) != "0.00 °":
+                existing_prism.SecondAngle = "0.00 °"
                 needs_recompute = True
 
             # Update attachment, offset, and rotation
-            if Shape._update_attachment_and_offset(existing_prism, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll):
+            if Shape._update_attachment_and_offset(
+                existing_prism, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+            ):
                 needs_recompute = True
 
             if needs_recompute:
@@ -83,15 +86,15 @@ class AdditivePrism(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        prism_label = label+'_prism'
-        App.ActiveDocument.addObject('PartDesign::AdditivePrism', prism_label)
+        prism_label = label + "_prism"
+        App.ActiveDocument.addObject("PartDesign::AdditivePrism", prism_label)
         prism = Context.get_object(prism_label)
         obj.addObject(prism)
         prism.Polygon = polygon
-        prism.Circumradius = f'{circumradius} mm'
-        prism.Height = f'{height} mm'
-        prism.FirstAngle = '0.00 °'
-        prism.SecondAngle = '0.00 °'
+        prism.Circumradius = f"{circumradius} mm"
+        prism.Height = f"{height} mm"
+        prism.FirstAngle = "0.00 °"
+        prism.SecondAngle = "0.00 °"
 
         Shape._update_attachment_and_offset(prism, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
         App.ActiveDocument.recompute()

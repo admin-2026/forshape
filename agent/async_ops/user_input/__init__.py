@@ -8,6 +8,6 @@ from .clarification_input import ClarificationInput
 from .permission_input import PermissionInput
 
 __all__ = [
-    'ClarificationInput',
-    'PermissionInput',
+    "ClarificationInput",
+    "PermissionInput",
 ]

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from agent.async_ops import UserInputRequest
+
     from .user_input_bridge import UserInputBridge
 
 
@@ -22,7 +23,7 @@ class GuiInputHandlerBase(ABC):
 
     def __init__(self):
         """Initialize the handler with no references."""
-        self._bridge: "UserInputBridge" = None
+        self._bridge: UserInputBridge = None
         self._parent = None
         self._logger = None
 

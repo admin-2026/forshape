@@ -1,12 +1,13 @@
 import FreeCAD as App
 
-from .shape import Shape
 from .context import Context
+from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.additive_box;
 # reload(shapes.additive_box); from shapes.additive_box import AdditiveBox
 # AdditiveBox.create_box('addbox', 'XY_Plane', 2, 4, 10)
 # AdditiveBox.create_slot('slot', 'XY_Plane', 2, 4, 1, 0.5)
+
 
 class AdditiveBox(Shape):
     @staticmethod
@@ -32,11 +33,13 @@ class AdditiveBox(Shape):
         has_xyz = x_size is not None or y_size is not None or z_size is not None
 
         if has_lwh and has_xyz:
-            print("Warning: Both (length/width/height) and (x_size/y_size/z_size) provided. Using x_size/y_size/z_size.")
+            print(
+                "Warning: Both (length/width/height) and (x_size/y_size/z_size) provided. Using x_size/y_size/z_size."
+            )
 
         # If x_size/y_size/z_size provided, map based on plane
         if has_xyz:
-            if plane_label == 'XY_Plane':
+            if plane_label == "XY_Plane":
                 # x_size → length, y_size → width, z_size → height
                 if x_size is not None:
                     length = x_size
@@ -44,7 +47,7 @@ class AdditiveBox(Shape):
                     width = y_size
                 if z_size is not None:
                     height = z_size
-            elif plane_label == 'YZ_Plane':
+            elif plane_label == "YZ_Plane":
                 # x_size → height, y_size → length, z_size → width
                 if x_size is not None:
                     height = x_size
@@ -52,7 +55,7 @@ class AdditiveBox(Shape):
                     length = y_size
                 if z_size is not None:
                     width = z_size
-            elif plane_label == 'XZ_Plane':
+            elif plane_label == "XZ_Plane":
                 # x_size → length, y_size → height, z_size → width
                 if x_size is not None:
                     length = x_size
@@ -89,11 +92,7 @@ class AdditiveBox(Shape):
         displacement = center - rotated_center
 
         # Adjust the offset to account for center-based rotation
-        return (
-            x_offset + displacement.x,
-            y_offset + displacement.y,
-            z_offset + displacement.z
-        )
+        return (x_offset + displacement.x, y_offset + displacement.y, z_offset + displacement.z)
 
     @staticmethod
     def _calculate_fillet_radius_with_epsilon(radius, width, length):
@@ -118,9 +117,26 @@ class AdditiveBox(Shape):
             return radius
 
     @staticmethod
-    def create_box(label, plane_label, length=None, width=None, height=None, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_box(
+        label,
+        plane_label,
+        length=None,
+        width=None,
+        height=None,
+        x_size=None,
+        y_size=None,
+        z_size=None,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        yaw=0,
+        pitch=0,
+        roll=0,
+    ):
         # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+        length, width, height = AdditiveBox._resolve_dimensions(
+            plane_label, length, width, height, x_size, y_size, z_size
+        )
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
@@ -128,7 +144,7 @@ class AdditiveBox(Shape):
             return incremental_build_obj
 
         # Handle teardown mode
-        if Shape._teardown_if_needed(label, created_children=[label + '_box']):
+        if Shape._teardown_if_needed(label, created_children=[label + "_box"]):
             return None
 
         # Calculate center-based rotation offset
@@ -137,10 +153,8 @@ class AdditiveBox(Shape):
         )
 
         # Check for existing object and get children if they exist
-        box_label = label + '_box'
-        existing_obj, children = Shape._get_or_recreate_body(label, [
-            (box_label, 'PartDesign::AdditiveBox')
-        ])
+        box_label = label + "_box"
+        existing_obj, children = Shape._get_or_recreate_body(label, [(box_label, "PartDesign::AdditiveBox")])
 
         if existing_obj is not None:
             # AdditiveBox exists, update its properties
@@ -148,9 +162,9 @@ class AdditiveBox(Shape):
             needs_recompute = False
 
             # Update dimensions
-            new_length = f'{length} mm'
-            new_width = f'{width} mm'
-            new_height = f'{height} mm'
+            new_length = f"{length} mm"
+            new_width = f"{width} mm"
+            new_height = f"{height} mm"
 
             if str(existing_box.Length) != new_length:
                 existing_box.Length = new_length
@@ -163,7 +177,9 @@ class AdditiveBox(Shape):
                 needs_recompute = True
 
             # Update attachment, offset, and rotation with adjusted offset
-            if Shape._update_attachment_and_offset(existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
+            if Shape._update_attachment_and_offset(
+                existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+            ):
                 needs_recompute = True
 
             if needs_recompute:
@@ -174,23 +190,43 @@ class AdditiveBox(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        box_label = label+'_box'
-        App.ActiveDocument.addObject('PartDesign::AdditiveBox', box_label)
+        box_label = label + "_box"
+        App.ActiveDocument.addObject("PartDesign::AdditiveBox", box_label)
         box = Context.get_object(box_label)
         obj.addObject(box)
-        box.Length=f'{length} mm'
-        box.Width=f'{width} mm'
-        box.Height=f'{height} mm'
+        box.Length = f"{length} mm"
+        box.Width = f"{width} mm"
+        box.Height = f"{height} mm"
 
-        Shape._update_attachment_and_offset(box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+        )
         App.ActiveDocument.recompute()
 
         return obj
 
     @staticmethod
-    def create_slot(label, plane_label, length=None, width=None, height=None, radius=0, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_slot(
+        label,
+        plane_label,
+        length=None,
+        width=None,
+        height=None,
+        radius=0,
+        x_size=None,
+        y_size=None,
+        z_size=None,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        yaw=0,
+        pitch=0,
+        roll=0,
+    ):
         # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+        length, width, height = AdditiveBox._resolve_dimensions(
+            plane_label, length, width, height, x_size, y_size, z_size
+        )
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
@@ -198,20 +234,17 @@ class AdditiveBox(Shape):
             return incremental_build_obj
 
         # Determine expected children based on radius
-        slot_label = label + '_slot'
-        fillet_label = label + '_fillet'
+        slot_label = label + "_slot"
+        fillet_label = label + "_fillet"
 
         if radius == 0:
             # No fillet needed, just create a box
             created_children = [slot_label]
-            expected_children = [(slot_label, 'PartDesign::AdditiveBox')]
+            expected_children = [(slot_label, "PartDesign::AdditiveBox")]
         else:
             # Need both slot and fillet
             created_children = [slot_label, fillet_label]
-            expected_children = [
-                (slot_label, 'PartDesign::AdditiveBox'),
-                (fillet_label, 'PartDesign::Fillet')
-            ]
+            expected_children = [(slot_label, "PartDesign::AdditiveBox"), (fillet_label, "PartDesign::Fillet")]
 
         # Handle teardown mode
         if Shape._teardown_if_needed(label, created_children=created_children):
@@ -231,9 +264,9 @@ class AdditiveBox(Shape):
             needs_recompute = False
 
             # Update slot dimensions
-            new_length = f'{length} mm'
-            new_width = f'{width} mm'
-            new_height = f'{height} mm'
+            new_length = f"{length} mm"
+            new_width = f"{width} mm"
+            new_height = f"{height} mm"
 
             if str(existing_slot.Length) != new_length:
                 existing_slot.Length = new_length
@@ -246,7 +279,9 @@ class AdditiveBox(Shape):
                 needs_recompute = True
 
             # Update attachment, offset, and rotation with adjusted offset
-            if Shape._update_attachment_and_offset(existing_slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
+            if Shape._update_attachment_and_offset(
+                existing_slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+            ):
                 needs_recompute = True
 
             # Update fillet if it exists (radius > 0)
@@ -276,21 +311,31 @@ class AdditiveBox(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        App.ActiveDocument.addObject('PartDesign::AdditiveBox', slot_label)
+        App.ActiveDocument.addObject("PartDesign::AdditiveBox", slot_label)
         slot = Context.get_object(slot_label)
         obj.addObject(slot)
-        slot.Length=f'{length} mm'
-        slot.Width=f'{width} mm'
-        slot.Height=f'{height} mm'
+        slot.Length = f"{length} mm"
+        slot.Width = f"{width} mm"
+        slot.Height = f"{height} mm"
 
-        Shape._update_attachment_and_offset(slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+        )
         App.ActiveDocument.recompute()
 
         # Only create fillet if radius > 0
         if radius > 0:
-            obj.newObject('PartDesign::Fillet', fillet_label)
+            obj.newObject("PartDesign::Fillet", fillet_label)
             fillet = Context.get_object(fillet_label)
-            fillet.Base = (slot,['Edge1','Edge3','Edge5','Edge7',])
+            fillet.Base = (
+                slot,
+                [
+                    "Edge1",
+                    "Edge3",
+                    "Edge5",
+                    "Edge7",
+                ],
+            )
             # Subtract epsilon only when diameter equals width or length to prevent adjacent fillets from touching
             fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
 
@@ -303,7 +348,26 @@ class AdditiveBox(Shape):
         return obj
 
     @staticmethod
-    def create_round_side_box(label, plane_label, length=None, width=None, height=None, radius1=0, radius3=0, radius5=0, radius7=0, x_size=None, y_size=None, z_size=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_round_side_box(
+        label,
+        plane_label,
+        length=None,
+        width=None,
+        height=None,
+        radius1=0,
+        radius3=0,
+        radius5=0,
+        radius7=0,
+        x_size=None,
+        y_size=None,
+        z_size=None,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        yaw=0,
+        pitch=0,
+        roll=0,
+    ):
         """
         Creates a box with individually rounded side edges.
 
@@ -327,7 +391,9 @@ class AdditiveBox(Shape):
             The created/updated object
         """
         # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size)
+        length, width, height = AdditiveBox._resolve_dimensions(
+            plane_label, length, width, height, x_size, y_size, z_size
+        )
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
@@ -335,27 +401,27 @@ class AdditiveBox(Shape):
             return incremental_build_obj
 
         # Determine expected children based on radiuses
-        box_label = label + '_box'
-        fillet1_label = label + '_fillet1'
-        fillet3_label = label + '_fillet3'
-        fillet5_label = label + '_fillet5'
-        fillet7_label = label + '_fillet7'
+        box_label = label + "_box"
+        fillet1_label = label + "_fillet1"
+        fillet3_label = label + "_fillet3"
+        fillet5_label = label + "_fillet5"
+        fillet7_label = label + "_fillet7"
 
         created_children = [box_label]
-        expected_children = [(box_label, 'PartDesign::AdditiveBox')]
+        expected_children = [(box_label, "PartDesign::AdditiveBox")]
 
         # Track which fillets we need
         fillet_config = {
-            'Edge1': (radius1, fillet1_label),
-            'Edge3': (radius3, fillet3_label),
-            'Edge5': (radius5, fillet5_label),
-            'Edge7': (radius7, fillet7_label)
+            "Edge1": (radius1, fillet1_label),
+            "Edge3": (radius3, fillet3_label),
+            "Edge5": (radius5, fillet5_label),
+            "Edge7": (radius7, fillet7_label),
         }
 
         for edge, (radius, fillet_label) in fillet_config.items():
             if radius > 0:
                 created_children.append(fillet_label)
-                expected_children.append((fillet_label, 'PartDesign::Fillet'))
+                expected_children.append((fillet_label, "PartDesign::Fillet"))
 
         # Handle teardown mode
         if Shape._teardown_if_needed(label, created_children=created_children):
@@ -375,9 +441,9 @@ class AdditiveBox(Shape):
             needs_recompute = False
 
             # Update box dimensions
-            new_length = f'{length} mm'
-            new_width = f'{width} mm'
-            new_height = f'{height} mm'
+            new_length = f"{length} mm"
+            new_width = f"{width} mm"
+            new_height = f"{height} mm"
 
             if str(existing_box.Length) != new_length:
                 existing_box.Length = new_length
@@ -390,7 +456,9 @@ class AdditiveBox(Shape):
                 needs_recompute = True
 
             # Update attachment, offset, and rotation with adjusted offset
-            if Shape._update_attachment_and_offset(existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll):
+            if Shape._update_attachment_and_offset(
+                existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+            ):
                 needs_recompute = True
 
             # Update each fillet if it exists
@@ -417,14 +485,16 @@ class AdditiveBox(Shape):
         # Create new object if it doesn't exist
         obj = Shape._create_object(label)
 
-        App.ActiveDocument.addObject('PartDesign::AdditiveBox', box_label)
+        App.ActiveDocument.addObject("PartDesign::AdditiveBox", box_label)
         box = Context.get_object(box_label)
         obj.addObject(box)
-        box.Length = f'{length} mm'
-        box.Width = f'{width} mm'
-        box.Height = f'{height} mm'
+        box.Length = f"{length} mm"
+        box.Width = f"{width} mm"
+        box.Height = f"{height} mm"
 
-        Shape._update_attachment_and_offset(box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+        )
         App.ActiveDocument.recompute()
 
         # Create fillets for edges with radius > 0
@@ -433,7 +503,7 @@ class AdditiveBox(Shape):
 
         for edge, (radius, fillet_label) in fillet_config.items():
             if radius > 0:
-                obj.newObject('PartDesign::Fillet', fillet_label)
+                obj.newObject("PartDesign::Fillet", fillet_label)
                 fillet = Context.get_object(fillet_label)
                 fillet.Base = (last_feature, [edge])
                 fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)

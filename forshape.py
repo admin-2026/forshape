@@ -16,27 +16,27 @@ Usage from Python REPL:
 
 import sys
 from typing import Optional
+
 from PySide2.QtWidgets import QApplication
 
+from agent import ToolCallStep, ToolExecutor
+from agent.async_ops import PermissionInput, WaitManager
+from agent.permission_manager import PermissionManager
+from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder
+from agent.tools.tool_manager import ToolManager
 from app import (
-    DependencyManager,
-    ConfigurationManager,
-    HistoryLogger,
     AIAgent,
-    Step,
+    APIDebugger,
+    ApiKeyManager,
+    ConfigurationManager,
+    DependencyManager,
     ForShapeMainWindow,
+    HistoryLogger,
     Logger,
     LogLevel,
     PrestartChecker,
-    APIDebugger,
-    ApiKeyManager
+    Step,
 )
-from agent import ToolCallStep, ToolExecutor
-from agent.tools.tool_manager import ToolManager
-from agent.request import RequestBuilder, FileLoader, Instruction, DynamicContent
-from agent.async_ops import WaitManager, PermissionInput
-from agent.permission_manager import PermissionManager
-
 
 # System message instructions
 BASE_INSTRUCTION = """
@@ -180,12 +180,12 @@ class ForShapeAI:
         success, error_msg = self.dependency_manager.check_and_install_all()
 
         if not success:
-            print(f"\n{'='*60}")
-            print(f"ERROR: Cannot initialize ForShapeAI")
-            print(f"{'='*60}")
+            print(f"\n{'=' * 60}")
+            print("ERROR: Cannot initialize ForShapeAI")
+            print(f"{'=' * 60}")
             print(f"\n{error_msg}")
             print("\nPlease install the required libraries to use ForShape AI.")
-            print(f"{'='*60}\n")
+            print(f"{'=' * 60}\n")
             return
 
         # Initialize prestart checker (will setup directories and check API key)
@@ -220,6 +220,7 @@ class ForShapeAI:
 
         # Initialize ImageContext for screenshot capture
         from shapes.image_context import ImageContext
+
         images_dir = self.config.get_history_dir() / "images"
         self.image_context = ImageContext(str(images_dir))
 
@@ -228,10 +229,9 @@ class ForShapeAI:
 
         # Initialize edit history for tracking file changes
         from agent.edit_history import EditHistory
+
         self.edit_history = EditHistory(
-            working_dir=self.config.working_dir,
-            edits_dir=str(self.config.get_edits_dir()),
-            logger=self.logger
+            working_dir=self.config.working_dir, edits_dir=str(self.config.get_edits_dir()), logger=self.logger
         )
 
         # Initialize AI agent with API key from keyring
@@ -273,11 +273,7 @@ class ForShapeAI:
 
         # Create and configure tool manager with all tools
         tool_manager = ToolManager(logger=self.logger)
-        self._register_tools(
-            tool_manager,
-            wait_manager,
-            permission_manager
-        )
+        self._register_tools(tool_manager, wait_manager, permission_manager)
 
         system_elements = [
             Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
@@ -297,11 +293,7 @@ class ForShapeAI:
         tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
 
         # Create the doc_print step that calls print_document before main step
-        doc_print_step = ToolCallStep(
-            name="doc_print",
-            tool_executor=tool_executor,
-            logger=self.logger
-        )
+        doc_print_step = ToolCallStep(name="doc_print", tool_executor=tool_executor, logger=self.logger)
 
         # Create the main step with tool executor
         main_step = Step(
@@ -309,7 +301,7 @@ class ForShapeAI:
             request_builder=request_builder,
             tool_executor=tool_executor,
             max_iterations=50,
-            logger=self.logger
+            logger=self.logger,
         )
 
         # Create AI agent with steps (doc_print runs before main)
@@ -321,19 +313,24 @@ class ForShapeAI:
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config,
-            edit_history=self.edit_history
+            edit_history=self.edit_history,
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
         # Update the main window with the initialized components
         if self.main_window:
-            self.main_window.set_components(self.ai_client, self.history_logger, wait_manager, permission_input, self.logger, self.image_context, self.api_debugger)
+            self.main_window.set_components(
+                self.ai_client,
+                self.history_logger,
+                wait_manager,
+                permission_input,
+                self.logger,
+                self.image_context,
+                self.api_debugger,
+            )
 
     def _register_tools(
-        self,
-        tool_manager: ToolManager,
-        wait_manager: WaitManager,
-        permission_manager: PermissionManager
+        self, tool_manager: ToolManager, wait_manager: WaitManager, permission_manager: PermissionManager
     ) -> None:
         """
         Register all tools with the tool manager.
@@ -343,9 +340,9 @@ class ForShapeAI:
             wait_manager: WaitManager instance for user interactions
             permission_manager: PermissionManager instance for permission checks
         """
+        from agent.tools.calculator_tools import CalculatorTools
         from agent.tools.file_access_tools import FileAccessTools
         from agent.tools.interaction_tools import InteractionTools
-        from agent.tools.calculator_tools import CalculatorTools
         from app.tools import FreeCADTools, VisualizationTools
 
         # Register file access tools
@@ -355,7 +352,7 @@ class ForShapeAI:
             permission_manager=permission_manager,
             edit_history=self.edit_history,
             exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
-            exclude_patterns=[]
+            exclude_patterns=[],
         )
         tool_manager.register_provider(file_access_tools)
 
@@ -407,7 +404,7 @@ class ForShapeAI:
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,
             completion_callback=self._complete_initialization,
-            window_close_callback=ForShapeAI._clear_active_window
+            window_close_callback=ForShapeAI._clear_active_window,
         )
 
         # Store the window as the active window

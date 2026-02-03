@@ -7,10 +7,10 @@ for GUI interaction without direct GUI dependencies.
 """
 
 import json
-from typing import Dict, List, Callable
+from typing import Callable, Dict, List
 
-from .base import ToolBase
 from ..async_ops import WaitManager
+from .base import ToolBase
 
 
 class InteractionTools(ToolBase):
@@ -42,15 +42,13 @@ class InteractionTools(ToolBase):
                         "properties": {
                             "questions": {
                                 "type": "array",
-                                "items": {
-                                    "type": "string"
-                                },
-                                "description": "List of questions to ask the user. Each question should be clear and specific."
+                                "items": {"type": "string"},
+                                "description": "List of questions to ask the user. Each question should be clear and specific.",
                             }
                         },
-                        "required": ["questions"]
-                    }
-                }
+                        "required": ["questions"],
+                    },
+                },
             }
         ]
 
@@ -116,15 +114,14 @@ class InteractionTools(ToolBase):
 
             # Process the response
             if response.cancelled:
-                return json.dumps({
-                    "success": False,
-                    "message": "User cancelled the clarification dialog",
-                    "cancelled": True
-                }, indent=2)
+                return json.dumps(
+                    {"success": False, "message": "User cancelled the clarification dialog", "cancelled": True},
+                    indent=2,
+                )
 
             return self._json_success(
                 message="User provided clarification responses",
-                responses=response.data.get("responses", {}) if response.data else {}
+                responses=response.data.get("responses", {}) if response.data else {},
             )
 
         except Exception as e:

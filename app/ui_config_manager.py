@@ -2,11 +2,11 @@
 UI Configuration Manager - Persists user interface selections
 Saves menu selections to .forshape/ui_config.json
 """
+
 import json
-import os
-from pathlib import Path
-from typing import Optional, Dict, Any
 import logging
+from pathlib import Path
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +40,11 @@ class UIConfigManager:
             return self._config
 
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 self._config = json.load(f)
             logger.info(f"Loaded UI config from {self.config_path}")
             return self._config
-        except (json.JSONDecodeError, IOError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Failed to load UI config: {e}")
             self._config = {}
             return self._config
@@ -66,12 +66,12 @@ class UIConfigManager:
             self.forshape_dir.mkdir(parents=True, exist_ok=True)
 
             # Write config file
-            with open(self.config_path, 'w', encoding='utf-8') as f:
+            with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
 
             logger.debug(f"Saved UI config to {self.config_path}")
             return True
-        except IOError as e:
+        except OSError as e:
             logger.error(f"Failed to save UI config: {e}")
             return False
 

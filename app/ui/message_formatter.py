@@ -109,13 +109,21 @@ class MessageFormatter:
         Returns:
             Formatted HTML string
         """
-        # Convert markdown to HTML for AI messages
+        # Use different colors for different roles
         if role == "AI":
+            role_color = "#0066CC"  # Blue for AI messages
+        elif role == "You":
+            role_color = "#009900"  # Green for user messages
+        else:
+            role_color = "#333"  # Default gray for system messages
+
+        # Convert markdown to HTML for AI and System messages
+        if role == "AI" or role == "System":
             message_html = self.markdown_to_html(message)
 
-            # Add token information if available
+            # Add token information if available (only for AI messages)
             token_info_html = ""
-            if token_data:
+            if role == "AI" and token_data:
                 token_str = self.format_token_data(token_data, include_iteration=False)
                 token_info_html = (
                     f'<div style="font-size: 11px; color: #888;">'
@@ -125,18 +133,12 @@ class MessageFormatter:
 
             formatted_message = (
                 f'<div style="margin: 0;">'
-                f'<strong style="color: #0066CC;">{role}:</strong><br>{message_html}'
+                f'<strong style="color: {role_color};">{role}:</strong><br>{message_html}'
                 f"{token_info_html}</div>"
             )
         else:
-            # For user messages and system messages, use simpler formatting
+            # For user messages, use simpler formatting (no markdown)
             escaped_message = html_module.escape(message).replace("\n", "<br>")
-
-            # Use different colors for different roles
-            if role == "You":
-                role_color = "#009900"  # Green for user messages
-            else:
-                role_color = "#333"  # Default gray for system messages
 
             formatted_message = (
                 f'<div style="margin: 0;">'

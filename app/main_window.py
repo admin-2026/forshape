@@ -4,7 +4,6 @@ Main window GUI for ForShape AI.
 This module provides the interactive GUI interface using PySide2.
 """
 
-import os
 from typing import TYPE_CHECKING
 
 from PySide2.QtCore import QCoreApplication, Qt
@@ -102,10 +101,7 @@ class ForShapeMainWindow(QMainWindow):
         self.provider_config_loader = ProviderConfigLoader()
 
         # Initialize UI config manager for persisting menu selections
-        from pathlib import Path
-
-        forshape_dir = Path(self.config.working_dir) / ".forshape"
-        self.ui_config_manager = UIConfigManager(forshape_dir)
+        self.ui_config_manager = UIConfigManager(self.config.get_forshape_dir())
         self.ui_config_manager.load()
 
         # Initialize handler instances (will be fully configured after UI setup)
@@ -583,11 +579,10 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.append_message("[ERROR]", "Context provider not initialized.")
             return
 
-        working_dir = self.config.working_dir
-        edits_dir = os.path.join(working_dir, ".forshape", "edits")
+        edits_dir = self.config.get_edits_dir()
 
         # Check if edits directory exists
-        if not os.path.exists(edits_dir):
+        if not edits_dir.exists():
             self.append_message("System", "No edit history found. The edits directory does not exist yet.")
             return
 
@@ -633,7 +628,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Get paths
         working_dir = self.config.working_dir
-        edits_dir = os.path.join(working_dir, ".forshape", "edits")
+        edits_dir = self.config.get_edits_dir()
 
         # Restore using EditHistory
         from agent.edit_history import EditHistory
@@ -1059,7 +1054,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             history_manager = self.ai_client.get_history_manager()
 
             # Use working directory's .forshape folder for history dumps
-            history_dir = os.path.join(self.config.working_dir, ".forshape", "history_dumps")
+            history_dir = self.config.get_history_dumps_dir()
 
             # Get model name
             model_name = self.ai_client.get_model()

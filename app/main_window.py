@@ -29,9 +29,8 @@ from agent.request import ImageMessage, TextMessage, ToolCall, ToolCallMessage
 from agent.step_config import StepConfig, StepConfigRegistry
 
 from .dialogs import CheckpointSelector, ImagePreviewDialog
-from .formatters import MessageFormatter
 from .logger import LogLevel
-from .ui import DragDropHandler, FileExecutor, MessageHandler, ModelMenuManager, MultiLineInputField
+from .ui import DragDropHandler, FileExecutor, MessageFormatter, MessageHandler, ModelMenuManager, MultiLineInputField
 from .ui_config_manager import UIConfigManager
 from .variables import VariablesView
 from .workers import AIWorker

@@ -118,15 +118,13 @@ class MessageFormatter:
             if token_data:
                 token_str = self.format_token_data(token_data, include_iteration=False)
                 token_info_html = (
-                    f'<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; '
-                    f'font-size: 11px; color: #666;">'
-                    f"<strong>Token Usage:</strong> {token_str}"
+                    f'<div style="font-size: 11px; color: #888;">'
+                    f"Tokens: {token_str}"
                     f"</div>"
                 )
 
             formatted_message = (
-                f'<div style="margin: 15px 0; padding: 8px; background-color: #f9f9f9; '
-                f'border-left: 3px solid #0066CC;">'
+                f'<div style="margin: 0;">'
                 f'<strong style="color: #0066CC;">{role}:</strong><br>{message_html}'
                 f"{token_info_html}</div>"
             )
@@ -141,7 +139,7 @@ class MessageFormatter:
                 role_color = "#333"  # Default gray for system messages
 
             formatted_message = (
-                f'<div style="margin: 15px 0; padding: 8px;">'
+                f'<div style="margin: 0;">'
                 f'<strong style="color: {role_color};">{role}:</strong><br>{escaped_message}</div>'
             )
 

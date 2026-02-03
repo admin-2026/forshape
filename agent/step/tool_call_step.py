@@ -11,7 +11,7 @@ from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
 from ..request import MessageElement
-from ..request.tool_call_message import ToolCallMessage
+from ..request.tool_call_message import ToolCall, ToolCallMessage
 from ..step_config import StepConfig
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
@@ -107,6 +107,9 @@ class ToolCallStep:
         self._log_info(f"Executing {len(tool_calls)} tool call(s)")
 
         try:
+            # Build a map of tool call IDs to descriptions
+            tool_descriptions = {tc.id: tc.description for tc in tool_calls if isinstance(tc, ToolCall)}
+
             # Execute tools using shared executor
             result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
                 tool_calls=tool_calls, api_debugger=api_debugger, cancellation_check=cancellation_check
@@ -114,6 +117,15 @@ class ToolCallStep:
 
             if was_cancelled:
                 return StepResult(response="", messages=messages, token_usage={}, status="cancelled")
+
+            # Add descriptions to result messages where applicable
+            for msg in result_messages:
+                tool_call_id = msg.get("tool_call_id")
+                if tool_call_id and tool_call_id in tool_descriptions:
+                    description = tool_descriptions[tool_call_id]
+                    if description:
+                        content = msg.get("content", "")
+                        msg["content"] = f"{description}\n\n{content}"
 
             messages.extend(result_messages)
 

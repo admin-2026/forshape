@@ -104,7 +104,7 @@ class VisualizationTools(ToolBase):
         Returns:
             List of MessageElements to add to the conversation
         """
-        messages = [ToolResultMessage(tool_call_id, tool_name, tool_result)]
+        messages: list[MessageElement] = [ToolResultMessage(tool_call_id, tool_name, tool_result)]
 
         # Add screenshot images to conversation for capture_screenshot tool
         if tool_name == "capture_screenshot":

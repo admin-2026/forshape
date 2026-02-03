@@ -20,6 +20,7 @@ class ToolCall:
     arguments: dict[str, Any]
     id: Optional[str] = None
     copy_result_to_response: bool = False
+    description: Optional[str] = None
 
     def __post_init__(self):
         """Generate ID if not provided."""

@@ -1,5 +1,7 @@
-Do not generate new README files. But you can update the shapes/README.md
-Do not generate test files unless told to do so.
-Files in the examples folder are readonly, do not create or edit the files in it.
-For commandline, use "py" for "python".
-Use "rm" instead of "del" to delete a file.
+- Do not generate new README files. But you can update the shapes/README.md
+- Do not generate test files unless told to do so.
+- Files in the examples folder are readonly, do not create or edit the files in it.
+- For commandline, use "py" for "python".
+- Use "rm" instead of "del" to delete a file.
+- We don't need backward compatibility, unless told to keep backwad compatible.
+- Keep the design and implementation simple.

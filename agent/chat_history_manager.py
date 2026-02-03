@@ -5,11 +5,38 @@ Simplified manager for conversation history with support for:
 - Message storage and retrieval
 - Context window management (max messages)
 - API-ready message formatting
+- History policies (ONCE, LATEST, DEFAULT)
 """
 
 import os
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, auto
 from typing import Any, Optional
+
+
+class HistoryPolicy(Enum):
+    """Policy for handling messages with duplicate keys."""
+
+    DEFAULT = auto()  # No special handling, all messages are kept
+    ONCE = auto()  # Keep only the first message with a given key, ignore duplicates
+    LATEST = auto()  # Keep only the latest message with a given key
+
+
+@dataclass
+class HistoryMessage:
+    """
+    A message to be saved to chat history.
+
+    This represents a message that should be added to the conversation history
+    after a step completes.
+    """
+
+    role: str  # "user" or "assistant"
+    content: Any  # Can be string or list for multi-modal content
+    key: str  # Unique key for deduplication
+    policy: HistoryPolicy = HistoryPolicy.DEFAULT
+    metadata: Optional[dict] = None
 
 
 class ChatHistoryManager:
@@ -26,16 +53,34 @@ class ChatHistoryManager:
         self.max_messages = max_messages
         self.current_conversation_id: Optional[str] = None  # Track current conversation
 
-    def add_message(self, role: str, content: Any, metadata: Optional[dict] = None) -> None:
+    def add_message(
+        self,
+        role: str,
+        content: Any,
+        key: str,
+        policy: HistoryPolicy = HistoryPolicy.DEFAULT,
+        metadata: Optional[dict] = None,
+    ) -> None:
         """
         Add a message to the history.
 
         Args:
             role: Message role ('user' or 'assistant')
             content: Message content (can be string or list for multi-modal content)
+            key: Unique key for the message (used for policy-based deduplication)
+            policy: History policy for handling duplicate keys
             metadata: Optional metadata (timestamp, tokens, etc.)
         """
-        message = {"role": role, "content": content}
+        # Apply policy-based handling
+        if policy == HistoryPolicy.ONCE:
+            # If a message with the same key already exists, don't add
+            if any(msg.get("key") == key for msg in self._history):
+                return
+        elif policy == HistoryPolicy.LATEST:
+            # Remove any existing messages with the same key
+            self._history = [msg for msg in self._history if msg.get("key") != key]
+
+        message = {"role": role, "content": content, "key": key}
 
         # Add metadata if provided
         if metadata:
@@ -55,13 +100,35 @@ class ChatHistoryManager:
         if self.max_messages is not None and len(self._history) > self.max_messages:
             self._history = self._history[-self.max_messages :]
 
-    def add_user_message(self, content: Any, metadata: Optional[dict] = None) -> None:
+    def add_user_message(
+        self,
+        content: Any,
+        key: str,
+        policy: HistoryPolicy = HistoryPolicy.DEFAULT,
+        metadata: Optional[dict] = None,
+    ) -> None:
         """Add a user message to the history."""
-        self.add_message("user", content, metadata)
+        self.add_message("user", content, key, policy, metadata)
 
-    def add_assistant_message(self, content: str, metadata: Optional[dict] = None) -> None:
+    def add_assistant_message(
+        self,
+        content: str,
+        key: str,
+        policy: HistoryPolicy = HistoryPolicy.DEFAULT,
+        metadata: Optional[dict] = None,
+    ) -> None:
         """Add an assistant message to the history."""
-        self.add_message("assistant", content, metadata)
+        self.add_message("assistant", content, key, policy, metadata)
+
+    def add_history_messages(self, messages: list["HistoryMessage"]) -> None:
+        """
+        Add multiple HistoryMessage objects to the history.
+
+        Args:
+            messages: List of HistoryMessage objects to add
+        """
+        for msg in messages:
+            self.add_message(msg.role, msg.content, msg.key, msg.policy, msg.metadata)
 
     def get_history(self, last_n: Optional[int] = None) -> list[dict]:
         """
@@ -72,8 +139,9 @@ class ChatHistoryManager:
 
         Returns:
             List of message dictionaries compatible with OpenAI API
+            (keys are removed from messages)
         """
-        # Create clean message dicts for API (without internal metadata like timestamps)
+        # Create clean message dicts for API (without internal metadata like timestamps and keys)
         filtered = []
         for msg in self._history:
             api_msg = {"role": msg["role"], "content": msg["content"]}

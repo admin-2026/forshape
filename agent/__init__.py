@@ -17,7 +17,7 @@ from .async_ops import (
     UserInputResponse,
     WaitManager,
 )
-from .chat_history_manager import ChatHistoryManager
+from .chat_history_manager import ChatHistoryManager, HistoryMessage, HistoryPolicy
 from .edit_history import EditHistory
 from .history_logger import HistoryLogger
 from .logger_protocol import LoggerProtocol
@@ -32,6 +32,7 @@ __all__ = [
     "AIAgent",
     "Step",
     "StepResult",
+    "HistoryMessage",
     "ToolCallStep",
     "ToolExecutor",
     "StepConfig",
@@ -42,6 +43,7 @@ __all__ = [
     "create_api_provider_from_config",
     "ToolManager",
     "ChatHistoryManager",
+    "HistoryPolicy",
     "RequestBuilder",
     "APIDebugger",
     "ProviderConfigLoader",

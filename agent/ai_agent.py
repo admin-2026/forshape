@@ -218,7 +218,7 @@ class AIAgent:
             if step_config:
                 user_input = step_config.get_initial_message()
                 if user_input:
-                    self.history_manager.add_user_message(user_input)
+                    self.history_manager.add_user_message(user_input, key=f"step_{i}_user")
 
             # Run the step
             result: StepResult = step.step_run(
@@ -232,7 +232,16 @@ class AIAgent:
                 cancellation_check=self._is_cancelled,
             )
 
-            final_response = result.response
+            # Add all history messages from the step result to chat history
+            self.history_manager.add_history_messages(result.history_messages)
+
+            # Concatenate all assistant message contents for final response
+            response_parts = [
+                msg.content for msg in result.history_messages
+                if msg.role == "assistant" and isinstance(msg.content, str)
+            ]
+            if response_parts:
+                final_response = "\n".join(response_parts)
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)
@@ -243,9 +252,6 @@ class AIAgent:
             if result.status in ("cancelled", "error"):
                 self.logger.info(f"Step {step.name} ended with status: {result.status}")
                 break
-
-            # Update history with final response, pass response to next step
-            self.history_manager.add_assistant_message(final_response)
 
         # Store final token usage
         self.last_token_usage = {

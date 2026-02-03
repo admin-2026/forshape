@@ -9,6 +9,7 @@ from typing import Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
+from ..chat_history_manager import HistoryMessage
 from ..logger_protocol import LoggerProtocol
 from ..request import Instruction, MessageElement, RequestBuilder, TextMessage
 from ..step_config import StepConfig
@@ -84,7 +85,7 @@ class Step:
             cancellation_check: Optional function that returns True if cancellation requested
 
         Returns:
-            StepResult containing response, updated messages, token usage, and status
+            StepResult containing history_messages, api_messages, token usage, and status
         """
         # Get the initial message from the step_config if available
         user_messages = []
@@ -100,18 +101,27 @@ class Step:
         total_completion_tokens = 0
         total_tokens = 0
 
+        def _make_token_usage() -> dict:
+            return {
+                "prompt_tokens": total_prompt_tokens,
+                "completion_tokens": total_completion_tokens,
+                "total_tokens": total_tokens,
+            }
+
         # Agent loop: keep calling tools until the agent gives a final response
         for iteration in range(self.max_iterations):
             # Check for cancellation before each iteration
             if cancellation_check and cancellation_check():
                 return StepResult(
-                    response="Operation cancelled by user.",
-                    messages=messages,
-                    token_usage={
-                        "prompt_tokens": total_prompt_tokens,
-                        "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens,
-                    },
+                    history_messages=[
+                        HistoryMessage(
+                            role="assistant",
+                            content="Operation cancelled by user.",
+                            key=f"{self.name}_cancelled",
+                        )
+                    ],
+                    api_messages=messages,
+                    token_usage=_make_token_usage(),
                     status="cancelled",
                 )
 
@@ -162,11 +172,7 @@ class Step:
                 if api_debugger:
                     api_debugger.dump_response(
                         response=response,
-                        token_usage={
-                            "prompt_tokens": total_prompt_tokens,
-                            "completion_tokens": total_completion_tokens,
-                            "total_tokens": total_tokens,
-                        },
+                        token_usage=_make_token_usage(),
                         additional_data={"iteration": iteration + 1, "step": self.name},
                     )
 
@@ -188,13 +194,15 @@ class Step:
 
                     if was_cancelled:
                         return StepResult(
-                            response="Operation cancelled by user.",
-                            messages=messages,
-                            token_usage={
-                                "prompt_tokens": total_prompt_tokens,
-                                "completion_tokens": total_completion_tokens,
-                                "total_tokens": total_tokens,
-                            },
+                            history_messages=[
+                                HistoryMessage(
+                                    role="assistant",
+                                    content="Operation cancelled by user.",
+                                    key=f"{self.name}_cancelled",
+                                )
+                            ],
+                            api_messages=messages,
+                            token_usage=_make_token_usage(),
                             status="cancelled",
                         )
 
@@ -207,36 +215,42 @@ class Step:
                 final_response = response_message.content
 
                 return StepResult(
-                    response=final_response,
-                    messages=messages,
-                    token_usage={
-                        "prompt_tokens": total_prompt_tokens,
-                        "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens,
-                    },
+                    history_messages=[
+                        HistoryMessage(
+                            role="assistant",
+                            content=final_response,
+                            key=f"{self.name}_response",
+                        )
+                    ],
+                    api_messages=messages,
+                    token_usage=_make_token_usage(),
                     status="completed",
                 )
 
             except Exception as e:
                 return StepResult(
-                    response=f"Error during step execution: {str(e)}",
-                    messages=messages,
-                    token_usage={
-                        "prompt_tokens": total_prompt_tokens,
-                        "completion_tokens": total_completion_tokens,
-                        "total_tokens": total_tokens,
-                    },
+                    history_messages=[
+                        HistoryMessage(
+                            role="assistant",
+                            content=f"Error during step execution: {str(e)}",
+                            key=f"{self.name}_error",
+                        )
+                    ],
+                    api_messages=messages,
+                    token_usage=_make_token_usage(),
                     status="error",
                 )
 
         # If we hit max iterations
         return StepResult(
-            response="Step reached maximum iterations without completing the task.",
-            messages=messages,
-            token_usage={
-                "prompt_tokens": total_prompt_tokens,
-                "completion_tokens": total_completion_tokens,
-                "total_tokens": total_tokens,
-            },
+            history_messages=[
+                HistoryMessage(
+                    role="assistant",
+                    content="Step reached maximum iterations without completing the task.",
+                    key=f"{self.name}_max_iterations",
+                )
+            ],
+            api_messages=messages,
+            token_usage=_make_token_usage(),
             status="max_iterations",
         )

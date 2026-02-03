@@ -5,7 +5,7 @@ Simplified manager for conversation history with support for:
 - Message storage and retrieval
 - Context window management (max messages)
 - API-ready message formatting
-- History policies (ONCE, LATEST, DEFAULT)
+- History policies (ONCE, LATEST, DEFAULT, DISCARD)
 """
 
 import os
@@ -21,6 +21,7 @@ class HistoryPolicy(Enum):
     DEFAULT = auto()  # No special handling, all messages are kept
     ONCE = auto()  # Keep only the first message with a given key, ignore duplicates
     LATEST = auto()  # Keep only the latest message with a given key
+    DISCARD = auto()  # Never save this message to history
 
 
 @dataclass
@@ -37,6 +38,8 @@ class HistoryMessage:
     key: str  # Unique key for deduplication
     policy: HistoryPolicy = HistoryPolicy.DEFAULT
     metadata: Optional[dict] = None
+    timestamp: Optional[str] = None
+    conversation_id: Optional[str] = None
 
 
 class ChatHistoryManager:
@@ -49,7 +52,7 @@ class ChatHistoryManager:
         Args:
             max_messages: Maximum number of messages to keep (None for unlimited)
         """
-        self._history: list[dict[str, Any]] = []
+        self._history: list[HistoryMessage] = []
         self.max_messages = max_messages
         self.current_conversation_id: Optional[str] = None  # Track current conversation
 
@@ -72,27 +75,29 @@ class ChatHistoryManager:
             metadata: Optional metadata (timestamp, tokens, etc.)
         """
         # Apply policy-based handling
+        if policy == HistoryPolicy.DISCARD:
+            # Never save this message
+            return
         if policy == HistoryPolicy.ONCE:
             # If a message with the same key already exists, don't add
-            if any(msg.get("key") == key for msg in self._history):
+            if any(msg.key == key for msg in self._history):
                 return
         elif policy == HistoryPolicy.LATEST:
             # Remove any existing messages with the same key
-            self._history = [msg for msg in self._history if msg.get("key") != key]
+            self._history = [msg for msg in self._history if msg.key != key]
 
-        message = {"role": role, "content": content, "key": key}
+        # Get timestamp from metadata or generate new one
+        timestamp = (metadata or {}).get("timestamp", datetime.now().isoformat())
 
-        # Add metadata if provided
-        if metadata:
-            message.update(metadata)
-
-        # Add timestamp if not provided
-        if "timestamp" not in message:
-            message["timestamp"] = datetime.now().isoformat()
-
-        # Add conversation_id if available
-        if self.current_conversation_id is not None:
-            message["conversation_id"] = self.current_conversation_id
+        message = HistoryMessage(
+            role=role,
+            content=content,
+            key=key,
+            policy=policy,
+            metadata=metadata,
+            timestamp=timestamp,
+            conversation_id=self.current_conversation_id,
+        )
 
         self._history.append(message)
 
@@ -109,16 +114,6 @@ class ChatHistoryManager:
     ) -> None:
         """Add a user message to the history."""
         self.add_message("user", content, key, policy, metadata)
-
-    def add_assistant_message(
-        self,
-        content: str,
-        key: str,
-        policy: HistoryPolicy = HistoryPolicy.DEFAULT,
-        metadata: Optional[dict] = None,
-    ) -> None:
-        """Add an assistant message to the history."""
-        self.add_message("assistant", content, key, policy, metadata)
 
     def add_history_messages(self, messages: list["HistoryMessage"]) -> None:
         """
@@ -142,10 +137,7 @@ class ChatHistoryManager:
             (keys are removed from messages)
         """
         # Create clean message dicts for API (without internal metadata like timestamps and keys)
-        filtered = []
-        for msg in self._history:
-            api_msg = {"role": msg["role"], "content": msg["content"]}
-            filtered.append(api_msg)
+        filtered = [{"role": msg.role, "content": msg.content} for msg in self._history]
 
         # Return last N messages if specified
         if last_n is not None:
@@ -200,10 +192,10 @@ class ChatHistoryManager:
             f.write("=" * 80 + "\n\n")
 
             for i, message in enumerate(self._history, 1):
-                role = message.get("role", "unknown")
-                content = message.get("content", "")
-                timestamp_str = message.get("timestamp", "N/A")
-                conversation_id = message.get("conversation_id", "N/A")
+                role = message.role
+                content = message.content
+                timestamp_str = message.timestamp or "N/A"
+                conversation_id = message.conversation_id or "N/A"
 
                 f.write(f"\n{'=' * 80}\n")
                 f.write(f"Message #{i} - Role: {role.upper()}\n")

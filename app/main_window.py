@@ -26,8 +26,7 @@ from PySide2.QtWidgets import (
 
 from agent.provider_config_loader import ProviderConfigLoader
 from agent.request import ImageMessage, TextMessage, ToolCall, ToolCallMessage
-from agent.step_config import StepConfigRegistry
-from agent.user_input_queue import UserInputQueue
+from agent.step_config import StepConfig, StepConfigRegistry
 
 from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .formatters import MessageFormatter
@@ -81,7 +80,7 @@ class ForShapeMainWindow(QMainWindow):
         self.image_context = image_context
         self.handle_exit = exit_handler
         self.is_ai_busy = False  # Track if AI is currently processing
-        self.current_input_queue = None  # Store the current UserInputQueue when AI is busy
+        self.current_step_config = None  # Store the current StepConfig when AI is busy
         self.worker = None  # Current worker thread
         self.captured_images = []  # Store captured images to attach to next message
         self.attached_files = []  # Store attached Python files to include in next message
@@ -830,9 +829,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Check if AI is currently busy
         if self.is_ai_busy:
-            # Add message to the current input queue to be processed during next iteration
-            if self.current_input_queue:
-                self.current_input_queue.add_message(user_input)
+            # Add message to the current step config to be processed during next iteration
+            if self.current_step_config:
+                self.current_step_config.add_pending_message(user_input)
                 self.append_message("[SYSTEM]", "✓ Your message will be added to the ongoing conversation...")
             else:
                 self.append_message("[SYSTEM]", "⚠ AI is currently processing. Please wait...")
@@ -875,13 +874,13 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Show cancel button when AI starts processing
         self.cancel_button.setVisible(True)
 
-        # Create UserInputQueue with the user input
-        input_queue = UserInputQueue(user_input)
-        self.current_input_queue = input_queue
+        # Create StepConfig with the user input and store it for pending messages
+        main_step_config = StepConfig(initial_message=user_input)
+        self.current_step_config = main_step_config
 
-        # Create StepConfigRegistry and associate input queue with main step
+        # Create StepConfigRegistry and set the main step config
         step_configs = StepConfigRegistry()
-        step_configs.set_input_queue("main", input_queue)
+        step_configs.set_config("main", main_step_config)
 
         # Configure doc_print step to call print_document tool
         doc_print_tool_call = ToolCallMessage(
@@ -992,8 +991,8 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         # Reset busy state
         self.is_ai_busy = False
 
-        # Clear the input queue
-        self.current_input_queue = None
+        # Clear the step config
+        self.current_step_config = None
 
         # Hide cancel button when AI finishes
         self.cancel_button.setVisible(False)

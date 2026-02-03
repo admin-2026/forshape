@@ -208,15 +208,15 @@ class AIAgent:
                     )
 
             # Get step-specific config from registry
-            step_input_queue = step_configs.get_input_queue(step.name)
+            step_config = step_configs.get_config(step.name)
             step_initial_messages = step_configs.get_messages(step.name)
 
             # Get history for the current step
             history = self.history_manager.get_history()
 
             # Add user message to history
-            if step_input_queue:
-                user_input = step_input_queue.get_initial_message()
+            if step_config:
+                user_input = step_config.get_initial_message()
                 if user_input:
                     self.history_manager.add_user_message(user_input)
 
@@ -225,7 +225,7 @@ class AIAgent:
                 provider=self.provider,
                 model=self.model,
                 history=history,
-                input_queue=step_input_queue,
+                step_config=step_config,
                 initial_messages=step_initial_messages,
                 api_debugger=self.api_debugger,
                 token_callback=step_token_callback,

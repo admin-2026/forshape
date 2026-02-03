@@ -27,7 +27,6 @@ from .request import RequestBuilder
 from .step import Step, StepResult, ToolCallStep, ToolExecutor
 from .step_config import StepConfig, StepConfigRegistry
 from .tools.tool_manager import ToolManager
-from .user_input_queue import UserInputQueue
 
 __all__ = [
     "AIAgent",
@@ -54,7 +53,6 @@ __all__ = [
     "HistoryLogger",
     "EditHistory",
     "LoggerProtocol",
-    "UserInputQueue",
     "WaitManager",
     "UserInputBase",
     "UserInputRequest",

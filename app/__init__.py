@@ -15,7 +15,6 @@ from agent import (
     PermissionResponse,
     Step,
     StepResult,
-    UserInputQueue,
 )
 
 from .config_manager import ConfigurationManager
@@ -40,5 +39,4 @@ __all__ = [
     "APIDebugger",
     "ApiKeyManager",
     "EditHistory",
-    "UserInputQueue",
 ]

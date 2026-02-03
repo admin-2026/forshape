@@ -11,7 +11,7 @@ from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
 from ..request import Instruction, MessageElement, RequestBuilder, TextMessage
-from ..user_input_queue import UserInputQueue
+from ..step_config import StepConfig
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
 
@@ -64,7 +64,7 @@ class Step:
         provider: APIProvider,
         model: str,
         history: list[dict],
-        input_queue: Optional[UserInputQueue] = None,
+        step_config: Optional[StepConfig] = None,
         initial_messages: Optional[list[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[dict], None]] = None,
@@ -77,7 +77,7 @@ class Step:
             provider: API provider to use for completions
             model: Model identifier to use
             history: Conversation history from previous steps/interactions
-            input_queue: Optional UserInputQueue containing the initial message and any follow-up messages
+            step_config: Optional StepConfig containing the initial message and pending messages
             initial_messages: Optional list of MessageElement objects for additional content
             api_debugger: Optional APIDebugger instance for dumping API data
             token_callback: Optional callback function to receive token usage updates
@@ -86,10 +86,10 @@ class Step:
         Returns:
             StepResult containing response, updated messages, token usage, and status
         """
-        # Get the initial message from the queue if available
+        # Get the initial message from the step_config if available
         user_messages = []
-        if input_queue:
-            user_message = input_queue.get_initial_message()
+        if step_config:
+            user_message = step_config.get_initial_message()
             if user_message:
                 user_messages.append(Instruction(user_message, description="User Request"))
 
@@ -115,8 +115,8 @@ class Step:
                     status="cancelled",
                 )
 
-            # Check for new user input from the queue
-            pending_input = input_queue.get_next_message() if input_queue else None
+            # Check for new user input from the step_config
+            pending_input = step_config.get_next_message() if step_config else None
             if pending_input:
                 # Append the new user message to the conversation
                 messages.append(TextMessage("user", pending_input).get_message())

@@ -12,7 +12,7 @@ from ..api_provider import APIProvider
 from ..logger_protocol import LoggerProtocol
 from ..request import MessageElement
 from ..request.tool_call_message import ToolCallMessage
-from ..user_input_queue import UserInputQueue
+from ..step_config import StepConfig
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
 
@@ -54,7 +54,7 @@ class ToolCallStep:
         provider: APIProvider,  # Ignored - no AI calls
         model: str,  # Ignored - no AI calls
         history: list[dict],
-        input_queue: Optional[UserInputQueue] = None,  # Ignored - no user input processing
+        step_config: Optional[StepConfig] = None,  # Ignored - no user input processing
         initial_messages: Optional[list[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[dict], None]] = None,  # Ignored - no tokens
@@ -67,7 +67,7 @@ class ToolCallStep:
             provider: API provider (ignored - no AI calls made)
             model: Model identifier (ignored - no AI calls made)
             history: Conversation history (not modified, for reference only)
-            input_queue: Optional UserInputQueue (ignored - no user input processing)
+            step_config: Optional StepConfig (ignored - no user input processing)
             initial_messages: List of MessageElement objects; must contain a ToolCallMessage
             api_debugger: Optional APIDebugger instance for dumping tool execution data
             token_callback: Optional callback (ignored - no tokens used)

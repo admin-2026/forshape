@@ -897,10 +897,14 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if initial_messages:
             step_configs.append_messages("main", initial_messages)
 
+        # Track whether a step response was shown (for cleanup in on_ai_response)
+        self._step_response_shown = False
+
         # Create and start worker thread for AI processing with step configs
         self.worker = AIWorker(self.ai_client, user_input, step_configs)
         self.worker.finished.connect(self.on_ai_response)
         self.worker.token_update.connect(self.on_token_update)
+        self.worker.step_response.connect(self.on_step_response)
         self.worker.start()
 
         # Reset and show token status label for new request
@@ -959,8 +963,9 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             is_error: True if this is an error message, False otherwise
             token_data: Optional dict with token usage information
         """
-        # Remove the "Processing..." message
-        self.remove_last_message()
+        # Remove "Processing..." only if no step response was shown (it was already removed)
+        if not self._step_response_shown or is_error:
+            self.remove_last_message()
 
         # Update the token status label to show final count instead of hiding it
         if token_data:
@@ -972,15 +977,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.token_status_label.setText("Token Usage: N/A")
             self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
 
-        # Display the response or error
+        # Display error if any (success responses are handled by on_step_response)
         if is_error:
             if self.history_logger:
                 self.history_logger.log_conversation("error", message)
             self.display_error(message)
-        else:
-            if self.history_logger:
-                self.history_logger.log_conversation("assistant", message)
-            self.append_message("AI", message, token_data)
 
         # Play notification sound when AI finishes
         if self.message_handler:
@@ -1006,6 +1007,23 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         if self.worker:
             self.worker.deleteLater()
             self.worker = None
+
+    def on_step_response(self, step_name: str, response: str):
+        """
+        Handle step response from worker thread for async printing.
+
+        Args:
+            step_name: The name of the step that completed
+            response: The response from the step
+        """
+        # Mark that a step response was shown
+        self._step_response_shown = True
+
+        # Remove the "Processing..." message before showing the step response
+        self.remove_last_message()
+
+        # Display the step response
+        self.append_message("AI", response)
 
     def append_message(self, role: str, message: str, token_data: dict = None):
         """Delegate to message handler."""

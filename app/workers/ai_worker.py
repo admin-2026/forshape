@@ -21,7 +21,15 @@ class AIWorker(QThread):
     # Signal emitted during processing to update token usage
     token_update = Signal(object)  # (token_data)
 
-    def __init__(self, ai_client: "AIAgent", user_input: str, step_configs: StepConfigRegistry):
+    # Signal emitted when a step response is available (step_name, response)
+    step_response = Signal(str, str)
+
+    def __init__(
+        self,
+        ai_client: "AIAgent",
+        user_input: str,
+        step_configs: StepConfigRegistry,
+    ):
         """
         Initialize the AI worker thread.
 
@@ -52,8 +60,17 @@ class AIWorker(QThread):
             def token_callback(token_data):
                 self.token_update.emit(token_data)
 
+            # Create a callback to emit step responses during processing
+            def step_response_callback(step_name, response):
+                self.step_response.emit(step_name, response)
+
             # Process request with user input and step configs
-            response = self.ai_client.process_request(self.user_input, self.step_configs, token_callback)
+            response = self.ai_client.process_request(
+                self.user_input,
+                self.step_configs,
+                token_callback,
+                step_response_callback,
+            )
 
             # Check if cancelled
             if self._is_cancelled:

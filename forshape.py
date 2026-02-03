@@ -314,6 +314,7 @@ class ForShapeAI:
             provider=provider,
             provider_config=provider_config,
             edit_history=self.edit_history,
+            response_steps=["main"],
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 

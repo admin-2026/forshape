@@ -36,6 +36,7 @@ class AIAgent:
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
         provider_config=None,
+        response_steps: list[str] = None,
     ):
         """
         Initialize the AI agent.
@@ -49,6 +50,7 @@ class AIAgent:
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
             provider_config: Optional ProviderConfig instance for provider configuration
+            response_steps: Optional list of step names whose responses will be collected for UI printing
         """
         self.logger = logger
         self.model = model
@@ -61,6 +63,7 @@ class AIAgent:
         self.api_debugger = api_debugger
         self._conversation_counter = 0
         self.edit_history = edit_history
+        self.response_steps = set(response_steps) if response_steps else set()
 
     def _initialize_provider(
         self, provider_name: str, api_key: Optional[str], provider_config=None
@@ -112,7 +115,13 @@ class AIAgent:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"conv_{timestamp}_{self._conversation_counter:03d}"
 
-    def process_request(self, user_input: str, step_configs: StepConfigRegistry, token_callback=None) -> str:
+    def process_request(
+        self,
+        user_input: str,
+        step_configs: StepConfigRegistry,
+        token_callback=None,
+        step_response_callback=None,
+    ) -> str:
         """
         Process the user's request through the AI agent.
 
@@ -120,6 +129,7 @@ class AIAgent:
             user_input: The user's input message
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates after each iteration
+            step_response_callback: Optional callback function(step_name, response) called when a step in response_steps completes
 
         Returns:
             AI response string
@@ -137,7 +147,7 @@ class AIAgent:
             self.history_manager.set_conversation_id(conversation_id)
             self.logger.info(f"Started new conversation: {conversation_id}")
 
-            response = self._agent_run(step_configs, token_callback)
+            response = self._agent_run(step_configs, token_callback, step_response_callback)
             return response
 
         except Exception as e:
@@ -156,13 +166,19 @@ class AIAgent:
         """Check if cancellation has been requested."""
         return self._cancellation_requested
 
-    def _agent_run(self, step_configs: StepConfigRegistry, token_callback=None) -> str:
+    def _agent_run(
+        self,
+        step_configs: StepConfigRegistry,
+        token_callback=None,
+        step_response_callback=None,
+    ) -> str:
         """
         Run the agent by executing all steps in sequence.
 
         Args:
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates
+            step_response_callback: Optional callback function(step_name, response) called when a step in response_steps completes
 
         Returns:
             Final response from the last step
@@ -241,8 +257,14 @@ class AIAgent:
                 for msg in result.history_messages
                 if msg.role == "assistant" and isinstance(msg.content, str)
             ]
+            step_response = ""
             if response_parts:
-                final_response = "\n".join(response_parts)
+                step_response = "\n".join(response_parts)
+
+            # Emit step response callback for steps in response_steps
+            if step.name in self.response_steps and step_response_callback and response_parts:
+                step_response_callback(step.name, step_response)
+                final_response += step_response
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)

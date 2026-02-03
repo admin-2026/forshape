@@ -67,7 +67,7 @@ class Pad(Shape):
                 needs_recompute = True
 
             # Ensure sketch is hidden
-            if sketch.Visibility != False:
+            if sketch.Visibility:
                 sketch.Visibility = False
                 needs_recompute = True
 

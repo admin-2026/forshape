@@ -6,7 +6,7 @@ are shown on the main thread. Provides paired registration of
 providers and handlers for simplified setup.
 """
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Optional
 
 from PySide2.QtCore import QObject, Signal
 
@@ -44,7 +44,7 @@ class UserInputBridge(QObject):
         self._manager = wait_manager
         self._parent = parent
         self._logger = logger
-        self._handlers: Dict[str, GuiInputHandlerBase] = {}
+        self._handlers: dict[str, GuiInputHandlerBase] = {}
 
         # Register as the handler for user input requests
         self._manager.set_handler(self._handle_request)

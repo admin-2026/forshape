@@ -5,7 +5,7 @@ This module provides the ImageMessage class for building
 API messages with a description and optional image content.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .message_element import MessageElement
 
@@ -13,7 +13,7 @@ from .message_element import MessageElement
 class ImageMessage(MessageElement):
     """Message element that handles a description with optional images."""
 
-    def __init__(self, description: str, image_data: Optional[Dict] = None):
+    def __init__(self, description: str, image_data: Optional[dict] = None):
         """
         Initialize the image message.
 
@@ -28,7 +28,7 @@ class ImageMessage(MessageElement):
         self._description = description
         self._image_data = image_data
 
-    def get_message(self) -> Optional[Dict[str, Any]]:
+    def get_message(self) -> Optional[dict[str, Any]]:
         """
         Build a complete user message, handling optional image data.
 
@@ -81,7 +81,7 @@ class ImageMessage(MessageElement):
 
         return False
 
-    def _create_labeled_images_message(self) -> Optional[Dict[str, Any]]:
+    def _create_labeled_images_message(self) -> Optional[dict[str, Any]]:
         """
         Create a message with labeled images (e.g., perspective views).
 
@@ -101,7 +101,7 @@ class ImageMessage(MessageElement):
 
         return None
 
-    def _create_multi_image_message(self, base64_images: List[str]) -> Dict[str, Any]:
+    def _create_multi_image_message(self, base64_images: list[str]) -> dict[str, Any]:
         """
         Create a message with description and multiple image content.
 
@@ -120,7 +120,7 @@ class ImageMessage(MessageElement):
         return {"role": "user", "content": content}
 
     @staticmethod
-    def _create_image_url_content(base64_image: str) -> Dict[str, Any]:
+    def _create_image_url_content(base64_image: str) -> dict[str, Any]:
         """
         Create an image_url content object for OpenAI messages.
 

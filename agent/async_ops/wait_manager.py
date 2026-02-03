@@ -8,7 +8,7 @@ Follows the same pattern as ToolManager for consistency.
 """
 
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from .base import UserInputBase, UserInputRequest, UserInputResponse
 
@@ -30,7 +30,7 @@ class WaitManager:
         self._counter = 0
 
         # Provider storage
-        self._providers: Dict[str, UserInputBase] = {}
+        self._providers: dict[str, UserInputBase] = {}
 
     def register_provider(self, provider: UserInputBase) -> None:
         """
@@ -54,7 +54,7 @@ class WaitManager:
         """
         return self._providers.get(type_id)
 
-    def get_registered_type_ids(self) -> List[str]:
+    def get_registered_type_ids(self) -> list[str]:
         """
         Get list of registered type IDs.
 
@@ -75,7 +75,7 @@ class WaitManager:
         """
         self._handler = handler
 
-    def request(self, type_id: str, data: Dict[str, Any]) -> UserInputResponse:
+    def request(self, type_id: str, data: dict[str, Any]) -> UserInputResponse:
         """
         Request user input and block until response received.
 

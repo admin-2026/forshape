@@ -7,7 +7,7 @@ for GUI interaction without direct GUI dependencies.
 """
 
 import json
-from typing import Callable, Dict, List
+from typing import Callable
 
 from ..async_ops import WaitManager
 from .base import ToolBase
@@ -29,7 +29,7 @@ class InteractionTools(ToolBase):
         """
         self._manager = wait_manager
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -52,7 +52,7 @@ class InteractionTools(ToolBase):
             }
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "ask_user_clarification": self._tool_ask_user_clarification,
@@ -85,7 +85,7 @@ class InteractionTools(ToolBase):
         response.update(kwargs)
         return json.dumps(response, indent=2)
 
-    def _tool_ask_user_clarification(self, questions: List[str]) -> str:
+    def _tool_ask_user_clarification(self, questions: list[str]) -> str:
         """
         Implementation of the ask_user_clarification tool.
         Shows a dialog to ask the user clarification questions.

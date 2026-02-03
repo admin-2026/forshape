@@ -9,7 +9,7 @@ import io
 import json
 import sys
 from contextlib import contextmanager
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from agent.request import ImageMessage, MessageElement, ToolResultMessage
 from agent.tools.base import ToolBase
@@ -32,7 +32,7 @@ class VisualizationTools(ToolBase):
         """
         self.image_context = image_context
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -63,7 +63,7 @@ class VisualizationTools(ToolBase):
             }
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "capture_screenshot": self._tool_capture_screenshot,
@@ -90,7 +90,7 @@ class VisualizationTools(ToolBase):
 > Use capture_screenshot to capture an image of the object and return the image
 """
 
-    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> List[MessageElement]:
+    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> list[MessageElement]:
         """
         Process a tool result and return MessageElements for the conversation.
 
@@ -113,7 +113,7 @@ class VisualizationTools(ToolBase):
 
         return messages
 
-    def _build_screenshot_messages(self, tool_result: str) -> List[MessageElement]:
+    def _build_screenshot_messages(self, tool_result: str) -> list[MessageElement]:
         """
         Build conversation messages from screenshot tool result.
 
@@ -175,7 +175,7 @@ class VisualizationTools(ToolBase):
             sys.stderr = old_stderr
 
     def _tool_capture_screenshot(
-        self, target: Optional[str] = None, perspective: str = "isometric", perspectives: Optional[List[str]] = None
+        self, target: Optional[str] = None, perspective: str = "isometric", perspectives: Optional[list[str]] = None
     ) -> str:
         """
         Implementation of the capture_screenshot tool.

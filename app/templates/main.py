@@ -4,8 +4,7 @@
 # Import constants from constants.py and use shapes to create geometry.
 
 
-# Import all constants from the separate constants file
-from constants import *
+# from constants import *
 
 
 def build_model():

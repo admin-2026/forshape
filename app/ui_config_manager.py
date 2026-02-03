@@ -6,7 +6,7 @@ Saves menu selections to .forshape/ui_config.json
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,9 @@ class UIConfigManager:
         """
         self.forshape_dir = forshape_dir
         self.config_path = forshape_dir / self.CONFIG_FILENAME
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
 
-    def load(self) -> Dict[str, Any]:
+    def load(self) -> dict[str, Any]:
         """
         Load UI configuration from file
 
@@ -49,7 +49,7 @@ class UIConfigManager:
             self._config = {}
             return self._config
 
-    def save(self, config: Dict[str, Any]) -> bool:
+    def save(self, config: dict[str, Any]) -> bool:
         """
         Save UI configuration to file
 
@@ -84,7 +84,7 @@ class UIConfigManager:
         self._config[key] = value
         return self.save(self._config)
 
-    def update(self, updates: Dict[str, Any]) -> bool:
+    def update(self, updates: dict[str, Any]) -> bool:
         """Update multiple config values and save"""
         self._config.update(updates)
         return self.save(self._config)

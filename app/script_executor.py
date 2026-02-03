@@ -16,7 +16,7 @@ import traceback
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class ExecutionMode(Enum):
@@ -166,7 +166,7 @@ class ScriptExecutor:
     @staticmethod
     def execute_with_teardown(
         script_content: str, script_path: Path, import_freecad: bool = True
-    ) -> Tuple[ScriptExecutionResult, ScriptExecutionResult]:
+    ) -> tuple[ScriptExecutionResult, ScriptExecutionResult]:
         """
         Execute a script in teardown mode first, then in normal mode.
 

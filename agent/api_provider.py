@@ -7,7 +7,7 @@ All provider configuration is driven by provider-config.json.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class APIProvider(ABC):
@@ -31,7 +31,7 @@ class APIProvider(ABC):
 
     @abstractmethod
     def create_completion(
-        self, model: str, messages: List[Dict], tools: Optional[List[Dict]] = None, tool_choice: str = "auto", **kwargs
+        self, model: str, messages: list[dict], tools: Optional[list[dict]] = None, tool_choice: str = "auto", **kwargs
     ) -> Any:
         """
         Create a chat completion.
@@ -125,7 +125,7 @@ class OpenAICompatibleProvider(APIProvider):
             return None
 
     def create_completion(
-        self, model: str, messages: List[Dict], tools: Optional[List[Dict]] = None, tool_choice: str = "auto", **kwargs
+        self, model: str, messages: list[dict], tools: Optional[list[dict]] = None, tool_choice: str = "auto", **kwargs
     ) -> Any:
         """
         Create a chat completion using the OpenAI-compatible API.

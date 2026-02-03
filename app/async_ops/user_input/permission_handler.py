@@ -48,7 +48,7 @@ class PermissionHandler(GuiInputHandlerBase):
         # Add buttons
         allow_once = msg.addButton("Allow Once", QMessageBox.AcceptRole)
         allow_session = msg.addButton("Allow for Session", QMessageBox.AcceptRole)
-        deny = msg.addButton("Deny", QMessageBox.RejectRole)
+        msg.addButton("Deny", QMessageBox.RejectRole)
 
         msg.exec_()
         clicked = msg.clickedButton()

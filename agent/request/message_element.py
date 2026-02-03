@@ -6,14 +6,14 @@ for elements that can produce API message dicts.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class MessageElement(ABC):
     """Base class for elements that produce API message dicts."""
 
     @abstractmethod
-    def get_message(self) -> Optional[Dict[str, Any]]:
+    def get_message(self) -> Optional[dict[str, Any]]:
         """
         Get the message dict for this element.
 

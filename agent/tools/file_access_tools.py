@@ -8,7 +8,7 @@ reading files, editing files, and searching Python files.
 import json
 import re
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from ..edit_history import EditHistory
 from ..logger_protocol import LoggerProtocol
@@ -32,8 +32,8 @@ class FileAccessTools(ToolBase):
         logger: LoggerProtocol,
         permission_manager: Optional[PermissionManager] = None,
         edit_history: Optional[EditHistory] = None,
-        exclude_folders: Optional[List[str]] = None,
-        exclude_patterns: Optional[List[str]] = None,
+        exclude_folders: Optional[list[str]] = None,
+        exclude_patterns: Optional[list[str]] = None,
     ):
         """
         Initialize file access tools.
@@ -53,7 +53,7 @@ class FileAccessTools(ToolBase):
         self.exclude_folders = exclude_folders or []
         self.exclude_patterns = exclude_patterns or []
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -142,7 +142,7 @@ class FileAccessTools(ToolBase):
             },
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "list_files": self._tool_list_files,

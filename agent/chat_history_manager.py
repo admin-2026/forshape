@@ -9,7 +9,7 @@ Simplified manager for conversation history with support for:
 
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class ChatHistoryManager:
@@ -22,11 +22,11 @@ class ChatHistoryManager:
         Args:
             max_messages: Maximum number of messages to keep (None for unlimited)
         """
-        self._history: List[Dict[str, Any]] = []
+        self._history: list[dict[str, Any]] = []
         self.max_messages = max_messages
         self.current_conversation_id: Optional[str] = None  # Track current conversation
 
-    def add_message(self, role: str, content: Any, metadata: Optional[Dict] = None) -> None:
+    def add_message(self, role: str, content: Any, metadata: Optional[dict] = None) -> None:
         """
         Add a message to the history.
 
@@ -55,15 +55,15 @@ class ChatHistoryManager:
         if self.max_messages is not None and len(self._history) > self.max_messages:
             self._history = self._history[-self.max_messages :]
 
-    def add_user_message(self, content: Any, metadata: Optional[Dict] = None) -> None:
+    def add_user_message(self, content: Any, metadata: Optional[dict] = None) -> None:
         """Add a user message to the history."""
         self.add_message("user", content, metadata)
 
-    def add_assistant_message(self, content: str, metadata: Optional[Dict] = None) -> None:
+    def add_assistant_message(self, content: str, metadata: Optional[dict] = None) -> None:
         """Add an assistant message to the history."""
         self.add_message("assistant", content, metadata)
 
-    def get_history(self, last_n: Optional[int] = None) -> List[Dict]:
+    def get_history(self, last_n: Optional[int] = None) -> list[dict]:
         """
         Get the conversation history.
 

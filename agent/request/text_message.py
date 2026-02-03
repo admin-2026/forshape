@@ -5,7 +5,7 @@ This module provides the TextMessage class for building
 API messages with a role and text content.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .message_element import MessageElement
 
@@ -24,7 +24,7 @@ class TextMessage(MessageElement):
         self._role = role
         self._text = text
 
-    def get_message(self) -> Optional[Dict[str, Any]]:
+    def get_message(self) -> Optional[dict[str, Any]]:
         """
         Build a complete message dict.
 

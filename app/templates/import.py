@@ -4,7 +4,7 @@
 # Useful for importing PCBs, components, or other reference geometry.
 
 
-from constants import *
+# from constants import *
 
 
 def import_and_place_geometry():

@@ -5,7 +5,7 @@ This module defines the abstract base class that all tool providers must impleme
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List
+from typing import Callable
 
 from ..request import MessageElement, ToolResultMessage
 
@@ -19,7 +19,7 @@ class ToolBase(ABC):
     """
 
     @abstractmethod
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """
         Get tool definitions in OpenAI function format.
 
@@ -29,7 +29,7 @@ class ToolBase(ABC):
         pass
 
     @abstractmethod
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """
         Get mapping of tool names to their implementation functions.
 
@@ -38,7 +38,7 @@ class ToolBase(ABC):
         """
         pass
 
-    def get_names(self) -> List[str]:
+    def get_names(self) -> list[str]:
         """
         Get list of tool names this provider offers.
 
@@ -60,7 +60,7 @@ class ToolBase(ABC):
         """
         return ""
 
-    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> List[MessageElement]:
+    def process_result(self, tool_call_id: str, tool_name: str, tool_result: str) -> list[MessageElement]:
         """
         Process a tool result and return MessageElements for the conversation.
 

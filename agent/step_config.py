@@ -6,7 +6,7 @@ allowing AIWorker to specify messages and input_queue for specific steps.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .request import MessageElement
 from .user_input_queue import UserInputQueue
@@ -16,7 +16,7 @@ from .user_input_queue import UserInputQueue
 class StepConfig:
     """Runtime configuration for a specific step execution."""
 
-    messages: Optional[List[MessageElement]] = None
+    messages: Optional[list[MessageElement]] = None
     input_queue: Optional[UserInputQueue] = None
 
 
@@ -25,13 +25,13 @@ class StepConfigRegistry:
 
     def __init__(self):
         """Initialize an empty registry."""
-        self._configs: Dict[str, StepConfig] = {}
+        self._configs: dict[str, StepConfig] = {}
 
     def set_config(self, step_name: str, config: StepConfig) -> None:
         """Set configuration for a specific step by name."""
         self._configs[step_name] = config
 
-    def get_messages(self, step_name: str) -> Optional[List[MessageElement]]:
+    def get_messages(self, step_name: str) -> Optional[list[MessageElement]]:
         """Get messages for a step, or None if not configured."""
         config = self._configs.get(step_name)
         return config.messages if config else None
@@ -43,7 +43,7 @@ class StepConfigRegistry:
             return config.input_queue
         return None
 
-    def append_messages(self, step_name: str, messages: List[MessageElement]) -> None:
+    def append_messages(self, step_name: str, messages: list[MessageElement]) -> None:
         """Append messages to a step. Can be called multiple times."""
         config = self._configs.get(step_name) or StepConfig()
         if config.messages is None:

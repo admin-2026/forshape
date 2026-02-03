@@ -10,7 +10,7 @@ if no requester is provided.
 
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Protocol, Set
+from typing import Any, Optional, Protocol
 
 
 class PermissionRequester(Protocol):
@@ -63,8 +63,8 @@ class PermissionManager:
                                   If None, falls back to console prompts.
         """
         self._requester = permission_requester
-        self.granted_paths: Set[str] = set()
-        self.granted_directories: Set[str] = set()  # Directories with recursive access
+        self.granted_paths: set[str] = set()
+        self.granted_directories: set[str] = set()  # Directories with recursive access
 
     def _request_user_permission(self, resource: str, operation: str) -> PermissionResponse:
         """

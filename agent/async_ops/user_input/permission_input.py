@@ -4,7 +4,7 @@ Permission input provider.
 Handles requesting file/object operation permissions from the user.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ..base import UserInputBase, UserInputResponse
 
@@ -34,7 +34,7 @@ class PermissionInput(UserInputBase):
         """
         return self._do_request({"resource": resource, "operation": operation})
 
-    def validate_request_data(self, data: Dict[str, Any]) -> Optional[str]:
+    def validate_request_data(self, data: dict[str, Any]) -> Optional[str]:
         """Validate that resource and operation are provided."""
         if "resource" not in data:
             return "resource is required"

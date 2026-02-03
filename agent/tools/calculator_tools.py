@@ -8,7 +8,7 @@ for evaluating arithmetic expressions.
 import json
 import math
 import re
-from typing import Callable, Dict, List, Union
+from typing import Callable, Union
 
 from .base import ToolBase
 
@@ -34,7 +34,7 @@ class CalculatorTools(ToolBase):
     Uses eval with regex validation for expression evaluation.
     """
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -56,7 +56,7 @@ class CalculatorTools(ToolBase):
             }
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "calculate": self._tool_calculate,

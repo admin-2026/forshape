@@ -7,7 +7,7 @@ each of which can call tools to interact with the file system.
 Supports multiple API providers: OpenAI, Fireworks, and more.
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .api_debugger import APIDebugger
 from .api_provider import APIProvider, create_api_provider
@@ -30,7 +30,7 @@ class AIAgent:
         self,
         api_key: Optional[str],
         model: str,
-        steps: List[Step],
+        steps: list[Step],
         logger: LoggerProtocol,
         edit_history: EditHistory,
         api_debugger: Optional[APIDebugger] = None,
@@ -183,7 +183,6 @@ class AIAgent:
 
         # Track the final result
         final_response = ""
-        final_status = "completed"
 
         # Execute each step in sequence
         for i, step in enumerate(self.steps):
@@ -234,7 +233,6 @@ class AIAgent:
             )
 
             final_response = result.response
-            final_status = result.status
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)
@@ -290,7 +288,7 @@ class AIAgent:
         self.model = model
         self.logger.info(f"Model changed to: {model}")
 
-    def get_last_token_usage(self) -> Optional[Dict]:
+    def get_last_token_usage(self) -> Optional[dict]:
         """
         Get the token usage data from the most recent request.
 

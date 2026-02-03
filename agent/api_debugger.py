@@ -6,7 +6,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class APIDebugger:
@@ -64,7 +64,7 @@ class APIDebugger:
         messages: list,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
-        additional_data: Optional[Dict] = None,
+        additional_data: Optional[dict] = None,
     ):
         """
         Dump API request data to a file.
@@ -105,7 +105,7 @@ class APIDebugger:
         except Exception as e:
             print(f"Failed to dump request data: {e}")
 
-    def dump_response(self, response: Any, token_usage: Optional[Dict] = None, additional_data: Optional[Dict] = None):
+    def dump_response(self, response: Any, token_usage: Optional[dict] = None, additional_data: Optional[dict] = None):
         """
         Dump API response data to a file.
 

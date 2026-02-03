@@ -8,7 +8,7 @@ them, organized by conversation ID and timestamp.
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from .logger_protocol import LoggerProtocol
 
@@ -40,7 +40,7 @@ class EditHistory:
         self.logger = logger
         self.conversation_id: Optional[str] = None
         self.session_folder: Optional[Path] = None
-        self.file_operations: List[Dict] = []  # Track file operations in current session
+        self.file_operations: list[dict] = []  # Track file operations in current session
         self.user_request: Optional[str] = None  # Store the original user request
 
     def start_new_conversation(self, conversation_id: str, user_request: Optional[str] = None) -> None:
@@ -203,7 +203,7 @@ class EditHistory:
                 file_path = file_path.resolve()
 
             # Get session folder (creates it if needed)
-            session_folder = self._get_or_create_session_folder()
+            self._get_or_create_session_folder()
 
             # Compute relative path from working directory
             try:
@@ -251,7 +251,7 @@ class EditHistory:
             self.logger.error(f"Failed to save metadata: {str(e)}")
 
     @staticmethod
-    def _load_metadata(session_folder: Path, logger: Optional[LoggerProtocol] = None) -> Dict:
+    def _load_metadata(session_folder: Path, logger: Optional[LoggerProtocol] = None) -> dict:
         """
         Load session metadata from disk.
 
@@ -396,8 +396,8 @@ class EditHistory:
 
             # For edits: find the earliest backup for each file
             # We want to restore the original state (v1), not intermediate states
-            earliest_edits: Dict[str, Dict] = {}
-            files_to_delete: List[Dict] = []
+            earliest_edits: dict[str, dict] = {}
+            files_to_delete: list[dict] = []
 
             for operation in file_operations:
                 action = operation.get("action")

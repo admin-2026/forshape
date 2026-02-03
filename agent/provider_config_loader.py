@@ -7,13 +7,13 @@ available API providers and their models.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 class ProviderConfig:
     """Represents a single provider configuration."""
 
-    def __init__(self, data: Dict):
+    def __init__(self, data: dict):
         """
         Initialize provider config from dictionary.
 
@@ -46,7 +46,7 @@ class ProviderConfig:
 class ModelConfig:
     """Represents a single model configuration."""
 
-    def __init__(self, data: Dict):
+    def __init__(self, data: dict):
         """
         Initialize model config from dictionary.
 
@@ -75,7 +75,7 @@ class ProviderConfigLoader:
             config_path = install_dir / "provider-config.json"
 
         self.config_path = config_path
-        self.providers: List[ProviderConfig] = []
+        self.providers: list[ProviderConfig] = []
         self._load_config()
 
     def _load_config(self):
@@ -101,7 +101,7 @@ class ProviderConfigLoader:
             print(f"Error loading provider config: {e}")
             self.providers = []
 
-    def get_providers(self) -> List[ProviderConfig]:
+    def get_providers(self) -> list[ProviderConfig]:
         """
         Get all provider configurations.
 
@@ -125,7 +125,7 @@ class ProviderConfigLoader:
                 return provider
         return None
 
-    def get_all_models(self) -> Dict[str, List[ModelConfig]]:
+    def get_all_models(self) -> dict[str, list[ModelConfig]]:
         """
         Get all models organized by provider.
 

@@ -7,7 +7,7 @@ This module builds requests for AI interactions by combining:
 - Message elements for multimodal messages
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .message_element import MessageElement
 from .request_element import RequestElement
@@ -17,7 +17,7 @@ from .text_message import TextMessage
 class RequestBuilder:
     """Builds context and messages for AI requests."""
 
-    def __init__(self, system_elements: List[RequestElement], user_elements: List[RequestElement]):
+    def __init__(self, system_elements: list[RequestElement], user_elements: list[RequestElement]):
         """
         Initialize the request builder.
 
@@ -28,7 +28,7 @@ class RequestBuilder:
         self._base_system_elements = system_elements
         self._base_user_elements = user_elements
 
-    def _concatenate_elements(self, elements: List[RequestElement]) -> str:
+    def _concatenate_elements(self, elements: list[RequestElement]) -> str:
         """
         Concatenate description and content from a list of RequestElement objects.
 
@@ -52,10 +52,10 @@ class RequestBuilder:
 
     def build_messages(
         self,
-        history: List[Dict[str, Any]],
-        init_elements: List[RequestElement],
-        message_elements: Optional[List[MessageElement]] = None,
-    ) -> List[Dict]:
+        history: list[dict[str, Any]],
+        init_elements: list[RequestElement],
+        message_elements: Optional[list[MessageElement]] = None,
+    ) -> list[dict]:
         """
         Build complete message list for OpenAI API call.
 

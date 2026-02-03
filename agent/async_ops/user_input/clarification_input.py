@@ -4,7 +4,7 @@ Clarification input provider.
 Handles asking questions and collecting text responses from the user.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..base import UserInputBase, UserInputResponse
 
@@ -21,7 +21,7 @@ class ClarificationInput(UserInputBase):
     def type_id(self) -> str:
         return "clarification"
 
-    def request(self, questions: List[str]) -> UserInputResponse:
+    def request(self, questions: list[str]) -> UserInputResponse:
         """
         Request clarification from user.
 
@@ -33,7 +33,7 @@ class ClarificationInput(UserInputBase):
         """
         return self._do_request({"questions": questions})
 
-    def validate_request_data(self, data: Dict[str, Any]) -> Optional[str]:
+    def validate_request_data(self, data: dict[str, Any]) -> Optional[str]:
         """Validate that questions list is provided and non-empty."""
         questions = data.get("questions")
         if not questions:

@@ -9,7 +9,7 @@ import io
 import json
 import sys
 from contextlib import contextmanager
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from agent.permission_manager import PermissionManager
 from agent.tools.base import ToolBase
@@ -33,7 +33,7 @@ class FreeCADTools(ToolBase):
         """
         self.permission_manager = permission_manager
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -131,7 +131,7 @@ class FreeCADTools(ToolBase):
             },
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "print_object": self._tool_print_object,

@@ -6,7 +6,7 @@ and execution. All tools are injected via register_provider().
 """
 
 import json
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from ..logger_protocol import LoggerProtocol
 from .base import ToolBase
@@ -30,10 +30,10 @@ class ToolManager:
         self.logger = logger
 
         # Tool provider storage
-        self._tool_providers: List[ToolBase] = []
-        self._tools: List[Dict] = []
-        self._tool_functions: Dict[str, Callable[..., str]] = {}
-        self._tool_to_provider: Dict[str, ToolBase] = {}
+        self._tool_providers: list[ToolBase] = []
+        self._tools: list[dict] = []
+        self._tool_functions: dict[str, Callable[..., str]] = {}
+        self._tool_to_provider: dict[str, ToolBase] = {}
 
     def register_provider(self, provider: ToolBase) -> None:
         """
@@ -54,7 +54,7 @@ class ToolManager:
         # Log registered tools
         self.logger.info(f"Registered tools: {', '.join(tool_names)}")
 
-    def execute_tool(self, tool_name: str, tool_arguments: Dict[str, Any]) -> str:
+    def execute_tool(self, tool_name: str, tool_arguments: dict[str, Any]) -> str:
         """
         Execute a tool by name with given arguments.
 
@@ -92,7 +92,7 @@ class ToolManager:
             self.logger.error(f"Tool {tool_name} error: {error_msg}")
             return json.dumps({"error": error_msg})
 
-    def get_tools(self) -> List[Dict]:
+    def get_tools(self) -> list[dict]:
         """
         Get the tool definitions.
 
@@ -102,12 +102,12 @@ class ToolManager:
         return self._tools
 
     @property
-    def tools(self) -> List[Dict]:
+    def tools(self) -> list[dict]:
         """Alias for get_tools() for backward compatibility."""
         return self._tools
 
     @property
-    def tool_functions(self) -> Dict[str, Callable[..., str]]:
+    def tool_functions(self) -> dict[str, Callable[..., str]]:
         """Get the tool functions dictionary for backward compatibility."""
         return self._tool_functions
 

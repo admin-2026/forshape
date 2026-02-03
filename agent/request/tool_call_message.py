@@ -7,7 +7,7 @@ API messages that represent assistant tool calls (without AI involvement).
 
 import uuid
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .message_element import MessageElement
 
@@ -17,7 +17,7 @@ class ToolCall:
     """Represents a tool call to be executed."""
 
     name: str
-    arguments: Dict[str, Any]
+    arguments: dict[str, Any]
     id: Optional[str] = None
     copy_result_to_response: bool = False
 
@@ -34,7 +34,7 @@ class ToolCallMessage(MessageElement):
     Used by ToolCallStep to create tool calls without AI involvement.
     """
 
-    def __init__(self, tool_calls: List[ToolCall], content: Optional[str] = None):
+    def __init__(self, tool_calls: list[ToolCall], content: Optional[str] = None):
         """
         Initialize the tool call message.
 
@@ -45,7 +45,7 @@ class ToolCallMessage(MessageElement):
         self._tool_calls = tool_calls
         self._content = content
 
-    def get_message(self) -> Optional[Dict[str, Any]]:
+    def get_message(self) -> Optional[dict[str, Any]]:
         """
         Build an assistant message dict with tool_calls.
 
@@ -68,7 +68,7 @@ class ToolCallMessage(MessageElement):
 
         return {"role": "assistant", "content": self._content, "tool_calls": tool_calls_data}
 
-    def get_tool_calls(self) -> List[ToolCall]:
+    def get_tool_calls(self) -> list[ToolCall]:
         """
         Get the list of tool calls.
 
@@ -77,7 +77,7 @@ class ToolCallMessage(MessageElement):
         """
         return self._tool_calls
 
-    def _serialize_arguments(self, arguments: Dict[str, Any]) -> str:
+    def _serialize_arguments(self, arguments: dict[str, Any]) -> str:
         """
         Serialize arguments to JSON string.
 

@@ -294,12 +294,12 @@ class AdditiveBox(Shape):
                     needs_recompute = True
 
                 # Ensure slot is hidden when fillet exists
-                if existing_slot.Visibility != False:
+                if existing_slot.Visibility:
                     existing_slot.Visibility = False
                     needs_recompute = True
             else:
                 # No fillet, ensure slot is visible
-                if existing_slot.Visibility != True:
+                if not existing_slot.Visibility:
                     existing_slot.Visibility = True
                     needs_recompute = True
 

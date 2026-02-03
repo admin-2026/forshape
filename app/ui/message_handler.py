@@ -69,7 +69,7 @@ class MessageHandler:
     def remove_last_message(self):
         """Remove the last message from the conversation display."""
         # Get the document
-        document = self.conversation_display.document()
+        self.conversation_display.document()
 
         # Start from the end and work backwards to find and remove the last div block
         cursor = self.conversation_display.textCursor()

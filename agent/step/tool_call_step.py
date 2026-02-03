@@ -5,7 +5,7 @@ This module provides a ToolCallStep that directly calls tools (no AI)
 and puts responses in history for other steps to process.
 """
 
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
@@ -53,11 +53,11 @@ class ToolCallStep:
         self,
         provider: APIProvider,  # Ignored - no AI calls
         model: str,  # Ignored - no AI calls
-        history: List[Dict],
+        history: list[dict],
         input_queue: Optional[UserInputQueue] = None,  # Ignored - no user input processing
-        initial_messages: Optional[List[MessageElement]] = None,
+        initial_messages: Optional[list[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
-        token_callback: Optional[Callable[[Dict], None]] = None,  # Ignored - no tokens
+        token_callback: Optional[Callable[[dict], None]] = None,  # Ignored - no tokens
         cancellation_check: Optional[Callable[[], bool]] = None,
     ) -> StepResult:
         """

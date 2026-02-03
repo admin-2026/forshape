@@ -5,7 +5,7 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
@@ -63,11 +63,11 @@ class Step:
         self,
         provider: APIProvider,
         model: str,
-        history: List[Dict],
+        history: list[dict],
         input_queue: Optional[UserInputQueue] = None,
-        initial_messages: Optional[List[MessageElement]] = None,
+        initial_messages: Optional[list[MessageElement]] = None,
         api_debugger: Optional[APIDebugger] = None,
-        token_callback: Optional[Callable[[Dict], None]] = None,
+        token_callback: Optional[Callable[[dict], None]] = None,
         cancellation_check: Optional[Callable[[], bool]] = None,
     ) -> StepResult:
         """

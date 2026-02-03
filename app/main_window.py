@@ -706,7 +706,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
                 self.logger.log_message.disconnect(
                     self.message_handler.on_log_message if self.message_handler else lambda: None
                 )
-            except:
+            except Exception:
                 pass
 
             # Update to new logger

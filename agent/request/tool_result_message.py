@@ -5,7 +5,7 @@ This module provides the ToolResultMessage class for building
 API messages that return tool execution results.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .message_element import MessageElement
 
@@ -26,7 +26,7 @@ class ToolResultMessage(MessageElement):
         self._tool_name = tool_name
         self._tool_result = tool_result
 
-    def get_message(self) -> Optional[Dict[str, Any]]:
+    def get_message(self) -> Optional[dict[str, Any]]:
         """
         Build a complete tool result message dict.
 

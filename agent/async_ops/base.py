@@ -7,7 +7,7 @@ following the same pattern as ToolBase for tool providers.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .wait_manager import WaitManager
@@ -18,7 +18,7 @@ class UserInputRequest:
     """Represents a request for user input."""
 
     type_id: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     request_id: str = ""
 
 
@@ -54,7 +54,7 @@ class UserInputBase(ABC):
         """
         self._manager = manager
 
-    def _do_request(self, data: Dict[str, Any]) -> UserInputResponse:
+    def _do_request(self, data: dict[str, Any]) -> UserInputResponse:
         """
         Execute a request through the manager.
 
@@ -82,7 +82,7 @@ class UserInputBase(ABC):
         """
         pass
 
-    def validate_request_data(self, data: Dict[str, Any]) -> Optional[str]:
+    def validate_request_data(self, data: dict[str, Any]) -> Optional[str]:
         """
         Validate request data before sending to GUI.
 
@@ -106,7 +106,7 @@ class UserInputBase(ABC):
         """
         return None
 
-    def create_request(self, data: Dict[str, Any], request_id: str = "") -> UserInputRequest:
+    def create_request(self, data: dict[str, Any], request_id: str = "") -> UserInputRequest:
         """
         Create a UserInputRequest with this provider's type_id.
 

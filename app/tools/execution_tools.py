@@ -7,7 +7,7 @@ in the FreeCAD environment.
 
 import json
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from agent.permission_manager import PermissionManager
 from agent.tools.base import ToolBase
@@ -32,7 +32,7 @@ class ExecutionTools(ToolBase):
         self.working_dir = working_dir
         self.permission_manager = permission_manager
 
-    def get_definitions(self) -> List[Dict]:
+    def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
             {
@@ -58,7 +58,7 @@ class ExecutionTools(ToolBase):
             }
         ]
 
-    def get_functions(self) -> Dict[str, Callable[..., str]]:
+    def get_functions(self) -> dict[str, Callable[..., str]]:
         """Get mapping of tool names to implementations."""
         return {
             "run_python_script": self._tool_run_python_script,

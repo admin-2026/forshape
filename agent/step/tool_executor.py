@@ -7,7 +7,7 @@ ToolCallStep to avoid code duplication.
 """
 
 import json
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..logger_protocol import LoggerProtocol
@@ -41,10 +41,10 @@ class ToolExecutor:
 
     def execute_tool_calls(
         self,
-        tool_calls: List[Any],
+        tool_calls: list[Any],
         api_debugger: Optional[APIDebugger] = None,
         cancellation_check: Optional[Callable[[], bool]] = None,
-    ) -> Tuple[List[Dict], bool]:
+    ) -> tuple[list[dict], bool]:
         """
         Execute tool calls and return result messages.
 

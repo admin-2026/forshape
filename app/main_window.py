@@ -24,6 +24,7 @@ from PySide2.QtWidgets import (
     QWidgetAction,
 )
 
+from agent.chat_history_manager import HistoryPolicy
 from agent.provider_config_loader import ProviderConfigLoader
 from agent.request import ImageMessage, TextMessage, ToolCall, ToolCallMessage
 from agent.step_config import StepConfig, StepConfigRegistry
@@ -884,7 +885,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Configure doc_print step to call print_document tool
         doc_print_tool_call = ToolCallMessage(
-            tool_calls=[ToolCall(name="print_document", arguments={}, copy_result_to_response=True,description="The current FreeCAD document structure")]
+            tool_calls=[ToolCall(name="print_document", arguments={}, copy_result_to_response=True,description="The current FreeCAD document structure", key="doc_print_step_print_document", policy=HistoryPolicy.LATEST)]
         )
         step_configs.append_messages("doc_print", [doc_print_tool_call])
 

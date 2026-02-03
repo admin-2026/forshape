@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from ..chat_history_manager import HistoryPolicy
 from .message_element import MessageElement
 
 
@@ -21,6 +22,8 @@ class ToolCall:
     id: Optional[str] = None
     copy_result_to_response: bool = False
     description: Optional[str] = None
+    key: Optional[str] = None
+    policy: HistoryPolicy = HistoryPolicy.DEFAULT
 
     def __post_init__(self):
         """Generate ID if not provided."""

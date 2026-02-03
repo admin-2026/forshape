@@ -135,11 +135,14 @@ class ToolCallStep:
 
                     # Check if this tool result should be added to history
                     if tc.copy_result_to_response:
+                        # Use key from ToolCall if provided, otherwise generate one
+                        key = tc.key if tc.key else f"{self.name}_tool_{i}_{tool_call_id}"
                         history_messages.append(
                             HistoryMessage(
                                 role="assistant",
                                 content=content,
-                                key=f"{self.name}_tool_{i}_{tool_call_id}",
+                                key=key,
+                                policy=tc.policy,
                             )
                         )
 

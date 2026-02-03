@@ -1,4 +1,4 @@
-.PHONY: install format lint
+.PHONY: install format lint fix
 
 install:
 	pip install ruff
@@ -9,3 +9,6 @@ format:
 
 lint:
 	ruff check .
+
+fix:
+	ruff check --fix --unsafe-fixes .

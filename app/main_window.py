@@ -247,55 +247,6 @@ class ForShapeMainWindow(QMainWindow):
         conversation_layout = QVBoxLayout(conversation_widget)
         conversation_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.conversation_display = QTextEdit()
-        self.conversation_display.setReadOnly(True)
-        self.conversation_display.setFont(QFont("Consolas", 10))
-        # Enable rich text (HTML) rendering for markdown support
-        self.conversation_display.setAcceptRichText(True)
-        # Enable word wrapping at widget width
-        self.conversation_display.setLineWrapMode(QTextEdit.WidgetWidth)
-        # Enable text selection and copying
-        self.conversation_display.setTextInteractionFlags(
-            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard | Qt.LinksAccessibleByMouse
-        )
-
-        # Set default stylesheet for better markdown rendering
-        self.conversation_display.document().setDefaultStyleSheet("""
-            p {
-                margin: 0 0 5px 0;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-            p:first-of-type {
-                margin-top: 0;
-            }
-            pre {
-                background-color: #f5f5f5;
-                padding: 10px;
-                border-radius: 3px;
-                font-family: Consolas, monospace;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-            code {
-                background-color: #f0f0f0;
-                padding: 2px 4px;
-                border-radius: 3px;
-                font-family: Consolas, monospace;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-            div {
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-            }
-            strong { font-weight: bold; }
-            em { font-style: italic; }
-        """)
-
-        conversation_layout.addWidget(self.conversation_display)
-
         # Right side: Log area
         self.log_widget = QWidget()
         log_layout = QVBoxLayout(self.log_widget)
@@ -310,6 +261,12 @@ class ForShapeMainWindow(QMainWindow):
         self.log_display.setFont(QFont("Consolas", 9))
         self.log_display.setMaximumHeight(600)
         log_layout.addWidget(self.log_display)
+
+        # Initialize message handler early to get conversation display
+        # Note: log_display is not yet created, so we'll set it later
+        self.message_handler = MessageHandler(self.log_display, self.message_formatter, self.logger)
+
+        conversation_layout.addWidget(self.message_handler.get_widget())
 
         # Variables area
         self.variables_widget = VariablesView(working_dir=self.config.working_dir)
@@ -462,11 +419,6 @@ class ForShapeMainWindow(QMainWindow):
         # Add input container to main layout
         main_layout.addWidget(input_container)
 
-        # Initialize handler instances now that UI components are created
-        self.message_handler = MessageHandler(
-            self.conversation_display, self.log_display, self.message_formatter, self.logger
-        )
-
         # Connect logger signal to message handler
         self.logger.log_message.connect(self.message_handler.on_log_message)
 
@@ -494,7 +446,11 @@ class ForShapeMainWindow(QMainWindow):
             del self._temp_model_combos
 
         # Display welcome message
-        self.display_welcome()
+        self.message_handler.display_welcome(
+            self.ai_client is not None,
+            self.config.has_forshape(),
+            self.ai_client.get_model() if self.ai_client else None,
+        )
 
     def _create_model_menu_items(self, model_menu):
         """
@@ -521,37 +477,6 @@ class ForShapeMainWindow(QMainWindow):
             if hasattr(temp_manager, "model_combos"):
                 self._temp_model_combos = temp_manager.model_combos
 
-    def display_welcome(self):
-        """Display welcome message in the conversation area."""
-        # Check if AI client is initialized
-        if self.ai_client:
-            context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
-            model_info = f"<strong>Using model:</strong> {self.ai_client.get_model()}<br>"
-            context_info = f"<strong>Context:</strong> {context_status}"
-            start_message = "Start chatting to generate 3D shapes!"
-        else:
-            # During prestart checks
-            model_info = ""
-            context_info = "<strong>Status:</strong> Setting up..."
-            start_message = "Please complete the setup steps below to begin."
-
-        welcome_html = f"""
-<div style="font-family: Consolas, monospace; margin: 10px 0;">
-<pre style="margin: 0;">{"=" * 60}
-Welcome to ForShape AI - Interactive 3D Shape Generator
-{"=" * 60}</pre>
-<p style="margin: 5px 0;">{model_info}{context_info}</p>
-
-<p style="margin: 5px 0;"><strong>Tip:</strong> Drag & drop images or .py files to attach them to your messages</p>
-
-<p style="margin: 5px 0;">{start_message}</p>
-<pre style="margin: 0;">{"=" * 60}</pre>
-</div>
-"""
-        self.conversation_display.insertHtml(welcome_html)
-        # Add line breaks after welcome message to separate from first user message
-        self.conversation_display.insertHtml("<br><br>")
-
     def clear_conversation(self):
         """Clear the conversation display and AI history."""
         # Clear the AI agent's conversation history
@@ -563,14 +488,11 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             if history_manager:
                 history_manager.clear_history()
 
-        # Clear the conversation display
-        self.conversation_display.clear()
-
-        # Redisplay the welcome message
-        self.display_welcome()
-
-        # Show confirmation message
-        self.append_message("System", "Conversation history cleared.")
+        self.message_handler.clear_conversation(
+            self.ai_client is not None,
+            self.config.has_forshape(),
+            self.ai_client.get_model() if self.ai_client else None,
+        )
 
     def on_rewind_clicked(self):
         """Handle Rewind button click - show checkpoint selector and restore files."""
@@ -984,8 +906,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             self.display_error(message)
 
         # Play notification sound when AI finishes
-        if self.message_handler:
-            self.message_handler.play_notification_sound()
+        self.play_notification_sound()
 
         # Bring main window to front when AI finishes
         self.raise_()
@@ -1024,6 +945,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
         # Display the step response
         self.append_message("AI", response)
+
+    def play_notification_sound(self):
+        """Play a notification sound when AI finishes processing."""
+        try:
+            import platform
+
+            if platform.system() == "Windows":
+                import winsound
+
+                winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            else:
+                print("\a")  # ASCII bell character
+        except Exception as e:
+            self.logger.debug(f"Could not play notification sound: {e}")
 
     def append_message(self, role: str, message: str, token_data: dict = None):
         """Delegate to message handler."""

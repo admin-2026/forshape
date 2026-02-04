@@ -315,13 +315,26 @@ class ForShapeAI:
             tool_executor=tool_executor,
             max_iterations=50,
             logger=self.logger,
+            step_jump=NextStepJump("lint"),
         )
 
-        # Create AI agent with steps (doc_print runs before main)
+        # Create the lint step with its own tool executor containing only lint tools
+        from agent.tools.python_lint_tools import PythonLintTools
+
+        lint_tool_manager = ToolManager(logger=self.logger)
+        lint_tool_manager.register_provider(PythonLintTools())
+        lint_tool_executor = ToolExecutor(tool_manager=lint_tool_manager, logger=self.logger)
+        lint_step = ToolCallStep(
+            name="lint",
+            tool_executor=lint_tool_executor,
+            logger=self.logger,
+        )
+
+        # Create AI agent with steps (doc_print runs before main, lint runs after main)
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
-            steps={"doc_print": doc_print_step, "main": main_step},
+            steps={"doc_print": doc_print_step, "main": main_step, "lint": lint_step},
             start_step="doc_print",
             logger=self.logger,
             api_debugger=self.api_debugger,

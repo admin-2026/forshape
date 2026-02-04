@@ -815,6 +815,25 @@ class ForShapeMainWindow(QMainWindow):
         )
         step_configs.append_messages("doc_print", [doc_print_tool_call])
 
+        # Configure lint step to lint Python files after main step
+        lint_tool_call = ToolCallMessage(
+            tool_calls=[
+                ToolCall(
+                    name="lint_python",
+                    arguments={
+                        "directory": str(self.config.working_dir),
+                        "format": True,
+                        "fix": True,
+                        "ignore": ["F403", "F405"],
+                    },
+                    copy_result_to_response=True,
+                    key="lint_step_lint_python",
+                    policy=HistoryPolicy.LATEST,
+                )
+            ]
+        )
+        step_configs.append_messages("lint", [lint_tool_call])
+
         # Append messages for main step if any exist
         if initial_messages:
             step_configs.append_messages("main", initial_messages)

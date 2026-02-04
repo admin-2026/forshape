@@ -121,6 +121,10 @@ class ModelMenuManager:
             if self.ui_config_manager:
                 self.ui_config_manager.update({"selected_provider": provider_name, "selected_model": model})
 
+            # Refresh welcome widget to reflect new model
+            if self.message_handler:
+                self.message_handler.welcome_widget.refresh()
+
             # Show confirmation message
             if self.message_handler and model_name:
                 display_name = self._get_provider_display_name(provider_name)

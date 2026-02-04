@@ -647,6 +647,9 @@ class ForShapeMainWindow(QMainWindow):
                 # Restoration failed or no saved selection, sync dropdown with AI client's current state
                 self.model_menu_manager.sync_model_dropdown()
 
+        # Refresh welcome widget now that ai_client is available
+        self.welcome_widget.refresh()
+
     def handle_prestart_input(self, user_input: str):
         """
         Handle user input during prestart check mode.

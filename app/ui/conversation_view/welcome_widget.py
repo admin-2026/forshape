@@ -75,9 +75,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
         Returns:
             Tuple of (QTextBrowser widget, QListWidgetItem)
         """
+        self._conversation_display = conversation_display
         welcome_html = self.generate_html()
         viewport_width = conversation_display.viewport().width()
-        widget = self.create_widget(welcome_html, viewport_width)
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(widget.width(), widget.height()))
-        return widget, item
+        self._widget = self.create_widget(welcome_html, viewport_width)
+        self._item = QListWidgetItem()
+        self._item.setSizeHint(QSize(self._widget.width(), self._widget.height()))
+        return self._widget, self._item
+
+    def refresh(self):
+        """Regenerate the welcome HTML and update the displayed widget."""
+        if not hasattr(self, '_widget') or self._widget is None:
+            return
+        welcome_html = self.generate_html()
+        self._widget.setHtml(welcome_html)
+        viewport_width = self._conversation_display.viewport().width()
+        self.update_widget_size(self._widget, viewport_width)
+        self._item.setSizeHint(QSize(self._widget.width(), self._widget.height()))

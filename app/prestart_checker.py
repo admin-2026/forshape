@@ -213,7 +213,9 @@ class PrestartChecker:
 
             # Show what was created if anything
             if created_items:
-                window.message_handler.append_message("System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items))
+                window.message_handler.append_message(
+                    "System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items)
+                )
 
             # Copy template files to working directory if they don't exist
             self._setup_template_files(window)
@@ -307,7 +309,9 @@ class PrestartChecker:
         elif response == "yes":
             doc_path = App.ActiveDocument.FileName if App.ActiveDocument else None
             if not doc_path:
-                window.message_handler.append_message("System", "⚠️ Document is no longer available. Please save it again.")
+                window.message_handler.append_message(
+                    "System", "⚠️ Document is no longer available. Please save it again."
+                )
                 return True
 
             doc_dir = os.path.dirname(os.path.abspath(doc_path))

@@ -125,11 +125,7 @@ class MessageFormatter:
             token_info_html = ""
             if role == "AI" and token_data:
                 token_str = self.format_token_data(token_data, include_iteration=False)
-                token_info_html = (
-                    f'<div style="font-size: 11px; color: #888;">'
-                    f"Tokens: {token_str}"
-                    f"</div>"
-                )
+                token_info_html = f'<div style="font-size: 11px; color: #888;">Tokens: {token_str}</div>'
 
             formatted_message = (
                 f'<div style="margin: 0;">'

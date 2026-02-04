@@ -152,9 +152,7 @@ class FileExecutor:
 
                 # Check results
                 if teardown_result.success and normal_result.success:
-                    self.message_handler.append_message(
-                        "System", f"{action_name} completed successfully: {file_path}"
-                    )
+                    self.message_handler.append_message("System", f"{action_name} completed successfully: {file_path}")
                 elif not teardown_result.success:
                     error_msg = f"Error during teardown of {file_path}:\n{teardown_result.error}"
                     self.message_handler.display_error(error_msg)
@@ -170,9 +168,7 @@ class FileExecutor:
                     self.message_handler.append_message("[OUTPUT]", result.output.strip())
 
                 if result.success:
-                    self.message_handler.append_message(
-                        "System", f"{action_name} completed successfully: {file_path}"
-                    )
+                    self.message_handler.append_message("System", f"{action_name} completed successfully: {file_path}")
                 else:
                     error_msg = f"Error during {action_name.lower()} of {file_path}:\n{result.error}"
                     self.message_handler.display_error(error_msg)

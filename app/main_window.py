@@ -484,14 +484,16 @@ class ForShapeMainWindow(QMainWindow):
         """Handle Rewind button click - show checkpoint selector and restore files."""
         # Get the edits directory from the context provider
         if not self.config:
-            self.message_handler.display_error( "Context provider not initialized.")
+            self.message_handler.display_error("Context provider not initialized.")
             return
 
         edits_dir = self.config.get_edits_dir()
 
         # Check if edits directory exists
         if not edits_dir.exists():
-            self.message_handler.append_message("System", "No edit history found. The edits directory does not exist yet.")
+            self.message_handler.append_message(
+                "System", "No edit history found. The edits directory does not exist yet."
+            )
             return
 
         # Get all sessions using EditHistory
@@ -532,7 +534,9 @@ class ForShapeMainWindow(QMainWindow):
         conversation_id = session_info.get("conversation_id")
         file_count = session_info.get("file_count", 0)
 
-        self.message_handler.append_message("System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}...")
+        self.message_handler.append_message(
+            "System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}..."
+        )
 
         # Get paths
         working_dir = self.config.working_dir
@@ -547,7 +551,7 @@ class ForShapeMainWindow(QMainWindow):
             self.message_handler.append_message("System", f"✓ {message}")
             self.logger.info(f"Restored checkpoint: {conversation_id}")
         else:
-            self.message_handler.display_error( f"Failed to restore checkpoint:\n{message}")
+            self.message_handler.display_error(f"Failed to restore checkpoint:\n{message}")
             self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
 
     def set_components(
@@ -606,9 +610,7 @@ class ForShapeMainWindow(QMainWindow):
         if logger is not None:
             # Disconnect old logger
             try:
-                self.logger.log_message.disconnect(
-                    self.log_view.on_log_message if self.log_view else lambda: None
-                )
+                self.logger.log_message.disconnect(self.log_view.on_log_message if self.log_view else lambda: None)
             except Exception:
                 pass
 
@@ -731,7 +733,9 @@ class ForShapeMainWindow(QMainWindow):
 
         # Check if AI client is available
         if not self.ai_client:
-            self.message_handler.append_message("System", "⚠ AI is not yet initialized. Please wait for setup to complete.")
+            self.message_handler.append_message(
+                "System", "⚠ AI is not yet initialized. Please wait for setup to complete."
+            )
             return
 
         # Check if AI is currently busy
@@ -739,7 +743,9 @@ class ForShapeMainWindow(QMainWindow):
             # Add message to the current step config to be processed during next iteration
             if self.current_step_config:
                 self.current_step_config.add_pending_message(user_input)
-                self.message_handler.append_message("System", "✓ Your message will be added to the ongoing conversation...")
+                self.message_handler.append_message(
+                    "System", "✓ Your message will be added to the ongoing conversation..."
+                )
             else:
                 self.message_handler.append_message("System", "⚠ AI is currently processing. Please wait...")
             return
@@ -973,7 +979,9 @@ class ForShapeMainWindow(QMainWindow):
 
         if new_state:
             dump_dir = self.api_debugger.output_dir
-            self.message_handler.append_message("System", f"API data dumping enabled. Data will be saved to: {dump_dir}")
+            self.message_handler.append_message(
+                "System", f"API data dumping enabled. Data will be saved to: {dump_dir}"
+            )
             self.logger.info(f"API data dumping enabled - output: {dump_dir}")
         else:
             self.message_handler.append_message("System", "API data dumping disabled.")
@@ -998,14 +1006,16 @@ class ForShapeMainWindow(QMainWindow):
             # Dump history using chat_history_manager
             dump_path = history_manager.dump_history(history_dir, model_name)
 
-            self.message_handler.append_message("System", f"Conversation history dumped successfully!\nSaved to: {dump_path}")
+            self.message_handler.append_message(
+                "System", f"Conversation history dumped successfully!\nSaved to: {dump_path}"
+            )
             self.logger.info(f"History dumped to: {dump_path}")
 
         except Exception as e:
             import traceback
 
             error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
-            self.message_handler.display_error( error_msg)
+            self.message_handler.display_error(error_msg)
             self.logger.error(f"Failed to dump history: {str(e)}")
 
     def on_log_level_changed(self, index: int):

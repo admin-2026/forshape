@@ -85,7 +85,7 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 
     def refresh(self):
         """Regenerate the welcome HTML and update the displayed widget."""
-        if not hasattr(self, '_widget') or self._widget is None:
+        if not hasattr(self, "_widget") or self._widget is None:
             return
         welcome_html = self.generate_html()
         self._widget.setHtml(welcome_html)

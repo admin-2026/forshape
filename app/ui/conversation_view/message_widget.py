@@ -5,7 +5,6 @@ This module provides the MessageWidget class for creating
 formatted message displays in the conversation area.
 """
 
-
 from PySide2.QtCore import QSize
 from PySide2.QtWidgets import QListWidgetItem
 

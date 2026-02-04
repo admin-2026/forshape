@@ -1093,12 +1093,10 @@ class ForShapeMainWindow(QMainWindow):
                     self.attachment_widget.refresh()
 
                     # Show success message
-                    image_count = len(self.captured_images)
                     self.message_handler.append_message(
                         "System",
                         f"Screenshot confirmed!\n"
-                        f"Saved to: {file_path}\n"
-                        f"{image_count} {self._pluralize('image', image_count)} ready to attach to your next message.",
+                        f"Saved to: {file_path}",
                     )
                 except Exception as e:
                     self.message_handler.append_message("System", f"Error encoding annotated image: {str(e)}")

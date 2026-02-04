@@ -56,20 +56,9 @@ class DragDropHandler:
         if not self.input_field:
             return
 
-        file_count = len(self.attached_files)
-        if file_count == 0:
-            self.input_field.setPlaceholderText(
-                "Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line"
-            )
-        elif file_count == 1:
-            file_name = self.attached_files[0]["name"]
-            self.input_field.setPlaceholderText(
-                f"1 Python file attached ({file_name}) - Type your message...\nPress Enter to send, Shift+Enter for new line"
-            )
-        else:
-            self.input_field.setPlaceholderText(
-                f"{file_count} Python files attached - Type your message...\nPress Enter to send, Shift+Enter for new line"
-            )
+        self.input_field.setPlaceholderText(
+            "Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line"
+        )
 
     def drag_enter_event(self, event: QDragEnterEvent):
         """Handle drag enter event to accept file drops."""
@@ -190,14 +179,11 @@ class DragDropHandler:
                 self.attachment_widget.refresh()
 
             # Show success message
-            image_count = len(self.captured_images)
-            image_word = "image" if image_count == 1 else "images"
             self.message_handler.append_message(
                 "System",
                 f"Image added!\n"
                 f"File: {os.path.basename(file_path)}\n"
-                f"Saved to: {stored_path}\n"
-                f"{image_count} {image_word} ready to attach to your next message.",
+                f"Saved to: {stored_path}",
             )
 
         except Exception:
@@ -230,13 +216,10 @@ class DragDropHandler:
                 self.attachment_widget.refresh()
 
             # Show success message
-            file_count = len(self.attached_files)
-            file_word = "file" if file_count == 1 else "files"
             self.message_handler.append_message(
                 "System",
                 f"Python file attached!\n"
-                f"File: {os.path.basename(file_path)}\n"
-                f"{file_count} Python {file_word} ready to attach to your next message.",
+                f"File: {os.path.basename(file_path)}",
             )
 
         except Exception:

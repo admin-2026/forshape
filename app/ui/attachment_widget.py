@@ -47,8 +47,7 @@ class AttachmentChip(QWidget):
         close_btn = QPushButton("\u00d7")
         close_btn.setFixedSize(18, 18)
         close_btn.setStyleSheet(
-            "QPushButton { border: none; font-weight: bold; font-size: 13px; }"
-            "QPushButton:hover { color: red; }"
+            "QPushButton { border: none; font-weight: bold; font-size: 13px; }QPushButton:hover { color: red; }"
         )
         close_btn.clicked.connect(lambda: self.remove_clicked.emit(self.attachment_data))
         layout.addWidget(close_btn)

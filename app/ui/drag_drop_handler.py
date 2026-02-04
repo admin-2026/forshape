@@ -34,7 +34,9 @@ class DragDropHandler:
         self.input_field = None
         self.attachment_widget = None
 
-    def set_state_references(self, captured_images, attached_files, is_ai_busy_callback, input_field, attachment_widget=None):
+    def set_state_references(
+        self, captured_images, attached_files, is_ai_busy_callback, input_field, attachment_widget=None
+    ):
         """
         Set references to shared state from the main window.
 
@@ -181,9 +183,7 @@ class DragDropHandler:
             # Show success message
             self.message_handler.append_message(
                 "System",
-                f"Image added!\n"
-                f"File: {os.path.basename(file_path)}\n"
-                f"Saved to: {stored_path}",
+                f"Image added!\nFile: {os.path.basename(file_path)}\nSaved to: {stored_path}",
             )
 
         except Exception:
@@ -218,8 +218,7 @@ class DragDropHandler:
             # Show success message
             self.message_handler.append_message(
                 "System",
-                f"Python file attached!\n"
-                f"File: {os.path.basename(file_path)}",
+                f"Python file attached!\nFile: {os.path.basename(file_path)}",
             )
 
         except Exception:

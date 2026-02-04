@@ -1095,8 +1095,7 @@ class ForShapeMainWindow(QMainWindow):
                     # Show success message
                     self.message_handler.append_message(
                         "System",
-                        f"Screenshot confirmed!\n"
-                        f"Saved to: {file_path}",
+                        f"Screenshot confirmed!\nSaved to: {file_path}",
                     )
                 except Exception as e:
                     self.message_handler.append_message("System", f"Error encoding annotated image: {str(e)}")

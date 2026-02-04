@@ -140,6 +140,7 @@ When creating new objects:
 - Extract any reusable logic into appropriate <feature>_lib.py files
 """
 
+
 class NextStepJump(StepJump):
     """A StepJump that always jumps to a fixed next step."""
 

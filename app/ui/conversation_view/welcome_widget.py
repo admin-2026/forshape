@@ -4,8 +4,13 @@ Welcome widget for ForShape AI GUI.
 This module provides the welcome message widget displayed at the start of conversations.
 """
 
+from PySide2.QtCore import QSize
+from PySide2.QtWidgets import QListWidgetItem
 
-class WelcomeWidget:
+from .widget_base import WidgetBase
+
+
+class WelcomeWidget(WidgetBase):
     """Handles welcome message display and updates."""
 
     def __init__(self, get_ai_client, config):
@@ -59,3 +64,20 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
 <pre style="margin: 0;">{"=" * 60}</pre>
 </div>
 """
+
+    def create(self, conversation_display):
+        """
+        Create the welcome message widget and list item.
+
+        Args:
+            conversation_display: The QListWidget for conversation display
+
+        Returns:
+            Tuple of (QTextBrowser widget, QListWidgetItem)
+        """
+        welcome_html = self.generate_html()
+        viewport_width = conversation_display.viewport().width()
+        widget = self.create_widget(welcome_html, viewport_width)
+        item = QListWidgetItem()
+        item.setSizeHint(QSize(widget.width(), widget.height()))
+        return widget, item

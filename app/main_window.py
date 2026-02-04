@@ -33,6 +33,7 @@ from .logger import LogLevel
 from .ui import (
     DragDropHandler,
     FileExecutor,
+    LogView,
     MessageFormatter,
     MessageHandler,
     ModelMenuManager,
@@ -254,23 +255,10 @@ class ForShapeMainWindow(QMainWindow):
         conversation_layout.setContentsMargins(0, 0, 0, 0)
 
         # Right side: Log area
-        self.log_widget = QWidget()
-        log_layout = QVBoxLayout(self.log_widget)
-        log_layout.setContentsMargins(0, 0, 0, 0)
-
-        log_label = QLabel("System Logs")
-        log_label.setFont(QFont("Consolas", 10, QFont.Bold))
-        log_layout.addWidget(log_label)
-
-        self.log_display = QTextEdit()
-        self.log_display.setReadOnly(True)
-        self.log_display.setFont(QFont("Consolas", 9))
-        self.log_display.setMaximumHeight(600)
-        log_layout.addWidget(self.log_display)
-
-        # Initialize message handler early to get conversation display
+        self.log_view = LogView()
+        self.log_widget = self.log_view.get_widget()
         self.welcome_widget = WelcomeWidget(lambda: self.ai_client, self.config)
-        self.message_handler = MessageHandler(self.log_display, self.message_formatter, self.logger, self.welcome_widget)
+        self.message_handler = MessageHandler(self.message_formatter, self.logger, self.welcome_widget)
 
         conversation_layout.addWidget(self.message_handler.get_widget())
 
@@ -425,8 +413,8 @@ class ForShapeMainWindow(QMainWindow):
         # Add input container to main layout
         main_layout.addWidget(input_container)
 
-        # Connect logger signal to message handler
-        self.logger.log_message.connect(self.message_handler.on_log_message)
+        # Connect logger signal to log view
+        self.logger.log_message.connect(self.log_view.on_log_message)
 
         self.file_executor = FileExecutor(self.config, self.message_handler, self.logger)
 
@@ -619,7 +607,7 @@ class ForShapeMainWindow(QMainWindow):
             # Disconnect old logger
             try:
                 self.logger.log_message.disconnect(
-                    self.message_handler.on_log_message if self.message_handler else lambda: None
+                    self.log_view.on_log_message if self.log_view else lambda: None
                 )
             except Exception:
                 pass
@@ -638,7 +626,7 @@ class ForShapeMainWindow(QMainWindow):
                 self.model_menu_manager.logger = logger
 
             # Connect new logger
-            self.logger.log_message.connect(self.message_handler.on_log_message)
+            self.logger.log_message.connect(self.log_view.on_log_message)
 
         # Update model menu manager's AI client
         if self.model_menu_manager:

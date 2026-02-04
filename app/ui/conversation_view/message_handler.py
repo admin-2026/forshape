@@ -7,52 +7,22 @@ message formatting in the conversation display.
 
 import uuid
 
-from PySide2.QtCore import QSize, Qt
-from PySide2.QtGui import QFont, QTextCursor
-from PySide2.QtWidgets import QListWidget, QListWidgetItem, QTextBrowser
+from PySide2.QtCore import QSize
+from PySide2.QtGui import QFont
+from PySide2.QtWidgets import QListWidget
+
+from .message_widget import MessageWidget
+from .widget_base import WidgetBase
 
 
 class MessageHandler:
     """Handles message display, formatting, and log management."""
 
-    # Default stylesheet for message widgets
-    DEFAULT_STYLESHEET = """
-        p {
-            margin: 0;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        pre {
-            background-color: #f5f5f5;
-            padding: 10px;
-            border-radius: 3px;
-            font-family: Consolas, monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        code {
-            background-color: #f0f0f0;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-family: Consolas, monospace;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        div {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        strong { font-weight: bold; }
-        em { font-style: italic; }
-    """
-
-    def __init__(self, log_display, message_formatter, logger, welcome_widget):
+    def __init__(self, message_formatter, logger, welcome_widget):
         """
         Initialize the message handler.
 
         Args:
-            log_display: QTextEdit widget for log display
             message_formatter: MessageFormatter instance
             logger: Logger instance
             welcome_widget: WelcomeWidget instance
@@ -61,9 +31,9 @@ class MessageHandler:
         self.message_order = []  # List of msg_ids in order
         self.welcome_widget = welcome_widget
         self.conversation_display = self._create_conversation_display()
-        self.log_display = log_display
         self.message_formatter = message_formatter
         self.logger = logger
+        self.message_widget = MessageWidget(message_formatter, self.conversation_display)
 
     def _create_conversation_display(self) -> QListWidget:
         """
@@ -103,49 +73,6 @@ class MessageHandler:
         conversation_display.setContentsMargins(0, 0, 0, 0)
         return conversation_display
 
-    def _create_message_widget(self, html_content: str) -> QTextBrowser:
-        """
-        Create a QTextBrowser widget for displaying a single message.
-
-        Args:
-            html_content: HTML content to display
-
-        Returns:
-            Configured QTextBrowser widget
-        """
-        widget = QTextBrowser()
-        widget.setFont(QFont("Consolas", 10))
-        widget.setReadOnly(True)
-        widget.setOpenExternalLinks(True)
-        widget.setFrameShape(QTextBrowser.NoFrame)
-        # Disable scrollbars - the parent QListWidget handles scrolling
-        widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        # Enable text selection
-        widget.setTextInteractionFlags(
-            Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard | Qt.LinksAccessibleByMouse
-        )
-        # Remove internal margins/padding
-        widget.setContentsMargins(0, 0, 0, 0)
-        widget.document().setDocumentMargin(0)
-        # Set stylesheet for markdown rendering
-        widget.document().setDefaultStyleSheet(self.DEFAULT_STYLESHEET)
-        # Set the HTML content
-        widget.setHtml(html_content)
-        # Calculate appropriate height based on content
-        viewport_width = self.conversation_display.viewport().width() - 20
-        widget.document().setTextWidth(viewport_width)
-        doc_height = int(widget.document().size().height()) + 5  # Add buffer for full visibility
-        widget.setFixedHeight(doc_height)
-        return widget
-
-    def _update_widget_size(self, widget: QTextBrowser):
-        """Update widget size based on current viewport width."""
-        widget.document().setDocumentMargin(0)
-        widget.document().setTextWidth(self.conversation_display.viewport().width() - 20)
-        doc_height = int(widget.document().size().height()) + 5  # Add buffer for full visibility
-        widget.setFixedHeight(doc_height)
-
     def get_widget(self) -> QListWidget:
         """
         Get the conversation display widget.
@@ -169,13 +96,7 @@ class MessageHandler:
         """
         msg_id = str(uuid.uuid4())
 
-        # Use MessageFormatter to format the message
-        formatted_message = self.message_formatter.format_message(role, message, token_data)
-
-        # Create widget and list item
-        widget = self._create_message_widget(formatted_message)
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(widget.width(), widget.height()))
+        widget, item = self.message_widget.create(role, message, token_data)
 
         # Add to list widget
         self.conversation_display.addItem(item)
@@ -221,7 +142,7 @@ class MessageHandler:
         widget.setHtml(formatted_message)
 
         # Update size
-        self._update_widget_size(widget)
+        WidgetBase.update_widget_size(widget, self.conversation_display.viewport().width())
         item.setSizeHint(QSize(widget.width(), widget.height()))
 
         # Update stored data
@@ -285,35 +206,6 @@ class MessageHandler:
         """
         return self.append_message("ERROR", error_message)
 
-    def on_log_message(self, level: str, message: str, timestamp: str):
-        """
-        Handle log messages from the logger.
-
-        Args:
-            level: Log level (DEBUG, INFO, WARN, ERROR)
-            message: Log message
-            timestamp: Timestamp of the log
-        """
-        # Color code based on log level
-        color_map = {"DEBUG": "#888888", "INFO": "#0066CC", "WARN": "#FF8800", "ERROR": "#CC0000"}
-        color = color_map.get(level, "#000000")
-
-        # Format the log message with color
-        formatted_log = f'<span style="color: {color};">[{timestamp}] [{level}] {message}</span><br>'
-
-        # Move cursor to end before inserting
-        cursor = self.log_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.log_display.setTextCursor(cursor)
-
-        # Insert HTML
-        self.log_display.insertHtml(formatted_log)
-
-        # Scroll to bottom
-        cursor = self.log_display.textCursor()
-        cursor.movePosition(QTextCursor.End)
-        self.log_display.setTextCursor(cursor)
-
     def display_welcome(self) -> str:
         """
         Display welcome message in the conversation area.
@@ -321,13 +213,9 @@ class MessageHandler:
         Returns:
             Message ID of the welcome message
         """
-        welcome_html = self.welcome_widget.generate_html()
-
-        # Create a special welcome message (not using append_message to avoid role formatting)
         msg_id = str(uuid.uuid4())
-        widget = self._create_message_widget(welcome_html)
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(widget.width(), widget.height()))
+
+        widget, item = self.welcome_widget.create(self.conversation_display)
 
         self.conversation_display.addItem(item)
         self.conversation_display.setItemWidget(item, widget)

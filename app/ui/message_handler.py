@@ -47,7 +47,7 @@ class MessageHandler:
         em { font-style: italic; }
     """
 
-    def __init__(self, log_display, message_formatter, logger):
+    def __init__(self, log_display, message_formatter, logger, welcome_widget):
         """
         Initialize the message handler.
 
@@ -55,9 +55,11 @@ class MessageHandler:
             log_display: QTextEdit widget for log display
             message_formatter: MessageFormatter instance
             logger: Logger instance
+            welcome_widget: WelcomeWidget instance
         """
         self.message_items = {}  # msg_id -> {"item": QListWidgetItem, "widget": QTextBrowser, "role": str, "token_data": dict}
         self.message_order = []  # List of msg_ids in order
+        self.welcome_widget = welcome_widget
         self.conversation_display = self._create_conversation_display()
         self.log_display = log_display
         self.message_formatter = message_formatter
@@ -312,41 +314,15 @@ class MessageHandler:
         cursor.movePosition(QTextCursor.End)
         self.log_display.setTextCursor(cursor)
 
-    def display_welcome(self, ai_client_ready: bool, has_forshape: bool, model_name: str = None) -> str:
+    def display_welcome(self) -> str:
         """
         Display welcome message in the conversation area.
-
-        Args:
-            ai_client_ready: True if AI client is initialized
-            has_forshape: True if FORSHAPE.md is loaded
-            model_name: The model name (required if ai_client_ready is True)
 
         Returns:
             Message ID of the welcome message
         """
-        # Check if AI client is initialized
-        if ai_client_ready:
-            context_status = "✓ FORSHAPE.md loaded" if has_forshape else "✗ No FORSHAPE.md"
-            model_info = f"<strong>Using model:</strong> {model_name}<br>"
-            context_info = f"<strong>Context:</strong> {context_status}"
-            start_message = "Start chatting to generate 3D shapes!"
-        else:
-            # During prestart checks
-            model_info = ""
-            context_info = "<strong>Status:</strong> Setting up..."
-            start_message = "Please complete the setup steps below to begin."
+        welcome_html = self.welcome_widget.generate_html()
 
-        welcome_html = f"""
-<div style="font-family: Consolas, monospace; margin: 0;">
-<pre style="margin: 0;">{"=" * 60}
-Welcome to ForShape AI - Interactive 3D Shape Generator
-{"=" * 60}</pre>
-<p style="margin: 0;">{model_info}{context_info}</p>
-<p style="margin: 0;"><strong>Tip:</strong> Drag & drop images or .py files to attach them to your messages</p>
-<p style="margin: 0;">{start_message}</p>
-<pre style="margin: 0;">{"=" * 60}</pre>
-</div>
-"""
         # Create a special welcome message (not using append_message to avoid role formatting)
         msg_id = str(uuid.uuid4())
         widget = self._create_message_widget(welcome_html)
@@ -363,28 +339,23 @@ Welcome to ForShape AI - Interactive 3D Shape Generator
             "token_data": None,
         }
         self.message_order.append(msg_id)
+        self.welcome_widget.msg_id = msg_id
 
         # Scroll to bottom
         self.conversation_display.scrollToBottom()
 
         return msg_id
 
-    def clear_conversation(self, ai_client_ready: bool, has_forshape: bool, model_name: str = None):
-        """
-        Clear the conversation display and redisplay welcome message.
-
-        Args:
-            ai_client_ready: True if AI client is initialized
-            has_forshape: True if FORSHAPE.md is loaded
-            model_name: The model name (required if ai_client_ready is True)
-        """
+    def clear_conversation(self):
+        """Clear the conversation display and redisplay welcome message."""
         # Clear all messages
         self.conversation_display.clear()
         self.message_items.clear()
         self.message_order.clear()
+        self.welcome_widget.msg_id = None
 
         # Redisplay the welcome message
-        self.display_welcome(ai_client_ready, has_forshape, model_name)
+        self.display_welcome()
 
         # Show confirmation message
         self.append_message("System", "Conversation history cleared.")

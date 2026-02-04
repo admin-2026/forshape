@@ -30,7 +30,15 @@ from agent.step_config import StepConfig, StepConfigRegistry
 
 from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .logger import LogLevel
-from .ui import DragDropHandler, FileExecutor, MessageFormatter, MessageHandler, ModelMenuManager, MultiLineInputField
+from .ui import (
+    DragDropHandler,
+    FileExecutor,
+    MessageFormatter,
+    MessageHandler,
+    ModelMenuManager,
+    MultiLineInputField,
+    WelcomeWidget,
+)
 from .ui_config_manager import UIConfigManager
 from .variables import VariablesView
 from .workers import AIWorker
@@ -261,8 +269,8 @@ class ForShapeMainWindow(QMainWindow):
         log_layout.addWidget(self.log_display)
 
         # Initialize message handler early to get conversation display
-        # Note: log_display is not yet created, so we'll set it later
-        self.message_handler = MessageHandler(self.log_display, self.message_formatter, self.logger)
+        self.welcome_widget = WelcomeWidget(lambda: self.ai_client, self.config)
+        self.message_handler = MessageHandler(self.log_display, self.message_formatter, self.logger, self.welcome_widget)
 
         conversation_layout.addWidget(self.message_handler.get_widget())
 
@@ -444,11 +452,7 @@ class ForShapeMainWindow(QMainWindow):
             del self._temp_model_combos
 
         # Display welcome message
-        self.message_handler.display_welcome(
-            self.ai_client is not None,
-            self.config.has_forshape(),
-            self.ai_client.get_model() if self.ai_client else None,
-        )
+        self.message_handler.display_welcome()
 
     def _create_model_menu_items(self, model_menu):
         """
@@ -486,11 +490,7 @@ class ForShapeMainWindow(QMainWindow):
             if history_manager:
                 history_manager.clear_history()
 
-        self.message_handler.clear_conversation(
-            self.ai_client is not None,
-            self.config.has_forshape(),
-            self.ai_client.get_model() if self.ai_client else None,
-        )
+        self.message_handler.clear_conversation()
 
     def on_rewind_clicked(self):
         """Handle Rewind button click - show checkpoint selector and restore files."""

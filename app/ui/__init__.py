@@ -9,6 +9,7 @@ from .file_executor import FileExecutor
 from .message_formatter import MessageFormatter
 from .message_handler import MessageHandler
 from .model_menu import ModelMenuManager
+from .welcome_widget import WelcomeWidget
 from .widgets import MultiLineInputField
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "FileExecutor",
     "DragDropHandler",
     "ModelMenuManager",
+    "WelcomeWidget",
 ]

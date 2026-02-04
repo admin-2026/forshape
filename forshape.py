@@ -19,7 +19,7 @@ from typing import Optional
 
 from PySide2.QtWidgets import QApplication
 
-from agent import ToolCallStep, ToolExecutor
+from agent import StepJump, ToolCallStep, ToolExecutor
 from agent.async_ops import PermissionInput, WaitManager
 from agent.permission_manager import PermissionManager
 from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder
@@ -139,6 +139,16 @@ When creating new objects:
 - Import and call it from main.py
 - Extract any reusable logic into appropriate <feature>_lib.py files
 """
+
+class NextStepJump(StepJump):
+    """A StepJump that always jumps to a fixed next step."""
+
+    def __init__(self, next_step: str):
+        self._next_step = next_step
+
+    def get_next_step(self, result) -> str:
+        return self._next_step
+
 
 BEST_PRACTICES = """
 ### Best Practices
@@ -293,7 +303,9 @@ class ForShapeAI:
         tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
 
         # Create the doc_print step that calls print_document before main step
-        doc_print_step = ToolCallStep(name="doc_print", tool_executor=tool_executor, logger=self.logger)
+        doc_print_step = ToolCallStep(
+            name="doc_print", tool_executor=tool_executor, logger=self.logger, step_jump=NextStepJump("main")
+        )
 
         # Create the main step with tool executor
         main_step = Step(
@@ -308,7 +320,8 @@ class ForShapeAI:
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
-            steps=[doc_print_step, main_step],
+            steps={"doc_print": doc_print_step, "main": main_step},
+            start_step="doc_print",
             logger=self.logger,
             api_debugger=self.api_debugger,
             provider=provider,

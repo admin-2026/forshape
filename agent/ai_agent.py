@@ -30,7 +30,8 @@ class AIAgent:
         self,
         api_key: Optional[str],
         model: str,
-        steps: list[Step],
+        steps: dict[str, Step],
+        start_step: str,
         logger: LoggerProtocol,
         edit_history: EditHistory,
         api_debugger: Optional[APIDebugger] = None,
@@ -44,7 +45,8 @@ class AIAgent:
         Args:
             api_key: API key for the selected provider
             model: Model identifier to use
-            steps: List of Step instances to execute
+            steps: Dict mapping step names to Step instances
+            start_step: Name of the step to start execution from
             logger: LoggerProtocol instance for logging
             edit_history: EditHistory instance for tracking file changes
             api_debugger: Optional APIDebugger instance for dumping API data
@@ -52,9 +54,12 @@ class AIAgent:
             provider_config: Optional ProviderConfig instance for provider configuration
             response_steps: Optional list of step names whose responses will be collected for UI printing
         """
+        if start_step not in steps:
+            raise ValueError(f"start_step '{start_step}' not found in steps")
         self.logger = logger
         self.model = model
         self.steps = steps
+        self.start_step = start_step
         self.history_manager = ChatHistoryManager(max_messages=None)
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
@@ -200,12 +205,18 @@ class AIAgent:
         # Track the final result
         final_response = ""
 
-        # Execute each step in sequence
-        for i, step in enumerate(self.steps):
-            self.logger.info(f"Executing step {i + 1}/{len(self.steps)}: {step.name}")
+        # Execute steps using StepJump-based flow control
+        current_step_name = self.start_step
+        step_index = 0
+
+        while current_step_name:
+            step = self.steps[current_step_name]
+            step_name = current_step_name
+            step_index += 1
+            self.logger.info(f"Executing step {step_index}: {step_name}")
 
             # Create a token callback that accumulates usage
-            def step_token_callback(token_data):
+            def step_token_callback(token_data, _step_name=step_name, _step_index=step_index):
                 nonlocal total_prompt_tokens, total_completion_tokens, total_tokens
                 total_prompt_tokens = token_data["prompt_tokens"]
                 total_completion_tokens = token_data["completion_tokens"]
@@ -218,14 +229,14 @@ class AIAgent:
                             "completion_tokens": total_completion_tokens,
                             "total_tokens": total_tokens,
                             "iteration": token_data.get("iteration", 0),
-                            "step": step.name,
-                            "step_index": i + 1,
+                            "step": _step_name,
+                            "step_index": _step_index,
                         }
                     )
 
             # Get step-specific config from registry
-            step_config = step_configs.get_config(step.name)
-            step_initial_messages = step_configs.get_messages(step.name)
+            step_config = step_configs.get_config(step_name)
+            step_initial_messages = step_configs.get_messages(step_name)
 
             # Get history for the current step
             history = self.history_manager.get_history()
@@ -234,7 +245,7 @@ class AIAgent:
             if step_config:
                 user_input = step_config.get_initial_message()
                 if user_input:
-                    self.history_manager.add_user_message(user_input, key=f"step_{i}_user")
+                    self.history_manager.add_user_message(user_input, key=f"step_{step_index}_user")
 
             # Run the step
             result: StepResult = step.step_run(
@@ -262,8 +273,8 @@ class AIAgent:
                 step_response = "\n".join(response_parts)
 
             # Emit step response callback for steps in response_steps
-            if step.name in self.response_steps and step_response_callback and response_parts:
-                step_response_callback(step.name, step_response)
+            if step_name in self.response_steps and step_response_callback and response_parts:
+                step_response_callback(step_name, step_response)
                 final_response += step_response
 
             # Accumulate token usage
@@ -273,8 +284,14 @@ class AIAgent:
 
             # If step was cancelled or errored, stop execution
             if result.status in ("cancelled", "error"):
-                self.logger.info(f"Step {step.name} ended with status: {result.status}")
+                self.logger.info(f"Step {step_name} ended with status: {result.status}")
                 break
+
+            # Determine next step via StepJump
+            if result.step_jump:
+                current_step_name = result.step_jump.get_next_step(result)
+            else:
+                current_step_name = None
 
         # Store final token usage
         self.last_token_usage = {

@@ -14,6 +14,7 @@ from ..logger_protocol import LoggerProtocol
 from ..request import MessageElement
 from ..request.tool_call_message import ToolCall, ToolCallMessage
 from ..step_config import StepConfig
+from .step_jump import StepJump
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
 
@@ -27,7 +28,13 @@ class ToolCallStep:
     conversation history.
     """
 
-    def __init__(self, name: str, tool_executor: ToolExecutor, logger: Optional[LoggerProtocol] = None):
+    def __init__(
+        self,
+        name: str,
+        tool_executor: ToolExecutor,
+        logger: Optional[LoggerProtocol] = None,
+        step_jump: Optional[StepJump] = None,
+    ):
         """
         Initialize a ToolCallStep.
 
@@ -35,10 +42,12 @@ class ToolCallStep:
             name: Name of this step for logging/identification
             tool_executor: ToolExecutor instance for executing tools
             logger: Optional LoggerProtocol instance for logging
+            step_jump: Optional StepJump to determine the next step after completion
         """
         self.name = name
         self.tool_executor = tool_executor
         self.logger = logger
+        self.step_jump = step_jump
 
     def _log_info(self, message: str):
         """Log info message if logger is available."""
@@ -82,20 +91,20 @@ class ToolCallStep:
         # Validate initial_messages contains only ToolCallMessage
         if not initial_messages:
             self._log_error("No initial_messages provided")
-            return StepResult(history_messages=[], api_messages=[], token_usage={}, status="error")
+            return StepResult(history_messages=[], api_messages=[], token_usage={}, status="error", step_jump=self.step_jump)
 
         # Check all messages are ToolCallMessage
         for msg_element in initial_messages:
             if not isinstance(msg_element, ToolCallMessage):
                 self._log_error(f"initial_messages must contain only ToolCallMessage, got {type(msg_element).__name__}")
-                return StepResult(history_messages=[], api_messages=[], token_usage={}, status="error")
+                return StepResult(history_messages=[], api_messages=[], token_usage={}, status="error", step_jump=self.step_jump)
 
         # Use the first ToolCallMessage
         tool_call_message = initial_messages[0]
 
         # Check for cancellation before starting
         if cancellation_check and cancellation_check():
-            return StepResult(history_messages=[], api_messages=[], token_usage={}, status="cancelled")
+            return StepResult(history_messages=[], api_messages=[], token_usage={}, status="cancelled", step_jump=self.step_jump)
 
         # Add the assistant message with tool_calls to output
         assistant_message = tool_call_message.get_message()
@@ -117,7 +126,7 @@ class ToolCallStep:
             )
 
             if was_cancelled:
-                return StepResult(history_messages=[], api_messages=api_messages, token_usage={}, status="cancelled")
+                return StepResult(history_messages=[], api_messages=api_messages, token_usage={}, status="cancelled", step_jump=self.step_jump)
 
             # Build history messages - one per tool result
             history_messages: list[HistoryMessage] = []
@@ -153,8 +162,9 @@ class ToolCallStep:
                 api_messages=api_messages,
                 token_usage={},
                 status="completed",
+                step_jump=self.step_jump,
             )
 
         except Exception as e:
             self._log_error(f"Error during tool execution: {str(e)}")
-            return StepResult(history_messages=[], api_messages=api_messages, token_usage={}, status="error")
+            return StepResult(history_messages=[], api_messages=api_messages, token_usage={}, status="error", step_jump=self.step_jump)

@@ -13,6 +13,7 @@ from ..chat_history_manager import HistoryMessage
 from ..logger_protocol import LoggerProtocol
 from ..request import Instruction, MessageElement, RequestBuilder, TextMessage
 from ..step_config import StepConfig
+from .step_jump import StepJump
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
 
@@ -33,6 +34,7 @@ class Step:
         tool_executor: ToolExecutor,
         max_iterations: int = 50,
         logger: Optional[LoggerProtocol] = None,
+        step_jump: Optional[StepJump] = None,
     ):
         """
         Initialize a Step.
@@ -43,12 +45,14 @@ class Step:
             tool_executor: ToolExecutor instance for executing tools
             max_iterations: Maximum number of tool calling iterations (default: 50)
             logger: Optional LoggerProtocol instance for logging
+            step_jump: Optional StepJump to determine the next step after completion
         """
         self.name = name
         self.request_builder = request_builder
         self.tool_executor = tool_executor
         self.max_iterations = max_iterations
         self.logger = logger
+        self.step_jump = step_jump
 
     def _log_info(self, message: str):
         """Log info message if logger is available."""
@@ -123,6 +127,7 @@ class Step:
                     api_messages=messages,
                     token_usage=_make_token_usage(),
                     status="cancelled",
+                    step_jump=self.step_jump,
                 )
 
             # Check for new user input from the step_config
@@ -204,6 +209,7 @@ class Step:
                             api_messages=messages,
                             token_usage=_make_token_usage(),
                             status="cancelled",
+                            step_jump=self.step_jump,
                         )
 
                     messages.extend(result_messages)
@@ -225,6 +231,7 @@ class Step:
                     api_messages=messages,
                     token_usage=_make_token_usage(),
                     status="completed",
+                    step_jump=self.step_jump,
                 )
 
             except Exception as e:
@@ -239,6 +246,7 @@ class Step:
                     api_messages=messages,
                     token_usage=_make_token_usage(),
                     status="error",
+                    step_jump=self.step_jump,
                 )
 
         # If we hit max iterations
@@ -253,4 +261,5 @@ class Step:
             api_messages=messages,
             token_usage=_make_token_usage(),
             status="max_iterations",
+            step_jump=self.step_jump,
         )

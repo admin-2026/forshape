@@ -300,7 +300,7 @@ class ForShapeMainWindow(QMainWindow):
         self.capture_button = QPushButton("Capture")
         self.capture_button.setFont(QFont("Consolas", 10))
         self.capture_button.setToolTip(
-            "Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to cancel if already captured)\n\nTip: You can also drag & drop image files onto the window!"
+            "Capture - take a screenshot of the current 3D scene to attach to next message\n\nTip: You can also drag & drop image files onto the window!"
         )
         self.capture_button.clicked.connect(self.on_capture_screenshot)
 
@@ -426,7 +426,7 @@ class ForShapeMainWindow(QMainWindow):
         self.drag_drop_handler = DragDropHandler(self.message_handler, self.logger, self.image_context)
         # Set state references for drag drop handler
         self.drag_drop_handler.set_state_references(
-            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.capture_button, self.input_field, self.attachment_widget
+            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.input_field, self.attachment_widget
         )
 
         self.model_menu_manager = ModelMenuManager(
@@ -829,10 +829,9 @@ class ForShapeMainWindow(QMainWindow):
         # Reset and show token status label for new request
         self.token_status_label.reset()
 
-        # Clear captured images and reset button after sending
+        # Clear captured images after sending
         if self.captured_images:
             self.captured_images.clear()
-            self.update_capture_button_state()
 
         # Clear attached files and reset placeholder after sending
         if self.attached_files:
@@ -1035,11 +1034,6 @@ class ForShapeMainWindow(QMainWindow):
         if self.file_executor:
             self.file_executor.on_incremental_build_script(self)
 
-    def update_capture_button_state(self):
-        """Delegate to drag drop handler."""
-        if self.drag_drop_handler:
-            self.drag_drop_handler.update_capture_button_state()
-
     def update_input_placeholder(self):
         """Delegate to drag drop handler."""
         if self.drag_drop_handler:
@@ -1047,25 +1041,11 @@ class ForShapeMainWindow(QMainWindow):
 
     def _on_attachment_removed(self, chip_type, data):
         """Handle attachment chip removal."""
-        if chip_type == "image":
-            self.update_capture_button_state()
-        elif chip_type == "file":
+        if chip_type == "file":
             self.update_input_placeholder()
 
     def on_capture_screenshot(self):
-        """Handle Capture button click - captures scene screenshot or clears all if already captured."""
-        # If images are already captured, clicking again clears all of them
-        if len(self.captured_images) > 0:
-            image_count = len(self.captured_images)
-            self.captured_images.clear()
-            self.update_capture_button_state()
-            self.attachment_widget.refresh()
-            self.message_handler.append_message(
-                "System",
-                f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.",
-            )
-            return
-
+        """Handle Capture button click - captures scene screenshot."""
         if not self.image_context:
             self.message_handler.append_message("System", "ImageContext not configured")
             return
@@ -1110,8 +1090,6 @@ class ForShapeMainWindow(QMainWindow):
                     # Add the captured (and potentially annotated) image data to the list
                     self.captured_images.append(result)
 
-                    # Visual feedback - update button and attachment chips
-                    self.update_capture_button_state()
                     self.attachment_widget.refresh()
 
                     # Show success message

@@ -31,11 +31,10 @@ class DragDropHandler:
         self.captured_images = []
         self.attached_files = []
         self.is_ai_busy = False
-        self.capture_button = None
         self.input_field = None
         self.attachment_widget = None
 
-    def set_state_references(self, captured_images, attached_files, is_ai_busy_callback, capture_button, input_field, attachment_widget=None):
+    def set_state_references(self, captured_images, attached_files, is_ai_busy_callback, input_field, attachment_widget=None):
         """
         Set references to shared state from the main window.
 
@@ -43,37 +42,14 @@ class DragDropHandler:
             captured_images: List reference for captured images
             attached_files: List reference for attached files
             is_ai_busy_callback: Callable that returns whether AI is busy
-            capture_button: QPushButton for capture button
             input_field: QTextEdit for input field
             attachment_widget: Optional AttachmentWidget for displaying attachment chips
         """
         self.captured_images = captured_images
         self.attached_files = attached_files
         self.is_ai_busy_callback = is_ai_busy_callback
-        self.capture_button = capture_button
         self.input_field = input_field
         self.attachment_widget = attachment_widget
-
-    def update_capture_button_state(self):
-        """Update the capture button text and styling based on number of captured images."""
-        if not self.capture_button:
-            return
-
-        image_count = len(self.captured_images)
-        if image_count == 0:
-            self.capture_button.setText("Capture")
-            self.capture_button.setStyleSheet("")
-            self.capture_button.setToolTip(
-                "Capture - take a screenshot of the current 3D scene to attach to next message\n(Click again to clear all if already captured)\n\nTip: You can also drag & drop image files onto the window!"
-            )
-        elif image_count == 1:
-            self.capture_button.setText("Capture ✓ (1)")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
-            self.capture_button.setToolTip("1 image ready to send. Click to clear all images.")
-        else:
-            self.capture_button.setText(f"Capture ✓ ({image_count})")
-            self.capture_button.setStyleSheet("background-color: #90EE90;")
-            self.capture_button.setToolTip(f"{image_count} images ready to send. Click to clear all images.")
 
     def update_input_placeholder(self):
         """Update the input field placeholder text based on attached files."""
@@ -210,8 +186,6 @@ class DragDropHandler:
                 }
             )
 
-            # Visual feedback - update button to show images are ready
-            self.update_capture_button_state()
             if self.attachment_widget:
                 self.attachment_widget.refresh()
 

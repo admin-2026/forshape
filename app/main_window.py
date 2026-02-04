@@ -774,7 +774,7 @@ class ForShapeMainWindow(QMainWindow):
             initial_messages.append(ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images))
 
         # Show in-progress indicator
-        self.message_handler.append_message("AI", "⏳ Processing...")
+        self.message_handler.create_agent_progress_widget()
 
         # Force UI to update to show the processing indicator
         QCoreApplication.processEvents()
@@ -811,9 +811,6 @@ class ForShapeMainWindow(QMainWindow):
         # Append messages for main step if any exist
         if initial_messages:
             step_configs.append_messages("main", initial_messages)
-
-        # Track whether a step response was shown (for cleanup in on_ai_response)
-        self._step_response_shown = False
 
         # Create and start worker thread for AI processing with step configs
         self.worker = AIWorker(self.ai_client, user_input, step_configs)
@@ -871,10 +868,6 @@ class ForShapeMainWindow(QMainWindow):
             is_error: True if this is an error message, False otherwise
             token_data: Optional dict with token usage information
         """
-        # Remove "Processing..." only if no step response was shown (it was already removed)
-        if not self._step_response_shown or is_error:
-            self.message_handler.remove_last_message()
-
         # Update the token status label to show final count
         self.token_status_label.finalize(token_data)
 
@@ -908,6 +901,8 @@ class ForShapeMainWindow(QMainWindow):
             self.worker.deleteLater()
             self.worker = None
 
+        self.message_handler.agent_progress_done()
+
     def on_step_response(self, step_name: str, response: str):
         """
         Handle step response from worker thread for async printing.
@@ -916,12 +911,6 @@ class ForShapeMainWindow(QMainWindow):
             step_name: The name of the step that completed
             response: The response from the step
         """
-        # Mark that a step response was shown
-        self._step_response_shown = True
-
-        # Remove the "Processing..." message before showing the step response
-        self.message_handler.remove_last_message()
-
         # Display the step response
         self.message_handler.append_message("AI", response)
 

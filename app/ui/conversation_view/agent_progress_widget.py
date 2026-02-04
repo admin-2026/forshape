@@ -32,14 +32,3 @@ class AgentProgressWidget(WidgetBase):
         self._item = QListWidgetItem()
         self._item.setSizeHint(QSize(self._widget.width(), self._widget.height()))
         return self._widget, self._item
-
-    def done(self):
-        """Clear the processing text from the widget."""
-        if self._widget is None:
-            return
-        html = self.message_formatter.format_message("AI", "Done")
-        self._widget.setHtml(html)
-        viewport_width = self.conversation_display.viewport().width()
-        self.update_widget_size(self._widget, viewport_width)
-        if self._item:
-            self._item.setSizeHint(QSize(self._widget.width(), self._widget.height()))

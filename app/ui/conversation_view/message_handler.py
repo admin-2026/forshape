@@ -7,12 +7,11 @@ message formatting in the conversation display.
 
 import uuid
 
-from PySide2.QtCore import QSize
 from PySide2.QtGui import QFont
 from PySide2.QtWidgets import QListWidget
 
+from .agent_progress_widget import AgentProgressWidget
 from .message_widget import MessageWidget
-from .widget_base import WidgetBase
 
 
 class MessageHandler:
@@ -29,6 +28,7 @@ class MessageHandler:
         """
         self.message_items = {}  # msg_id -> {"item": QListWidgetItem, "widget": QTextBrowser, "role": str, "token_data": dict}
         self.message_order = []  # List of msg_ids in order
+        self._agent_progress_id = None  # msg_id of the active agent progress widget
         self.welcome_widget = welcome_widget
         self.conversation_display = self._create_conversation_display()
         self.message_formatter = message_formatter
@@ -98,8 +98,18 @@ class MessageHandler:
 
         widget, item = self.message_widget.create(role, message, token_data)
 
-        # Add to list widget
-        self.conversation_display.addItem(item)
+        # Insert before agent progress widget if one is active, otherwise append
+        if self._agent_progress_id and self._agent_progress_id in self.message_items:
+            progress_data = self.message_items[self._agent_progress_id]
+            row = self.conversation_display.row(progress_data["item"])
+            self.conversation_display.insertItem(row, item)
+            # Insert in message_order before the progress widget
+            progress_index = self.message_order.index(self._agent_progress_id)
+            self.message_order.insert(progress_index, msg_id)
+        else:
+            self.conversation_display.addItem(item)
+            self.message_order.append(msg_id)
+
         self.conversation_display.setItemWidget(item, widget)
 
         # Store reference
@@ -109,66 +119,9 @@ class MessageHandler:
             "role": role,
             "token_data": token_data,
         }
-        self.message_order.append(msg_id)
 
         # Scroll to bottom
         self.conversation_display.scrollToBottom()
-
-        return msg_id
-
-    def update_message(self, msg_id: str, new_content: str, role: str = None, token_data: dict = None):
-        """
-        Update an existing message's content.
-
-        Args:
-            msg_id: The message ID returned by append_message
-            new_content: The new message content
-            role: Optional new role (uses existing role if not provided)
-            token_data: Optional new token data (uses existing if not provided)
-        """
-        if msg_id not in self.message_items:
-            return
-
-        msg_data = self.message_items[msg_id]
-        widget = msg_data["widget"]
-        item = msg_data["item"]
-
-        # Use provided values or fall back to existing
-        use_role = role if role is not None else msg_data["role"]
-        use_token_data = token_data if token_data is not None else msg_data["token_data"]
-
-        # Format and update content
-        formatted_message = self.message_formatter.format_message(use_role, new_content, use_token_data)
-        widget.setHtml(formatted_message)
-
-        # Update size
-        WidgetBase.update_widget_size(widget, self.conversation_display.viewport().width())
-        item.setSizeHint(QSize(widget.width(), widget.height()))
-
-        # Update stored data
-        msg_data["role"] = use_role
-        msg_data["token_data"] = use_token_data
-
-        # Scroll to bottom
-        self.conversation_display.scrollToBottom()
-
-    def remove_last_message(self) -> str | None:
-        """
-        Remove the last message from the conversation display.
-
-        Returns:
-            The ID of the removed message, or None if no messages exist
-        """
-        if not self.message_order:
-            return None
-
-        # Get the last message ID
-        msg_id = self.message_order.pop()
-        msg_data = self.message_items.pop(msg_id)
-
-        # Remove from list widget
-        row = self.conversation_display.row(msg_data["item"])
-        self.conversation_display.takeItem(row)
 
         return msg_id
 
@@ -234,12 +187,50 @@ class MessageHandler:
 
         return msg_id
 
+    def create_agent_progress_widget(self) -> str:
+        """Create an AgentProgressWidget and append it to the widget list.
+
+        Returns:
+            Message ID of the progress widget
+        """
+        msg_id = str(uuid.uuid4())
+
+        progress = AgentProgressWidget(self.message_formatter, self.conversation_display)
+        widget, item = progress.create()
+
+        self.conversation_display.addItem(item)
+        self.conversation_display.setItemWidget(item, widget)
+
+        self.message_items[msg_id] = {
+            "item": item,
+            "widget": widget,
+            "role": "_agent_progress",
+            "token_data": None,
+            "agent_progress": progress,
+        }
+        self.message_order.append(msg_id)
+        self._agent_progress_id = msg_id
+
+        self.conversation_display.scrollToBottom()
+
+        return msg_id
+
+    def agent_progress_done(self):
+        """Remove the active agent progress widget from the conversation."""
+        if not self._agent_progress_id or self._agent_progress_id not in self.message_items:
+            self._agent_progress_id = None
+            return
+
+        self.remove_message(self._agent_progress_id)
+        self._agent_progress_id = None
+
     def clear_conversation(self):
         """Clear the conversation display and redisplay welcome message."""
         # Clear all messages
         self.conversation_display.clear()
         self.message_items.clear()
         self.message_order.clear()
+        self._agent_progress_id = None
         self.welcome_widget.msg_id = None
 
         # Redisplay the welcome message

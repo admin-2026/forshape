@@ -23,9 +23,8 @@ from PySide2.QtWidgets import (
     QWidgetAction,
 )
 
-from agent.chat_history_manager import HistoryPolicy
 from agent.provider_config_loader import ProviderConfigLoader
-from agent.request import ImageMessage, TextMessage, ToolCall, ToolCallMessage
+from agent.request import ImageMessage, TextMessage
 from agent.step_config import StepConfig, StepConfigRegistry
 
 from .dialogs import CheckpointSelector, ImagePreviewDialog
@@ -799,40 +798,6 @@ class ForShapeMainWindow(QMainWindow):
         # Create StepConfigRegistry and set the main step config
         step_configs = StepConfigRegistry()
         step_configs.set_config("main", main_step_config)
-
-        # Configure doc_print step to call print_document tool
-        doc_print_tool_call = ToolCallMessage(
-            tool_calls=[
-                ToolCall(
-                    name="print_document",
-                    arguments={},
-                    copy_result_to_response=True,
-                    description="The current FreeCAD document structure",
-                    key="doc_print_step_print_document",
-                    policy=HistoryPolicy.LATEST,
-                )
-            ]
-        )
-        step_configs.append_messages("doc_print", [doc_print_tool_call])
-
-        # Configure lint step to lint Python files after main step
-        lint_tool_call = ToolCallMessage(
-            tool_calls=[
-                ToolCall(
-                    name="lint_python",
-                    arguments={
-                        "directory": str(self.config.working_dir),
-                        "format": True,
-                        "fix": True,
-                        "ignore": ["F403", "F405"],
-                    },
-                    copy_result_to_response=True,
-                    key="lint_step_lint_python",
-                    policy=HistoryPolicy.LATEST,
-                )
-            ]
-        )
-        step_configs.append_messages("lint", [lint_tool_call])
 
         # Append messages for main step if any exist
         if initial_messages:

@@ -21,8 +21,9 @@ from PySide2.QtWidgets import QApplication
 
 from agent import StepJump, ToolCallStep, ToolExecutor
 from agent.async_ops import PermissionInput, WaitManager
+from agent.chat_history_manager import HistoryPolicy
 from agent.permission_manager import PermissionManager
-from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder
+from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder, ToolCall, ToolCallMessage
 from agent.tools.tool_manager import ToolManager
 from app import (
     AIAgent,
@@ -304,8 +305,24 @@ class ForShapeAI:
         tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
 
         # Create the doc_print step that calls print_document before main step
+        doc_print_tool_call = ToolCallMessage(
+            tool_calls=[
+                ToolCall(
+                    name="print_document",
+                    arguments={},
+                    copy_result_to_response=True,
+                    description="The current FreeCAD document structure",
+                    key="doc_print_step_print_document",
+                    policy=HistoryPolicy.LATEST,
+                )
+            ]
+        )
         doc_print_step = ToolCallStep(
-            name="doc_print", tool_executor=tool_executor, logger=self.logger, step_jump=NextStepJump("main")
+            name="doc_print",
+            tool_executor=tool_executor,
+            messages=[doc_print_tool_call],
+            logger=self.logger,
+            step_jump=NextStepJump("main"),
         )
 
         # Create the main step with tool executor
@@ -324,9 +341,26 @@ class ForShapeAI:
         lint_tool_manager = ToolManager(logger=self.logger)
         lint_tool_manager.register_provider(PythonLintTools())
         lint_tool_executor = ToolExecutor(tool_manager=lint_tool_manager, logger=self.logger)
+        lint_tool_call = ToolCallMessage(
+            tool_calls=[
+                ToolCall(
+                    name="lint_python",
+                    arguments={
+                        "directory": str(self.config.working_dir),
+                        "format": True,
+                        "fix": True,
+                        "ignore": ["F403", "F405"],
+                    },
+                    copy_result_to_response=True,
+                    key="lint_step_lint_python",
+                    policy=HistoryPolicy.LATEST,
+                )
+            ]
+        )
         lint_step = ToolCallStep(
             name="lint",
             tool_executor=lint_tool_executor,
+            messages=[lint_tool_call],
             logger=self.logger,
         )
 

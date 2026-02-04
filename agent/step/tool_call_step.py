@@ -23,15 +23,17 @@ class ToolCallStep:
     """
     A step that directly calls tools without AI involvement.
 
-    This step takes a ToolCallMessage from initial_messages, executes the
-    tool calls, and returns the messages (tool call + results) for the
-    conversation history.
+    This step takes ToolCallMessages and executes the tool calls,
+    returning the messages (tool call + results) for the conversation history.
+    Messages provided at construction time are concatenated with any
+    initial_messages from step_run, and all are executed one by one.
     """
 
     def __init__(
         self,
         name: str,
         tool_executor: ToolExecutor,
+        messages: Optional[list[MessageElement]] = None,
         logger: Optional[LoggerProtocol] = None,
         step_jump: Optional[StepJump] = None,
     ):
@@ -41,11 +43,13 @@ class ToolCallStep:
         Args:
             name: Name of this step for logging/identification
             tool_executor: ToolExecutor instance for executing tools
+            messages: Optional list of MessageElement to execute (concatenated with step_run initial_messages)
             logger: Optional LoggerProtocol instance for logging
             step_jump: Optional StepJump to determine the next step after completion
         """
         self.name = name
         self.tool_executor = tool_executor
+        self.messages = messages or []
         self.logger = logger
         self.step_jump = step_jump
 
@@ -86,25 +90,26 @@ class ToolCallStep:
         Returns:
             StepResult containing history_messages (one per tool result), api_messages, and status
         """
+        # Concatenate constructor messages with step_run initial_messages
+        all_messages: list[MessageElement] = list(self.messages)
+        if initial_messages:
+            all_messages.extend(initial_messages)
+
         api_messages = []
 
-        # Validate initial_messages contains only ToolCallMessage
-        if not initial_messages:
-            self._log_error("No initial_messages provided")
+        if not all_messages:
+            self._log_error("No messages provided")
             return StepResult(
                 history_messages=[], api_messages=[], token_usage={}, status="error", step_jump=self.step_jump
             )
 
         # Check all messages are ToolCallMessage
-        for msg_element in initial_messages:
+        for msg_element in all_messages:
             if not isinstance(msg_element, ToolCallMessage):
-                self._log_error(f"initial_messages must contain only ToolCallMessage, got {type(msg_element).__name__}")
+                self._log_error(f"messages must contain only ToolCallMessage, got {type(msg_element).__name__}")
                 return StepResult(
                     history_messages=[], api_messages=[], token_usage={}, status="error", step_jump=self.step_jump
                 )
-
-        # Use the first ToolCallMessage
-        tool_call_message = initial_messages[0]
 
         # Check for cancellation before starting
         if cancellation_check and cancellation_check():
@@ -112,62 +117,75 @@ class ToolCallStep:
                 history_messages=[], api_messages=[], token_usage={}, status="cancelled", step_jump=self.step_jump
             )
 
-        # Add the assistant message with tool_calls to output
-        assistant_message = tool_call_message.get_message()
-        if assistant_message:
-            api_messages.append(assistant_message)
-
-        # Get the tool calls
-        tool_calls = tool_call_message.get_tool_calls()
-
-        self._log_info(f"Executing {len(tool_calls)} tool call(s)")
+        history_messages: list[HistoryMessage] = []
 
         try:
-            # Build a map of tool call IDs to descriptions and tools
-            tool_info = {tc.id: tc for tc in tool_calls if isinstance(tc, ToolCall)}
+            # Process each ToolCallMessage one by one
+            for tool_call_message in all_messages:
+                # Check for cancellation before each message
+                if cancellation_check and cancellation_check():
+                    return StepResult(
+                        history_messages=history_messages,
+                        api_messages=api_messages,
+                        token_usage={},
+                        status="cancelled",
+                        step_jump=self.step_jump,
+                    )
 
-            # Execute tools using shared executor
-            result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
-                tool_calls=tool_calls, api_debugger=api_debugger, cancellation_check=cancellation_check
-            )
+                # Add the assistant message with tool_calls to output
+                assistant_message = tool_call_message.get_message()
+                if assistant_message:
+                    api_messages.append(assistant_message)
 
-            if was_cancelled:
-                return StepResult(
-                    history_messages=[],
-                    api_messages=api_messages,
-                    token_usage={},
-                    status="cancelled",
-                    step_jump=self.step_jump,
+                # Get the tool calls
+                tool_calls = tool_call_message.get_tool_calls()
+
+                self._log_info(f"Executing {len(tool_calls)} tool call(s)")
+
+                # Build a map of tool call IDs to descriptions and tools
+                tool_info = {tc.id: tc for tc in tool_calls if isinstance(tc, ToolCall)}
+
+                # Execute tools using shared executor
+                result_messages, was_cancelled = self.tool_executor.execute_tool_calls(
+                    tool_calls=tool_calls, api_debugger=api_debugger, cancellation_check=cancellation_check
                 )
 
-            # Build history messages - one per tool result
-            history_messages: list[HistoryMessage] = []
-            for i, msg in enumerate(result_messages):
-                tool_call_id = msg.get("tool_call_id")
-                content = msg.get("content", "")
+                if was_cancelled:
+                    return StepResult(
+                        history_messages=history_messages,
+                        api_messages=api_messages,
+                        token_usage={},
+                        status="cancelled",
+                        step_jump=self.step_jump,
+                    )
 
-                # Add description prefix if available
-                if tool_call_id and tool_call_id in tool_info:
-                    tc = tool_info[tool_call_id]
-                    if tc.description:
-                        content = f"{tc.description}\n\n{content}"
-                    # Update the api_message content with description
-                    msg["content"] = content
+                # Build history messages - one per tool result
+                for i, msg in enumerate(result_messages):
+                    tool_call_id = msg.get("tool_call_id")
+                    content = msg.get("content", "")
 
-                    # Check if this tool result should be added to history
-                    if tc.copy_result_to_response:
-                        # Use key from ToolCall if provided, otherwise generate one
-                        key = tc.key if tc.key else f"{self.name}_tool_{i}_{tool_call_id}"
-                        history_messages.append(
-                            HistoryMessage(
-                                role="assistant",
-                                content=content,
-                                key=key,
-                                policy=tc.policy,
+                    # Add description prefix if available
+                    if tool_call_id and tool_call_id in tool_info:
+                        tc = tool_info[tool_call_id]
+                        if tc.description:
+                            content = f"{tc.description}\n\n{content}"
+                        # Update the api_message content with description
+                        msg["content"] = content
+
+                        # Check if this tool result should be added to history
+                        if tc.copy_result_to_response:
+                            # Use key from ToolCall if provided, otherwise generate one
+                            key = tc.key if tc.key else f"{self.name}_tool_{i}_{tool_call_id}"
+                            history_messages.append(
+                                HistoryMessage(
+                                    role="assistant",
+                                    content=content,
+                                    key=key,
+                                    policy=tc.policy,
+                                )
                             )
-                        )
 
-            api_messages.extend(result_messages)
+                api_messages.extend(result_messages)
 
             return StepResult(
                 history_messages=history_messages,

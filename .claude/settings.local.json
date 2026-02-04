@@ -5,5 +5,18 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "make format"
+          }
+        ]
+      }
+    ]
   }
 }

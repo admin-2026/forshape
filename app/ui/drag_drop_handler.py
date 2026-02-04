@@ -33,8 +33,9 @@ class DragDropHandler:
         self.is_ai_busy = False
         self.capture_button = None
         self.input_field = None
+        self.attachment_widget = None
 
-    def set_state_references(self, captured_images, attached_files, is_ai_busy_callback, capture_button, input_field):
+    def set_state_references(self, captured_images, attached_files, is_ai_busy_callback, capture_button, input_field, attachment_widget=None):
         """
         Set references to shared state from the main window.
 
@@ -44,12 +45,14 @@ class DragDropHandler:
             is_ai_busy_callback: Callable that returns whether AI is busy
             capture_button: QPushButton for capture button
             input_field: QTextEdit for input field
+            attachment_widget: Optional AttachmentWidget for displaying attachment chips
         """
         self.captured_images = captured_images
         self.attached_files = attached_files
         self.is_ai_busy_callback = is_ai_busy_callback
         self.capture_button = capture_button
         self.input_field = input_field
+        self.attachment_widget = attachment_widget
 
     def update_capture_button_state(self):
         """Update the capture button text and styling based on number of captured images."""
@@ -209,6 +212,8 @@ class DragDropHandler:
 
             # Visual feedback - update button to show images are ready
             self.update_capture_button_state()
+            if self.attachment_widget:
+                self.attachment_widget.refresh()
 
             # Show success message
             image_count = len(self.captured_images)
@@ -247,6 +252,8 @@ class DragDropHandler:
 
             # Update UI
             self.update_input_placeholder()
+            if self.attachment_widget:
+                self.attachment_widget.refresh()
 
             # Show success message
             file_count = len(self.attached_files)

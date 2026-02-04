@@ -4,6 +4,7 @@ UI components for ForShape AI GUI.
 This package contains modular UI components used by the main window.
 """
 
+from .attachment_widget import AttachmentWidget
 from .conversation_view import MessageHandler, MessageWidget, WelcomeWidget, WidgetBase
 from .drag_drop_handler import DragDropHandler
 from .file_executor import FileExecutor
@@ -14,6 +15,7 @@ from .token_status_label import TokenStatusLabel
 from .widgets import MultiLineInputField
 
 __all__ = [
+    "AttachmentWidget",
     "MultiLineInputField",
     "LogView",
     "MessageFormatter",

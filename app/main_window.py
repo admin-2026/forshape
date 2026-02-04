@@ -31,6 +31,7 @@ from agent.step_config import StepConfig, StepConfigRegistry
 from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .logger import LogLevel
 from .ui import (
+    AttachmentWidget,
     DragDropHandler,
     FileExecutor,
     LogView,
@@ -399,8 +400,14 @@ class ForShapeMainWindow(QMainWindow):
         third_row_layout.addWidget(self.import_button)
         third_row_layout.addStretch()  # Push buttons to the left
 
+        # Create attachment widget for showing pending attachments as chips
+        self.attachment_widget = AttachmentWidget()
+        self.attachment_widget.set_state_references(self.captured_images, self.attached_files)
+        self.attachment_widget.attachment_removed.connect(self._on_attachment_removed)
+
         # Add all rows to the input container
         input_container_layout.addWidget(first_row)
+        input_container_layout.addWidget(self.attachment_widget)
         input_container_layout.addWidget(second_row)
         input_container_layout.addWidget(third_row)
 
@@ -419,7 +426,7 @@ class ForShapeMainWindow(QMainWindow):
         self.drag_drop_handler = DragDropHandler(self.message_handler, self.logger, self.image_context)
         # Set state references for drag drop handler
         self.drag_drop_handler.set_state_references(
-            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.capture_button, self.input_field
+            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.capture_button, self.input_field, self.attachment_widget
         )
 
         self.model_menu_manager = ModelMenuManager(
@@ -824,13 +831,15 @@ class ForShapeMainWindow(QMainWindow):
 
         # Clear captured images and reset button after sending
         if self.captured_images:
-            self.captured_images = []
+            self.captured_images.clear()
             self.update_capture_button_state()
 
         # Clear attached files and reset placeholder after sending
         if self.attached_files:
-            self.attached_files = []
+            self.attached_files.clear()
             self.update_input_placeholder()
+
+        self.attachment_widget.refresh()
 
     def on_cancel_ai(self):
         """Handle cancel button click - cancel the current AI processing."""
@@ -1036,13 +1045,21 @@ class ForShapeMainWindow(QMainWindow):
         if self.drag_drop_handler:
             self.drag_drop_handler.update_input_placeholder()
 
+    def _on_attachment_removed(self, chip_type, data):
+        """Handle attachment chip removal."""
+        if chip_type == "image":
+            self.update_capture_button_state()
+        elif chip_type == "file":
+            self.update_input_placeholder()
+
     def on_capture_screenshot(self):
         """Handle Capture button click - captures scene screenshot or clears all if already captured."""
         # If images are already captured, clicking again clears all of them
         if len(self.captured_images) > 0:
             image_count = len(self.captured_images)
-            self.captured_images = []
+            self.captured_images.clear()
             self.update_capture_button_state()
+            self.attachment_widget.refresh()
             self.message_handler.append_message(
                 "System",
                 f"All {image_count} captured {self._pluralize('image', image_count)} discarded. No images will be attached.",
@@ -1093,8 +1110,9 @@ class ForShapeMainWindow(QMainWindow):
                     # Add the captured (and potentially annotated) image data to the list
                     self.captured_images.append(result)
 
-                    # Visual feedback - update button to show images are ready
+                    # Visual feedback - update button and attachment chips
                     self.update_capture_button_state()
+                    self.attachment_widget.refresh()
 
                     # Show success message
                     image_count = len(self.captured_images)

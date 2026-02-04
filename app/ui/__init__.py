@@ -10,6 +10,7 @@ from .file_executor import FileExecutor
 from .log_view import LogView
 from .message_formatter import MessageFormatter
 from .model_menu import ModelMenuManager
+from .token_status_label import TokenStatusLabel
 from .widgets import MultiLineInputField
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "DragDropHandler",
     "ModelMenuManager",
     "WelcomeWidget",
+    "TokenStatusLabel",
     "WidgetBase",
 ]

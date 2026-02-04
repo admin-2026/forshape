@@ -38,6 +38,7 @@ from .ui import (
     MessageHandler,
     ModelMenuManager,
     MultiLineInputField,
+    TokenStatusLabel,
     WelcomeWidget,
 )
 from .ui_config_manager import UIConfigManager
@@ -404,10 +405,7 @@ class ForShapeMainWindow(QMainWindow):
         input_container_layout.addWidget(third_row)
 
         # Fourth row: Token usage status label
-        self.token_status_label = QLabel("")
-        self.token_status_label.setFont(QFont("Consolas", 9))
-        self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
-        self.token_status_label.setVisible(False)  # Initially hidden
+        self.token_status_label = TokenStatusLabel(self.message_formatter)
         input_container_layout.addWidget(self.token_status_label)
 
         # Add input container to main layout
@@ -825,9 +823,7 @@ class ForShapeMainWindow(QMainWindow):
         self.worker.start()
 
         # Reset and show token status label for new request
-        self.token_status_label.setVisible(True)
-        self.token_status_label.setText("Token Usage: Calculating...")
-        self.token_status_label.setStyleSheet("color: #666; padding: 2px;")  # Reset to default style
+        self.token_status_label.reset()
 
         # Clear captured images and reset button after sending
         if self.captured_images:
@@ -860,14 +856,9 @@ class ForShapeMainWindow(QMainWindow):
         Args:
             token_data: Dict with token usage information including iteration number
         """
+        self.token_status_label.update_tokens(token_data)
+
         if token_data:
-            # Use MessageFormatter to format token data consistently
-            token_str = self.message_formatter.format_token_data(token_data, include_iteration=True)
-
-            # Update the status label with current token usage (in-progress style)
-            self.token_status_label.setText(f"Token Usage ({token_str})")
-            self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
-
             # Force UI update
             QCoreApplication.processEvents()
 
@@ -884,15 +875,8 @@ class ForShapeMainWindow(QMainWindow):
         if not self._step_response_shown or is_error:
             self.message_handler.remove_last_message()
 
-        # Update the token status label to show final count instead of hiding it
-        if token_data:
-            token_str = self.message_formatter.format_token_data(token_data, include_iteration=False)
-            self.token_status_label.setText(f"Token Usage (Final: {token_str})")
-            self.token_status_label.setStyleSheet("color: #0066CC; padding: 2px; font-weight: bold;")
-        else:
-            # If no token data, keep the label visible with a default message
-            self.token_status_label.setText("Token Usage: N/A")
-            self.token_status_label.setStyleSheet("color: #666; padding: 2px;")
+        # Update the token status label to show final count
+        self.token_status_label.finalize(token_data)
 
         # Display error if any (success responses are handled by on_step_response)
         if is_error:

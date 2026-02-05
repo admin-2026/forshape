@@ -285,7 +285,7 @@ class ForShapeAI:
 
         # Create and configure tool manager with all tools
         tool_manager = ToolManager(logger=self.logger)
-        self._register_tools(tool_manager, wait_manager, permission_manager)
+        self._register_main_step_tools(tool_manager, wait_manager, permission_manager)
 
         system_elements = [
             Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
@@ -311,10 +311,18 @@ class ForShapeAI:
                     name="print_document",
                     arguments={},
                     copy_result_to_response=True,
-                    description="The current FreeCAD document structure",
+                    description="The current FreeCAD document structure printed by print_document tool",
                     key="doc_print_step_print_document",
                     policy=HistoryPolicy.LATEST,
-                )
+                ),
+                ToolCall(
+                    name="list_files",
+                    arguments={"folder_path": "."},
+                    copy_result_to_response=True,
+                    description="The current files in the working directory listed by list_files tool",
+                    key="doc_print_step_list_files",
+                    policy=HistoryPolicy.LATEST,
+                ),
             ]
         )
         doc_print_step = ToolCallStep(
@@ -336,10 +344,8 @@ class ForShapeAI:
         )
 
         # Create the lint step with its own tool executor containing only lint tools
-        from agent.tools.python_lint_tools import PythonLintTools
-
         lint_tool_manager = ToolManager(logger=self.logger)
-        lint_tool_manager.register_provider(PythonLintTools())
+        self._register_lint_step_tools(lint_tool_manager)
         lint_tool_executor = ToolExecutor(tool_manager=lint_tool_manager, logger=self.logger)
         lint_tool_call = ToolCallMessage(
             tool_calls=[
@@ -375,7 +381,7 @@ class ForShapeAI:
             provider=provider,
             provider_config=provider_config,
             edit_history=self.edit_history,
-            response_steps=["main"],
+            response_steps=["main", "lint"],
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
@@ -391,11 +397,11 @@ class ForShapeAI:
                 self.api_debugger,
             )
 
-    def _register_tools(
+    def _register_main_step_tools(
         self, tool_manager: ToolManager, wait_manager: WaitManager, permission_manager: PermissionManager
     ) -> None:
         """
-        Register all tools with the tool manager.
+        Register tools for the main step with the tool manager.
 
         Args:
             tool_manager: ToolManager instance to register tools with
@@ -434,6 +440,17 @@ class ForShapeAI:
         if self.image_context is not None:
             visualization_tools = VisualizationTools(image_context=self.image_context)
             tool_manager.register_provider(visualization_tools)
+
+    def _register_lint_step_tools(self, tool_manager: ToolManager) -> None:
+        """
+        Register tools for the lint step with the tool manager.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+        """
+        from agent.tools.python_lint_tools import PythonLintTools
+
+        tool_manager.register_provider(PythonLintTools())
 
     def run(self):
         """Start the interactive GUI interface."""

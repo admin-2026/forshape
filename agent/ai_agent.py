@@ -126,7 +126,7 @@ class AIAgent:
         step_configs: StepConfigRegistry,
         token_callback=None,
         step_response_callback=None,
-    ) -> str:
+    ) -> None:
         """
         Process the user's request through the AI agent.
 
@@ -135,29 +135,20 @@ class AIAgent:
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates after each iteration
             step_response_callback: Optional callback function(step_name, response) called when a step in response_steps completes
-
-        Returns:
-            AI response string
         """
         if self.provider is None:
-            return f"Error: {self.provider_name} provider not initialized. Please check your API key."
+            raise RuntimeError(f"{self.provider_name} provider not initialized. Please check your API key.")
 
-        try:
-            # Generate a new conversation ID for this user request
-            conversation_id = self._generate_conversation_id()
+        # Generate a new conversation ID for this user request
+        conversation_id = self._generate_conversation_id()
 
-            # Start new conversation on edit history
-            self.edit_history.start_new_conversation(conversation_id, user_request=user_input)
+        # Start new conversation on edit history
+        self.edit_history.start_new_conversation(conversation_id, user_request=user_input)
 
-            self.history_manager.set_conversation_id(conversation_id)
-            self.logger.info(f"Started new conversation: {conversation_id}")
+        self.history_manager.set_conversation_id(conversation_id)
+        self.logger.info(f"Started new conversation: {conversation_id}")
 
-            response = self._agent_run(step_configs, token_callback, step_response_callback)
-            return response
-
-        except Exception as e:
-            error_msg = f"Error processing AI request: {str(e)}"
-            return error_msg
+        self._agent_run(step_configs, token_callback, step_response_callback)
 
     def request_cancellation(self):
         """Request cancellation of the current AI processing."""
@@ -176,7 +167,7 @@ class AIAgent:
         step_configs: StepConfigRegistry,
         token_callback=None,
         step_response_callback=None,
-    ) -> str:
+    ) -> None:
         """
         Run the agent by executing all steps in sequence.
 
@@ -184,15 +175,12 @@ class AIAgent:
             step_configs: Registry containing step-specific configurations
             token_callback: Optional callback function to receive token usage updates
             step_response_callback: Optional callback function(step_name, response) called when a step in response_steps completes
-
-        Returns:
-            Final response from the last step
         """
         if self.provider is None:
-            return f"Error: {self.provider_name} provider not initialized. Please check your API key."
+            raise RuntimeError(f"{self.provider_name} provider not initialized. Please check your API key.")
 
         if not self.steps:
-            return "Error: No steps configured for this agent."
+            raise RuntimeError("No steps configured for this agent.")
 
         # Reset cancellation flag at the start of each run
         self.reset_cancellation()
@@ -201,9 +189,6 @@ class AIAgent:
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
-
-        # Track the final result
-        final_response = ""
 
         # Execute steps using StepJump-based flow control
         current_step_name = self.start_step
@@ -257,25 +242,11 @@ class AIAgent:
                 api_debugger=self.api_debugger,
                 token_callback=step_token_callback,
                 cancellation_check=self._is_cancelled,
+                response_content_callback=step_response_callback if step_name in self.response_steps else None,
             )
 
             # Add all history messages from the step result to chat history
             self.history_manager.add_history_messages(result.history_messages)
-
-            # Concatenate all assistant message contents for final response
-            response_parts = [
-                msg.content
-                for msg in result.history_messages
-                if msg.role == "assistant" and isinstance(msg.content, str)
-            ]
-            step_response = ""
-            if response_parts:
-                step_response = "\n".join(response_parts)
-
-            # Emit step response callback for steps in response_steps
-            if step_name in self.response_steps and step_response_callback and response_parts:
-                step_response_callback(step_name, step_response)
-                final_response += step_response
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)
@@ -299,8 +270,6 @@ class AIAgent:
             "completion_tokens": total_completion_tokens,
             "total_tokens": total_tokens,
         }
-
-        return final_response
 
     def clear_history(self):
         """Clear the conversation history."""

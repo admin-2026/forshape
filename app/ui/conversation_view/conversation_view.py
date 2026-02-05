@@ -191,8 +191,12 @@ class ConversationView:
         """Create an AgentProgressWidget and append it to the widget list.
 
         Returns:
-            Message ID of the progress widget
+            Message ID of the progress widget, or existing ID if one is already active
         """
+        if self._agent_progress_id and self._agent_progress_id in self.message_items:
+            self.logger.warning("AgentProgressWidget already exists, skipping creation")
+            return self._agent_progress_id
+
         msg_id = str(uuid.uuid4())
 
         progress = AgentProgressWidget(self.message_formatter, self.conversation_display)

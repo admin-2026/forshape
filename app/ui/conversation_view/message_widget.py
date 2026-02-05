@@ -41,5 +41,5 @@ class MessageWidget(WidgetBase):
         viewport_width = self.conversation_display.viewport().width()
         widget = self.create_widget(formatted_message, viewport_width)
         item = QListWidgetItem()
-        item.setSizeHint(QSize(widget.width(), widget.height()))
+        item.setSizeHint(QSize(viewport_width, widget.height()))
         return widget, item

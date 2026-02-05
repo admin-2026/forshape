@@ -73,6 +73,7 @@ class ToolCallStep:
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[dict], None]] = None,  # Ignored - no tokens
         cancellation_check: Optional[Callable[[], bool]] = None,
+        response_content_callback: Optional[Callable[[str, str], None]] = None,  # Ignored - no user facing response
     ) -> StepResult:
         """
         Run the step by executing tool calls from initial_messages.
@@ -86,6 +87,7 @@ class ToolCallStep:
             api_debugger: Optional APIDebugger instance for dumping tool execution data
             token_callback: Optional callback (ignored - no tokens used)
             cancellation_check: Optional function that returns True if cancellation requested
+            response_content_callback: Optional callback function to receive response content (step_name, content)
 
         Returns:
             StepResult containing history_messages (one per tool result), api_messages, and status

@@ -15,8 +15,8 @@ from agent.step_config import StepConfigRegistry
 class AIWorker(QThread):
     """Worker thread for handling AI API calls asynchronously."""
 
-    # Signal emitted when AI processing is complete (response, is_error, token_data)
-    finished = Signal(str, bool, object)  # (message, is_error, token_data)
+    # Signal emitted when AI processing is complete (error_message, is_error, token_data)
+    finished = Signal(str, bool, object)  # (error_message, is_error, token_data)
 
     # Signal emitted during processing to update token usage
     token_update = Signal(object)  # (token_data)
@@ -65,7 +65,7 @@ class AIWorker(QThread):
                 self.step_response.emit(step_name, response)
 
             # Process request with user input and step configs
-            response = self.ai_client.process_request(
+            self.ai_client.process_request(
                 self.user_input,
                 self.step_configs,
                 token_callback,
@@ -79,7 +79,7 @@ class AIWorker(QThread):
 
             # Get token usage data from the AI agent
             token_data = self.ai_client.get_last_token_usage()
-            self.finished.emit(response, False, token_data)  # False = not an error
+            self.finished.emit("", False, token_data)  # False = not an error
         except Exception as e:
             error_msg = f"Error processing request: {str(e)}"
             self.finished.emit(error_msg, True, None)  # True = is an error, None = no token data

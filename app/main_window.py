@@ -853,10 +853,10 @@ class ForShapeMainWindow(QMainWindow):
 
     def on_ai_response(self, message: str, is_error: bool, token_data: dict = None):
         """
-        Handle AI response from worker thread.
+        Handle AI response completion from worker thread.
 
         Args:
-            message: The response message or error message
+            message: Error message (only used when is_error is True)
             is_error: True if this is an error message, False otherwise
             token_data: Optional dict with token usage information
         """

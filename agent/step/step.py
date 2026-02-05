@@ -74,6 +74,7 @@ class Step:
         api_debugger: Optional[APIDebugger] = None,
         token_callback: Optional[Callable[[dict], None]] = None,
         cancellation_check: Optional[Callable[[], bool]] = None,
+        response_content_callback: Optional[Callable[[str, str], None]] = None,
     ) -> StepResult:
         """
         Run the step with a user message. Executes the tool-calling loop.
@@ -87,6 +88,7 @@ class Step:
             api_debugger: Optional APIDebugger instance for dumping API data
             token_callback: Optional callback function to receive token usage updates
             cancellation_check: Optional function that returns True if cancellation requested
+            response_content_callback: Optional callback function to receive response content (step_name, content)
 
         Returns:
             StepResult containing history_messages, api_messages, token usage, and status
@@ -182,6 +184,10 @@ class Step:
                     )
 
                 response_message = response.choices[0].message
+
+                # Invoke response content callback if provided
+                if response_content_callback and response_message.content:
+                    response_content_callback(self.name, response_message.content)
 
                 # Check if the agent wants to call tools
                 if response_message.tool_calls:

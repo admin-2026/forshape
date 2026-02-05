@@ -30,5 +30,5 @@ class AgentProgressWidget(WidgetBase):
         viewport_width = self.conversation_display.viewport().width()
         self._widget = self.create_widget(html, viewport_width)
         self._item = QListWidgetItem()
-        self._item.setSizeHint(QSize(self._widget.width(), self._widget.height()))
+        self._item.setSizeHint(QSize(viewport_width, self._widget.height()))
         return self._widget, self._item

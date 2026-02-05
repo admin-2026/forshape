@@ -127,6 +127,11 @@ class FileAccessTools(ToolBase):
                                 "type": "string",
                                 "description": "The regex pattern to search for in Python files.",
                             },
+                            "paths": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Optional list of files or folders to search within. Each path must be relative to the working directory. If not provided, searches the entire working directory.",
+                            },
                             "recursive": {
                                 "type": "boolean",
                                 "description": "If true, searches recursively in subdirectories (default: true).",
@@ -412,12 +417,19 @@ When users ask you to generate or modify files:
         except Exception as e:
             return self._json_error(f"Error editing file: {str(e)}")
 
-    def _tool_search_python_files(self, pattern: str, recursive: bool = True, case_sensitive: bool = True) -> str:
+    def _tool_search_python_files(
+        self,
+        pattern: str,
+        paths: Optional[list[str]] = None,
+        recursive: bool = True,
+        case_sensitive: bool = True,
+    ) -> str:
         """
         Implementation of the search_python_files tool.
 
         Args:
             pattern: Regex pattern to search for
+            paths: Optional list of files/folders to search within (must be in working directory)
             recursive: If true, searches recursively in subdirectories
             case_sensitive: If true, performs case-sensitive search
 
@@ -425,19 +437,19 @@ When users ask you to generate or modify files:
             JSON string with search results or error message
         """
         try:
-            # Always use working directory
-            search_path = Path(self.working_dir)
+            working_dir = Path(self.working_dir)
             self.logger.info(
-                f"Searching Python files for pattern: '{pattern}' (recursive={recursive}, case_sensitive={case_sensitive})"
+                f"Searching Python files for pattern: '{pattern}' "
+                f"(paths={paths}, recursive={recursive}, case_sensitive={case_sensitive})"
             )
 
             # Check permission for search_python_files tool
-            perm_error = self._check_permission(str(search_path), "search_python_files", is_directory=True)
+            perm_error = self._check_permission(str(working_dir), "search_python_files", is_directory=True)
             if perm_error:
                 return perm_error
 
-            # Validate directory
-            dir_error = self._validate_directory_exists(search_path)
+            # Validate working directory
+            dir_error = self._validate_directory_exists(working_dir)
             if dir_error:
                 return dir_error
 
@@ -448,15 +460,33 @@ When users ask you to generate or modify files:
             except re.error as e:
                 return self._json_error(f"Invalid regex pattern: {str(e)}")
 
-            # Find all Python files
-            if recursive:
-                python_files = list(search_path.rglob("*.py"))
+            # Collect Python files to search
+            python_files: list[Path] = []
+
+            if paths:
+                for p in paths:
+                    resolved = (working_dir / p).resolve()
+                    # Ensure the path is within the working directory
+                    if not resolved.is_relative_to(working_dir):
+                        return self._json_error(f"Path is outside the working directory: {p}")
+                    if resolved.is_file():
+                        if resolved.suffix == ".py":
+                            python_files.append(resolved)
+                    elif resolved.is_dir():
+                        if recursive:
+                            python_files.extend(resolved.rglob("*.py"))
+                        else:
+                            python_files.extend(resolved.glob("*.py"))
+                    else:
+                        return self._json_error(f"Path does not exist: {p}")
             else:
-                python_files = list(search_path.glob("*.py"))
+                if recursive:
+                    python_files = list(working_dir.rglob("*.py"))
+                else:
+                    python_files = list(working_dir.glob("*.py"))
 
             # Search for pattern in each file
             matches = []
-            working_dir = Path(self.working_dir)
 
             for py_file in python_files:
                 # Skip files inside excluded folders
@@ -490,7 +520,7 @@ When users ask you to generate or modify files:
 
             return self._json_success(
                 pattern=pattern,
-                search_path=str(search_path),
+                search_path=str(working_dir),
                 matches=matches,
                 total_matches=len(matches),
                 files_searched=len(python_files),

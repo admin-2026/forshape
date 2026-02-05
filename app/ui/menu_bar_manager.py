@@ -92,6 +92,8 @@ class MenuBarManager:
         self.log_level_selector = LogLevelSelector()
         saved_log_level = self.ui_config_manager.get("log_level", "INFO")
         self.log_level_selector.set_level(saved_log_level)
+        # Apply saved log level to the logger
+        self.logger.set_min_level(self.log_level_selector.current_level())
         self.log_level_selector.combo.currentIndexChanged.connect(self.on_log_level_changed)
         view_menu.addAction(self.log_level_selector.create_menu_action(main_window))
 

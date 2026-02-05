@@ -77,14 +77,22 @@ class FileAccessTools(ToolBase):
                 "type": "function",
                 "function": {
                     "name": "read_file",
-                    "description": "Read the contents of a file at the given path. Returns the file contents as a string.",
+                    "description": "Read the contents of a file at the given path. Returns the file contents as a string. Optionally read only specific lines by providing start_line and limit.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "file_path": {
                                 "type": "string",
                                 "description": "The path to the file to read. Can be relative to the working directory or absolute.",
-                            }
+                            },
+                            "start_line": {
+                                "type": "integer",
+                                "description": "The line number to start reading from (1-based). If not provided, reads from the beginning.",
+                            },
+                            "limit": {
+                                "type": "integer",
+                                "description": "The maximum number of lines to read. If not provided, reads until the end of the file.",
+                            },
                         },
                         "required": ["file_path"],
                     },
@@ -161,7 +169,7 @@ class FileAccessTools(ToolBase):
         return """
 ### File Management Tools
 1. **list_files** - List files and directories in any folder
-2. **read_file** - Read the contents of any file
+2. **read_file** - Read the contents of any file (supports reading specific lines with start_line and limit)
 3. **edit_file** - Edit files by replacing content
 4. **search_python_files** - Search for regex patterns in Python files within the working directory
 
@@ -295,12 +303,14 @@ When users ask you to generate or modify files:
         except Exception as e:
             return self._json_error(f"Error listing files: {str(e)}")
 
-    def _tool_read_file(self, file_path: str) -> str:
+    def _tool_read_file(self, file_path: str, start_line: Optional[int] = None, limit: Optional[int] = None) -> str:
         """
         Implementation of the read_file tool.
 
         Args:
             file_path: Path to the file to read
+            start_line: Line number to start reading from (1-based). If None, reads from the beginning.
+            limit: Maximum number of lines to read. If None, reads until the end.
 
         Returns:
             File contents or error message
@@ -318,9 +328,15 @@ When users ask you to generate or modify files:
             if file_error:
                 return file_error
 
-            # Check file size before reading
+            # Validate parameters
+            if start_line is not None and start_line < 1:
+                return self._json_error("start_line must be >= 1")
+            if limit is not None and limit < 1:
+                return self._json_error("limit must be >= 1")
+
+            # Check file size before reading (only for full file reads)
             file_size = resolved_path.stat().st_size
-            if file_size > LARGE_FILE_SIZE_THRESHOLD:
+            if start_line is None and limit is None and file_size > LARGE_FILE_SIZE_THRESHOLD:
                 # Request permission for large file read
                 if self.permission_manager:
                     result = self.permission_manager._request_user_permission(
@@ -336,11 +352,48 @@ When users ask you to generate or modify files:
                         )
 
             with open(resolved_path, encoding="utf-8") as f:
-                content = f.read()
+                if start_line is None and limit is None:
+                    # Read entire file
+                    content = f.read()
+                    total_lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+                    return json.dumps(
+                        {
+                            "file": str(resolved_path),
+                            "content": content,
+                            "size_bytes": len(content.encode("utf-8")),
+                            "total_lines": total_lines,
+                        },
+                        indent=2,
+                    )
+                else:
+                    # Read specific lines
+                    lines = f.readlines()
+                    total_lines = len(lines)
 
-            return json.dumps(
-                {"file": str(resolved_path), "content": content, "size_bytes": len(content.encode("utf-8"))}, indent=2
-            )
+                    # Convert to 0-based index
+                    start_idx = (start_line - 1) if start_line else 0
+
+                    if start_idx >= total_lines:
+                        return self._json_error(
+                            f"start_line {start_line} exceeds total lines ({total_lines})",
+                            total_lines=total_lines,
+                        )
+
+                    end_idx = start_idx + limit if limit else total_lines
+                    selected_lines = lines[start_idx:end_idx]
+                    content = "".join(selected_lines)
+
+                    return json.dumps(
+                        {
+                            "file": str(resolved_path),
+                            "content": content,
+                            "start_line": start_idx + 1,
+                            "end_line": min(start_idx + len(selected_lines), total_lines),
+                            "lines_read": len(selected_lines),
+                            "total_lines": total_lines,
+                        },
+                        indent=2,
+                    )
 
         except UnicodeDecodeError:
             return self._json_error(f"Cannot read file (not a text file or encoding issue): {file_path}")

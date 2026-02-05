@@ -8,6 +8,18 @@ import html as html_module
 class MessageFormatter:
     """Utility class for formatting messages with markdown support."""
 
+    # Background colors for different roles
+    BG_COLOR_AI = "#E8F4FF"  # Light blue for AI messages
+    BG_COLOR_USER = "#E8FFE8"  # Light green for user messages
+    BG_COLOR_SYSTEM = "#FFF8E8"  # Light yellow for system messages
+    BG_COLOR_ERROR = "#FFE8E8"  # Light red for error messages
+
+    # Text colors for role labels
+    TEXT_COLOR_AI = "#0066CC"  # Blue for AI
+    TEXT_COLOR_USER = "#009900"  # Green for user
+    TEXT_COLOR_SYSTEM = "#996600"  # Brown for system
+    TEXT_COLOR_ERROR = "#CC0000"  # Red for error
+
     def __init__(self, logger):
         """
         Initialize the message formatter.
@@ -109,13 +121,23 @@ class MessageFormatter:
         Returns:
             Formatted HTML string
         """
-        # Use different colors for different roles
+
+        # Select colors based on role
         if role == "AI":
-            role_color = "#0066CC"  # Blue for AI messages
+            bg_color = self.BG_COLOR_AI
+            text_color = self.TEXT_COLOR_AI
         elif role == "You":
-            role_color = "#009900"  # Green for user messages
-        else:
-            role_color = "#333"  # Default gray for system messages
+            bg_color = self.BG_COLOR_USER
+            text_color = self.TEXT_COLOR_USER
+        elif role == "Error":
+            bg_color = self.BG_COLOR_ERROR
+            text_color = self.TEXT_COLOR_ERROR
+        else:  # System or other
+            bg_color = self.BG_COLOR_SYSTEM
+            text_color = self.TEXT_COLOR_SYSTEM
+
+        # Common div style with background color
+        div_style = f"margin: 5px 0; padding: 10px; border-radius: 5px; background-color: {bg_color};"
 
         # Convert markdown to HTML for AI and System messages
         if role == "AI" or role == "System":
@@ -128,17 +150,17 @@ class MessageFormatter:
                 token_info_html = f'<div style="font-size: 11px; color: #888;">Tokens: {token_str}</div>'
 
             formatted_message = (
-                f'<div style="margin: 0;">'
-                f'<strong style="color: {role_color};">{role}:</strong><br>{message_html}'
+                f'<div style="{div_style}">'
+                f'<strong style="color: {text_color};">{role}:</strong>{message_html}'
                 f"{token_info_html}</div>"
             )
         else:
-            # For user messages, use simpler formatting (no markdown)
+            # For user messages, wrap in <p> for consistent formatting (no markdown)
             escaped_message = html_module.escape(message).replace("\n", "<br>")
 
             formatted_message = (
-                f'<div style="margin: 0;">'
-                f'<strong style="color: {role_color};">{role}:</strong><br>{escaped_message}</div>'
+                f'<div style="{div_style}">'
+                f'<strong style="color: {text_color};">{role}:</strong><p>{escaped_message}</p></div>'
             )
 
         return formatted_message

@@ -19,7 +19,7 @@ class DragDropHandler:
         Initialize the drag and drop handler.
 
         Args:
-            message_handler: MessageHandler instance for displaying messages
+            message_handler: ConversationView instance for displaying messages
             logger: Logger instance
             image_context: Optional ImageContext instance for saving images
         """

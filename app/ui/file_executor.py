@@ -26,7 +26,7 @@ class FileExecutor:
 
         Args:
             config: ConfigurationManager instance for accessing working directory
-            message_handler: MessageHandler instance for displaying messages
+            message_handler: ConversationView instance for displaying messages
             logger: Logger instance
         """
         self.config = config

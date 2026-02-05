@@ -18,7 +18,7 @@ class ModelMenuManager:
 
         Args:
             provider_config_loader: ProviderConfigLoader instance
-            message_handler: MessageHandler instance for displaying messages
+            message_handler: ConversationView instance for displaying messages
             logger: Logger instance
             ui_config_manager: Optional UIConfigManager instance for persisting selections
         """

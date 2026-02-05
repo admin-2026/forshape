@@ -5,7 +5,7 @@ This package contains modular UI components used by the main window.
 """
 
 from .attachment_widget import AttachmentWidget
-from .conversation_view import MessageHandler, MessageWidget, WelcomeWidget, WidgetBase
+from .conversation_view import ConversationView, MessageWidget, WelcomeWidget, WidgetBase
 from .drag_drop_handler import DragDropHandler
 from .file_executor import FileExecutor
 from .log_view import LogView
@@ -19,7 +19,7 @@ __all__ = [
     "MultiLineInputField",
     "LogView",
     "MessageFormatter",
-    "MessageHandler",
+    "ConversationView",
     "MessageWidget",
     "FileExecutor",
     "DragDropHandler",

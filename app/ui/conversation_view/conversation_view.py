@@ -14,7 +14,7 @@ from .agent_progress_widget import AgentProgressWidget
 from .message_widget import MessageWidget
 
 
-class MessageHandler:
+class ConversationView:
     """Handles message display, formatting, and log management."""
 
     def __init__(self, message_formatter, logger, welcome_widget):

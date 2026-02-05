@@ -31,11 +31,11 @@ from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .logger import LogLevel
 from .ui import (
     AttachmentWidget,
+    ConversationView,
     DragDropHandler,
     FileExecutor,
     LogView,
     MessageFormatter,
-    MessageHandler,
     ModelMenuManager,
     MultiLineInputField,
     TokenStatusLabel,
@@ -259,7 +259,7 @@ class ForShapeMainWindow(QMainWindow):
         self.log_view = LogView()
         self.log_widget = self.log_view.get_widget()
         self.welcome_widget = WelcomeWidget(lambda: self.ai_client, self.config)
-        self.message_handler = MessageHandler(self.message_formatter, self.logger, self.welcome_widget)
+        self.message_handler = ConversationView(self.message_formatter, self.logger, self.welcome_widget)
 
         conversation_layout.addWidget(self.message_handler.get_widget())
 

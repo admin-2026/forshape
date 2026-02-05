@@ -160,6 +160,32 @@ class NextStepJump(StepJump):
         return self._next_step
 
 
+class LintStepJump(StepJump):
+    """A StepJump that jumps to lint_err_fix only if there are lint issues."""
+
+    def __init__(self, next_step: str):
+        self._next_step = next_step
+
+    def get_next_step(self, result) -> Optional[str]:
+        """Return next step only if lint found issues, otherwise None to stop."""
+        import json
+
+        # Look through api_messages for the lint result
+        for msg in result.api_messages:
+            if msg.get("role") == "tool":
+                content = msg.get("content", "")
+                try:
+                    lint_result = json.loads(content)
+                    # Check if this is a successful lint result with issues
+                    if lint_result.get("success") and lint_result.get("issue_count", 0) > 0:
+                        return self._next_step
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+        # No issues found, stop here
+        return None
+
+
 BEST_PRACTICES = """
 ### Best Practices
 
@@ -376,20 +402,60 @@ class ForShapeAI:
             tool_executor=lint_tool_executor,
             messages=[lint_tool_call],
             logger=self.logger,
+            step_jump=LintStepJump("lint_err_fix"),
         )
 
-        # Create AI agent with steps (doc_print runs before main, lint runs after main)
+        # Create the lint_err_fix step to fix any lint errors found
+        lint_err_fix_tool_manager = ToolManager(logger=self.logger)
+        self._register_lint_err_fix_step_tools(lint_err_fix_tool_manager, permission_manager)
+        lint_err_fix_tool_executor = ToolExecutor(tool_manager=lint_err_fix_tool_manager, logger=self.logger)
+
+        lint_err_fix_system = Instruction(
+            """You are a code assistant that fixes Python lint errors.
+
+Your task is to fix any lint errors reported from the previous lint step. Focus only on fixing the errors, do not make other changes.
+
+Guidelines:
+- Fix only the reported lint errors
+- Do not refactor or improve code beyond fixing the errors
+- If there are no errors to fix, do nothing
+- Use the edit_file tool to make corrections
+""",
+            description="Lint error fix instructions",
+        )
+        lint_err_fix_user = Instruction(
+            "Fix the lint errors shown in the lint results above. If there are no errors, respond that no fixes are needed.",
+            description="Lint error fix task",
+        )
+        lint_err_fix_request_builder = RequestBuilder(
+            system_elements=[lint_err_fix_system],
+            user_elements=[lint_err_fix_user],
+        )
+        lint_err_fix_step = Step(
+            name="lint_err_fix",
+            request_builder=lint_err_fix_request_builder,
+            tool_executor=lint_err_fix_tool_executor,
+            max_iterations=30,
+            logger=self.logger,
+        )
+
+        # Create AI agent with steps (doc_print runs before main, lint runs after main, lint_err_fix after lint)
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
-            steps={"doc_print": doc_print_step, "main": main_step, "lint": lint_step},
+            steps={
+                "doc_print": doc_print_step,
+                "main": main_step,
+                "lint": lint_step,
+                "lint_err_fix": lint_err_fix_step,
+            },
             start_step="doc_print",
             logger=self.logger,
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config,
             edit_history=self.edit_history,
-            response_steps=["main", "lint"],
+            response_steps=["main", "lint_err_fix"],
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
@@ -459,6 +525,28 @@ class ForShapeAI:
         from agent.tools.python_lint_tools import PythonLintTools
 
         tool_manager.register_provider(PythonLintTools())
+
+    def _register_lint_err_fix_step_tools(
+        self, tool_manager: ToolManager, permission_manager: PermissionManager
+    ) -> None:
+        """
+        Register tools for the lint error fix step with the tool manager.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+            permission_manager: PermissionManager instance for permission checks
+        """
+        from agent.tools.file_access_tools import FileAccessTools
+
+        file_access_tools = FileAccessTools(
+            working_dir=self.config.working_dir,
+            logger=self.logger,
+            permission_manager=permission_manager,
+            edit_history=self.edit_history,
+            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
+            exclude_patterns=[],
+        )
+        tool_manager.register_provider(file_access_tools)
 
     def run(self):
         """Start the interactive GUI interface."""

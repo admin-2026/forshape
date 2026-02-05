@@ -97,16 +97,15 @@ class VariablesView(QWidget):
         # Make table read-only
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
 
-        # Set column resize modes to Interactive (user can adjust)
+        # Set column resize modes
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # Expression fills remaining space
 
-        # Set initial column widths
+        # Set initial column widths for Name and Value
         self.table.setColumnWidth(0, 150)
         self.table.setColumnWidth(1, 150)
-        self.table.setColumnWidth(2, 200)
 
         layout.addWidget(self.table)
 
@@ -237,8 +236,9 @@ class VariablesView(QWidget):
             value_item = QTableWidgetItem(resolved_value)
             self.table.setItem(row, 1, value_item)
 
-            # Expression column
+            # Expression column (with tooltip for long expressions)
             expr_item = QTableWidgetItem(expression)
+            expr_item.setToolTip(expression)
             self.table.setItem(row, 2, expr_item)
 
     def _show_not_found_message(self):

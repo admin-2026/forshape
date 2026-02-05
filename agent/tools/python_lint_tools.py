@@ -7,10 +7,14 @@ using ruff to check Python files under a directory.
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Callable
 
 from .base import ToolBase
+
+# Hide console window on Windows when running from GUI
+_SUBPROCESS_FLAGS = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
 
 
 class PythonLintTools(ToolBase):
@@ -159,30 +163,21 @@ class PythonLintTools(ToolBase):
                     ["ruff", "format", str(dir_path)],
                     capture_output=True,
                     text=True,
+                    **_SUBPROCESS_FLAGS,
                 )
                 formatted = True
 
-            # Build ignore arguments
-            ignore_args = []
-            if ignore:
-                ignore_args = ["--ignore", ",".join(ignore)]
-
-            # Run ruff check with auto-fix if enabled
-            fixed = False
+            # Build ruff check command with JSON output
+            check_cmd = ["ruff", "check", "--output-format=json"]
             if fix:
-                subprocess.run(
-                    ["ruff", "check", "--fix", str(dir_path)] + ignore_args,
-                    capture_output=True,
-                    text=True,
-                )
-                fixed = True
+                check_cmd.append("--fix")
+            if ignore:
+                check_cmd.extend(["--ignore", ",".join(ignore)])
+            check_cmd.append(str(dir_path))
 
-            # Run ruff check with JSON output to get remaining issues
-            result = subprocess.run(
-                ["ruff", "check", "--output-format=json", str(dir_path)] + ignore_args,
-                capture_output=True,
-                text=True,
-            )
+            # Run ruff check (with optional --fix) and get JSON output
+            result = subprocess.run(check_cmd, capture_output=True, text=True, **_SUBPROCESS_FLAGS)
+            fixed = fix
 
             # Parse ruff JSON output
             issues = []

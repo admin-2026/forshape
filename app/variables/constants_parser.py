@@ -35,14 +35,18 @@ class ConstantsParser:
             pass
         return expressions
 
-    def execute_constants(self):
+    def execute_constants(self, base_namespace=None):
         """Execute Python content and return resolved variable values.
+
+        Args:
+            base_namespace: Optional namespace with pre-defined variables (e.g., from constants.py)
 
         Returns:
             Dictionary of variable names to resolved values
         """
         try:
-            namespace = {}
+            # Start with base namespace if provided (for object-specific constants)
+            namespace = dict(base_namespace) if base_namespace else {}
             exec(self.content, namespace)
 
             resolved = {}
@@ -54,14 +58,17 @@ class ConstantsParser:
         except Exception:
             return {}
 
-    def parse_and_resolve(self):
+    def parse_and_resolve(self, base_namespace=None):
         """Parse variables and resolve their values.
+
+        Args:
+            base_namespace: Optional namespace with pre-defined variables (e.g., from constants.py)
 
         Returns:
             List of tuples (name, resolved_value, expression)
         """
         expressions = self.parse_expressions()
-        resolved_values = self.execute_constants()
+        resolved_values = self.execute_constants(base_namespace)
 
         variables = []
         for name, expression in expressions.items():

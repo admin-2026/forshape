@@ -1,10 +1,12 @@
 """Variables view widget for displaying variables."""
 
+import glob
 import os
 
 from PySide2.QtCore import QFileSystemWatcher
 from PySide2.QtGui import QColor, QFont
 from PySide2.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -20,7 +22,7 @@ from .constants_parser import ConstantsParser
 
 
 class VariablesView(QWidget):
-    """Widget for displaying variables from constants.py."""
+    """Widget for displaying variables from constants.py and *_constants.py files."""
 
     def __init__(self, working_dir=None, parent=None):
         """Initialize the Variables view.
@@ -30,30 +32,56 @@ class VariablesView(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
-        # Use working directory to find constants.py
-        if working_dir:
-            self.constants_path = os.path.join(working_dir, "constants.py")
-        else:
-            self.constants_path = "constants.py"
+        self.working_dir = working_dir or "."
         self._setup_ui()
         self._setup_file_watcher()
         self._load_variables()
+
+    def _find_constants_files(self):
+        """Find all constants files in the working directory.
+
+        Returns:
+            List of paths to constants files, with constants.py first if it exists
+        """
+        files = []
+        base_constants = os.path.join(self.working_dir, "constants.py")
+
+        # Add base constants.py first if it exists
+        if os.path.exists(base_constants):
+            files.append(base_constants)
+
+        # Find all *_constants.py files
+        pattern = os.path.join(self.working_dir, "*_constants.py")
+        for path in glob.glob(pattern):
+            if path not in files:
+                files.append(path)
+
+        return files
 
     def _setup_ui(self):
         """Set up the UI components."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Refresh button at the top
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 0, 0, 5)
+        # Top row: Refresh button and file filter dropdown
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 5)
 
-        self.refresh_button = QPushButton("Refresh Variables")
+        self.refresh_button = QPushButton("Refresh")
         self.refresh_button.setFont(QFont("Consolas", 9))
         self.refresh_button.clicked.connect(self._on_refresh_clicked)
-        button_layout.addWidget(self.refresh_button)
+        top_layout.addWidget(self.refresh_button)
 
-        layout.addLayout(button_layout)
+        file_label = QLabel("File:")
+        file_label.setFont(QFont("Consolas", 9))
+        top_layout.addWidget(file_label)
+
+        self.file_filter = QComboBox()
+        self.file_filter.setFont(QFont("Consolas", 9))
+        self.file_filter.currentTextChanged.connect(self._on_filter_changed)
+        top_layout.addWidget(self.file_filter, 1)  # stretch factor 1
+
+        layout.addLayout(top_layout)
 
         # Search bar
         search_layout = QHBoxLayout()
@@ -103,28 +131,44 @@ class VariablesView(QWidget):
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Stretch)  # Expression fills remaining space
 
-        # Set initial column widths for Name and Value
-        self.table.setColumnWidth(0, 150)
-        self.table.setColumnWidth(1, 150)
+        # Set initial column widths
+        self.table.setColumnWidth(0, 150)  # Name
+        self.table.setColumnWidth(1, 100)  # Value
 
         layout.addWidget(self.table)
 
-    def _setup_file_watcher(self):
-        """Set up file system watcher for constants.py."""
-        self.file_watcher = QFileSystemWatcher()
-        self.watching_directory = False
+        # Store all variables for filtering
+        self._all_variables = []
 
-        if os.path.exists(self.constants_path):
-            # File exists, watch the file directly
-            self.file_watcher.addPath(self.constants_path)
-            self.file_watcher.fileChanged.connect(self._on_file_changed)
-        else:
-            # File doesn't exist, watch the directory for file creation
-            directory = os.path.dirname(self.constants_path)
-            if directory and os.path.exists(directory):
-                self.file_watcher.addPath(directory)
-                self.file_watcher.directoryChanged.connect(self._on_directory_changed)
-                self.watching_directory = True
+    def _setup_file_watcher(self):
+        """Set up file system watcher for constants files."""
+        self.file_watcher = QFileSystemWatcher()
+        self._watched_files = set()
+
+        # Always watch the directory for new constants files
+        if os.path.exists(self.working_dir):
+            self.file_watcher.addPath(self.working_dir)
+            self.file_watcher.directoryChanged.connect(self._on_directory_changed)
+
+        # Watch existing constants files
+        self._update_watched_files()
+        self.file_watcher.fileChanged.connect(self._on_file_changed)
+
+    def _update_watched_files(self):
+        """Update the list of watched constants files."""
+        current_files = set(self._find_constants_files())
+
+        # Remove files that no longer exist
+        for path in self._watched_files - current_files:
+            if path in self.file_watcher.files():
+                self.file_watcher.removePath(path)
+
+        # Add new files
+        for path in current_files - self._watched_files:
+            if os.path.exists(path):
+                self.file_watcher.addPath(path)
+
+        self._watched_files = current_files
 
     def _on_file_changed(self, path):
         """Handle file change event.
@@ -141,34 +185,18 @@ class VariablesView(QWidget):
                 self.file_watcher.addPath(path)
 
     def _on_directory_changed(self, path):
-        """Handle directory change event (monitors for file creation).
+        """Handle directory change event (monitors for file creation/deletion).
 
         Args:
             path: Path to the changed directory
         """
-        # Check if constants.py was created
-        if os.path.exists(self.constants_path):
-            # File was created, switch from directory watching to file watching
-            if self.watching_directory:
-                # Stop watching directory
-                directory = os.path.dirname(self.constants_path)
-                if directory in self.file_watcher.directories():
-                    self.file_watcher.removePath(directory)
-                self.file_watcher.directoryChanged.disconnect(self._on_directory_changed)
-
-                # Start watching file
-                self.file_watcher.addPath(self.constants_path)
-                self.file_watcher.fileChanged.connect(self._on_file_changed)
-                self.watching_directory = False
-
-            # Load variables from newly created file
-            self._load_variables()
-        else:
-            # File might have been deleted, refresh to show "not found"
-            self._load_variables()
+        # Update watched files and reload
+        self._update_watched_files()
+        self._load_variables()
 
     def _on_refresh_clicked(self):
         """Handle refresh button click."""
+        self._update_watched_files()
         self._load_variables()
 
     def _on_search_changed(self, text):
@@ -203,21 +231,93 @@ class VariablesView(QWidget):
             row = self._matching_rows[self._current_match_index]
             self.table.scrollToItem(self.table.item(row, 0))
 
+    def _on_filter_changed(self, text):
+        """Handle file filter dropdown change.
+
+        Args:
+            text: Selected filter text
+        """
+        self._apply_filter()
+
     def _load_variables(self):
-        """Load and display variables from constants.py."""
-        if not os.path.exists(self.constants_path):
+        """Load and display variables from all constants files."""
+        constants_files = self._find_constants_files()
+
+        if not constants_files:
+            self._all_variables = []
+            self._update_file_filter([])
             self._show_not_found_message()
             return
 
         try:
-            with open(self.constants_path, encoding="utf-8") as f:
-                content = f.read()
+            self._all_variables = []
+            # Build base namespace from constants.py first
+            base_namespace = {}
+            base_constants_path = os.path.join(self.working_dir, "constants.py")
 
-            parser = ConstantsParser(content)
-            variables = parser.parse_and_resolve()
-            self._update_table(variables)
+            if os.path.exists(base_constants_path):
+                with open(base_constants_path, encoding="utf-8") as f:
+                    content = f.read()
+                try:
+                    exec(content, base_namespace)
+                except Exception:
+                    pass
+
+            source_names = []
+            for file_path in constants_files:
+                source_name = os.path.basename(file_path)
+                source_names.append(source_name)
+                with open(file_path, encoding="utf-8") as f:
+                    content = f.read()
+
+                parser = ConstantsParser(content)
+                # Use base namespace for resolving object-specific constants
+                if file_path != base_constants_path:
+                    variables = parser.parse_and_resolve(base_namespace=base_namespace)
+                else:
+                    variables = parser.parse_and_resolve()
+
+                for name, resolved_value, expression in variables:
+                    self._all_variables.append((source_name, name, resolved_value, expression))
+
+            self._update_file_filter(source_names)
+            self._apply_filter()
         except Exception as e:
             self._show_error_message(str(e))
+
+    def _update_file_filter(self, source_names):
+        """Update the file filter dropdown with available files.
+
+        Args:
+            source_names: List of source file names
+        """
+        current_selection = self.file_filter.currentText()
+        self.file_filter.blockSignals(True)
+        self.file_filter.clear()
+        self.file_filter.addItem("All Files")
+        for name in source_names:
+            self.file_filter.addItem(name)
+
+        # Restore previous selection if still valid
+        index = self.file_filter.findText(current_selection)
+        if index >= 0:
+            self.file_filter.setCurrentIndex(index)
+        else:
+            self.file_filter.setCurrentIndex(0)
+        self.file_filter.blockSignals(False)
+
+    def _apply_filter(self):
+        """Apply the current file filter and update the table."""
+        selected = self.file_filter.currentText()
+
+        if selected == "All Files":
+            filtered = [(name, value, expr) for (source, name, value, expr) in self._all_variables]
+        else:
+            filtered = [
+                (name, value, expr) for (source, name, value, expr) in self._all_variables if source == selected
+            ]
+
+        self._update_table(filtered)
 
     def _update_table(self, variables):
         """Update the table with parsed variables.
@@ -242,9 +342,9 @@ class VariablesView(QWidget):
             self.table.setItem(row, 2, expr_item)
 
     def _show_not_found_message(self):
-        """Display a message when constants.py is not found."""
+        """Display a message when no constants files are found."""
         self.table.setRowCount(1)
-        message_item = QTableWidgetItem("constants.py not found")
+        message_item = QTableWidgetItem("No constants files found")
         message_item.setFont(QFont("Consolas", 9))
         self.table.setItem(0, 0, message_item)
         self.table.setItem(0, 1, QTableWidgetItem(""))
@@ -278,7 +378,7 @@ class VariablesView(QWidget):
         self._current_match_index = -1
 
         for row in range(self.table.rowCount()):
-            # Get the variable name from the first column
+            # Get the variable name from the Name column (column 0)
             name_item = self.table.item(row, 0)
             if name_item:
                 variable_name = name_item.text().lower()

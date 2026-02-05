@@ -111,7 +111,7 @@ The working directory follows a modular organization pattern with core template 
    - Must have an orchestrator function (e.g., `build_case()`, `build_lid()`) that completes the entire object
    - The orchestrator function is imported and called by main.py
    - Should be runnable as a standalone script for testing: `if __name__ == '__main__': build_case()`
-   - Imports constants from constants.py
+   - Imports constants from constants.py or <object_name>_constants.py
    - May import shared utilities from <feature>_lib.py files
    - Contains helper functions specific to that object
    - Use functions to encapsulate construction of logically related parts
@@ -125,10 +125,18 @@ The working directory follows a modular organization pattern with core template 
    - Imported by build files: `from fasteners_lib import create_bolt_pattern`
    - Promotes code reuse and consistency across the project
 
+7. **<object_name>_constants.py** - Object-specific constants
+   - Contains constants specific to a particular object or component
+   - Example: `case_constants.py`, `lid_constants.py`, `bracket_constants.py`
+   - Use when an object has many constants that would clutter the main constants.py
+   - Imported by the corresponding build file: `from case_constants import *`
+   - Keeps object-specific values separate from project-wide constants
+
 ## File Organization Guidelines:
 
 When users ask to modify their project, update the appropriate file(s):
 - Dimension/parameter changes → constants.py
+- Object-specific dimension/parameter changes → <object_name>_constants.py
 - Overall build coordination → main.py
 - Object-specific construction → <object_name>_build.py
 - Reusable utilities/helpers → <feature>_lib.py

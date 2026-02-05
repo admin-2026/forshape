@@ -1,6 +1,5 @@
 """Variables view widget for displaying variables."""
 
-import ast
 import os
 
 from PySide2.QtCore import QFileSystemWatcher
@@ -16,6 +15,8 @@ from PySide2.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from .constants_parser import ConstantsParser
 
 
 class VariablesView(QWidget):
@@ -67,6 +68,22 @@ class VariablesView(QWidget):
         self.search_input.setPlaceholderText("Type to search variable names...")
         self.search_input.textChanged.connect(self._on_search_changed)
         search_layout.addWidget(self.search_input)
+
+        self.prev_button = QPushButton("←")
+        self.prev_button.setFont(QFont("Consolas", 9))
+        self.prev_button.setFixedWidth(30)
+        self.prev_button.clicked.connect(self._on_prev_clicked)
+        search_layout.addWidget(self.prev_button)
+
+        self.next_button = QPushButton("→")
+        self.next_button.setFont(QFont("Consolas", 9))
+        self.next_button.setFixedWidth(30)
+        self.next_button.clicked.connect(self._on_next_clicked)
+        search_layout.addWidget(self.next_button)
+
+        # Track matching rows and current index
+        self._matching_rows = []
+        self._current_match_index = -1
 
         layout.addLayout(search_layout)
 
@@ -162,6 +179,30 @@ class VariablesView(QWidget):
             text: Search text entered by user
         """
         self._highlight_matching_rows(text)
+        # Jump to first match if there are any
+        if self._matching_rows:
+            self._current_match_index = 0
+            self._scroll_to_current_match()
+
+    def _on_prev_clicked(self):
+        """Handle prev button click to go to previous match."""
+        if not self._matching_rows:
+            return
+        self._current_match_index = (self._current_match_index - 1) % len(self._matching_rows)
+        self._scroll_to_current_match()
+
+    def _on_next_clicked(self):
+        """Handle next button click to go to next match."""
+        if not self._matching_rows:
+            return
+        self._current_match_index = (self._current_match_index + 1) % len(self._matching_rows)
+        self._scroll_to_current_match()
+
+    def _scroll_to_current_match(self):
+        """Scroll to the current matching row."""
+        if 0 <= self._current_match_index < len(self._matching_rows):
+            row = self._matching_rows[self._current_match_index]
+            self.table.scrollToItem(self.table.item(row, 0))
 
     def _load_variables(self):
         """Load and display variables from constants.py."""
@@ -173,81 +214,11 @@ class VariablesView(QWidget):
             with open(self.constants_path, encoding="utf-8") as f:
                 content = f.read()
 
-            # Get both parsed expressions and resolved values
-            variables = self._parse_and_resolve_variables(content)
+            parser = ConstantsParser(content)
+            variables = parser.parse_and_resolve()
             self._update_table(variables)
         except Exception as e:
             self._show_error_message(str(e))
-
-    def _parse_expressions(self, content):
-        """Parse variable expressions from Python source using AST.
-
-        Args:
-            content: File content as string
-
-        Returns:
-            Dictionary mapping variable names to their source expressions
-        """
-        expressions = {}
-        try:
-            tree = ast.parse(content)
-            for node in ast.iter_child_nodes(tree):
-                if isinstance(node, ast.Assign):
-                    for target in node.targets:
-                        if isinstance(target, ast.Name) and target.id.isupper():
-                            name = target.id
-                            expression = ast.get_source_segment(content, node.value)
-                            if expression:
-                                expressions[name] = expression
-        except SyntaxError:
-            pass
-        return expressions
-
-    def _parse_and_resolve_variables(self, content):
-        """Parse variables and resolve their values by executing constants.py.
-
-        Args:
-            content: File content as string
-
-        Returns:
-            List of tuples (name, resolved_value, expression)
-        """
-        expressions = self._parse_expressions(content)
-        resolved_values = self._execute_constants(content)
-
-        variables = []
-        for name, expression in expressions.items():
-            resolved_value = resolved_values.get(name, "N/A")
-            variables.append((name, resolved_value, expression))
-
-        return variables
-
-    def _execute_constants(self, content):
-        """Execute constants.py content and return resolved variable values.
-
-        Args:
-            content: File content as string
-
-        Returns:
-            Dictionary of variable names to resolved values
-        """
-        try:
-            # Create a namespace for execution
-            namespace = {}
-
-            # Execute the content
-            exec(content, namespace)
-
-            # Extract only uppercase variables (constants)
-            resolved = {}
-            for name, value in namespace.items():
-                if name.isupper() and not name.startswith("_"):
-                    resolved[name] = str(value)
-
-            return resolved
-        except Exception:
-            # If execution fails, return empty dict
-            return {}
 
     def _update_table(self, variables):
         """Update the table with parsed variables.
@@ -303,6 +274,8 @@ class VariablesView(QWidget):
         default_color = QColor(255, 255, 255)  # White
 
         search_lower = search_text.lower()
+        self._matching_rows = []
+        self._current_match_index = -1
 
         for row in range(self.table.rowCount()):
             # Get the variable name from the first column
@@ -312,6 +285,7 @@ class VariablesView(QWidget):
 
                 # Check if search text matches (case-insensitive)
                 if search_lower and search_lower in variable_name:
+                    self._matching_rows.append(row)
                     # Highlight the row
                     for col in range(self.table.columnCount()):
                         item = self.table.item(row, col)

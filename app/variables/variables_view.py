@@ -1,7 +1,7 @@
 """Variables view widget for displaying variables."""
 
+import ast
 import os
-import re
 
 from PySide2.QtCore import QFileSystemWatcher
 from PySide2.QtGui import QColor, QFont
@@ -179,6 +179,30 @@ class VariablesView(QWidget):
         except Exception as e:
             self._show_error_message(str(e))
 
+    def _parse_expressions(self, content):
+        """Parse variable expressions from Python source using AST.
+
+        Args:
+            content: File content as string
+
+        Returns:
+            Dictionary mapping variable names to their source expressions
+        """
+        expressions = {}
+        try:
+            tree = ast.parse(content)
+            for node in ast.iter_child_nodes(tree):
+                if isinstance(node, ast.Assign):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name) and target.id.isupper():
+                            name = target.id
+                            expression = ast.get_source_segment(content, node.value)
+                            if expression:
+                                expressions[name] = expression
+        except SyntaxError:
+            pass
+        return expressions
+
     def _parse_and_resolve_variables(self, content):
         """Parse variables and resolve their values by executing constants.py.
 
@@ -188,27 +212,10 @@ class VariablesView(QWidget):
         Returns:
             List of tuples (name, resolved_value, expression)
         """
-        variables = []
-
-        # First, parse the file to get expressions
-        expressions = {}
-        lines = content.split("\n")
-        for line in lines:
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-
-            # Match variable assignments (NAME = value)
-            match = re.match(r"^([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)(?:\s*#.*)?$", stripped)
-            if match:
-                name = match.group(1)
-                expression = match.group(2).strip()
-                expressions[name] = expression
-
-        # Execute the content to get resolved values
+        expressions = self._parse_expressions(content)
         resolved_values = self._execute_constants(content)
 
-        # Combine expressions with resolved values
+        variables = []
         for name, expression in expressions.items():
             resolved_value = resolved_values.get(name, "N/A")
             variables.append((name, resolved_value, expression))

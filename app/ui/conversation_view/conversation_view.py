@@ -7,6 +7,7 @@ message formatting in the conversation display.
 
 import uuid
 
+from PySide2.QtCore import QTimer
 from PySide2.QtGui import QFont
 from PySide2.QtWidgets import QListWidget
 
@@ -215,7 +216,8 @@ class ConversationView:
         self.message_order.append(msg_id)
         self._agent_progress_id = msg_id
 
-        self.conversation_display.scrollToBottom()
+        # Defer scroll to allow layout to complete (0ms is not enough)
+        QTimer.singleShot(10, self.conversation_display.scrollToBottom)
 
         return msg_id
 

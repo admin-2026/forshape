@@ -10,8 +10,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from PySide2.QtCore import QObject, Signal
-
 
 class LogLevel(Enum):
     """Log level enumeration."""
@@ -22,15 +20,8 @@ class LogLevel(Enum):
     ERROR = 4
 
 
-class Logger(QObject):
-    """
-    Logger with multiple log levels and GUI integration.
-
-    Emits signals that can be connected to GUI components for real-time display.
-    """
-
-    # Signal emitted when a log message is created: (level, message, timestamp)
-    log_message = Signal(str, str, str)
+class Logger:
+    """Logger with multiple log levels."""
 
     def __init__(self, log_file: Optional[Path] = None, min_level: LogLevel = LogLevel.DEBUG):
         """
@@ -40,7 +31,6 @@ class Logger(QObject):
             log_file: Optional file path to write logs to
             min_level: Minimum log level to process (default: DEBUG)
         """
-        super().__init__()
         self.log_file = log_file
         self.min_level = min_level
         self.enabled = True
@@ -59,8 +49,8 @@ class Logger(QObject):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         level_str = level.name
 
-        # Emit signal for GUI
-        self.log_message.emit(level_str, message, timestamp)
+        # Print to stdout
+        print(f"[{timestamp}] [{level_str}] {message}")
 
         # Write to file if configured
         if self.log_file:

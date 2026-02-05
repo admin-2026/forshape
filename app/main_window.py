@@ -10,7 +10,6 @@ from PySide2.QtCore import QCoreApplication, Qt
 from PySide2.QtGui import QDragEnterEvent, QDropEvent, QFont
 from PySide2.QtWidgets import (
     QAction,
-    QComboBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -20,7 +19,6 @@ from PySide2.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QWidgetAction,
 )
 
 from agent.provider_config_loader import ProviderConfigLoader
@@ -28,13 +26,12 @@ from agent.request import ImageMessage, TextMessage
 from agent.step_config import StepConfig, StepConfigRegistry
 
 from .dialogs import CheckpointSelector, ImagePreviewDialog
-from .logger import LogLevel
 from .ui import (
     AttachmentWidget,
     ConversationView,
     DragDropHandler,
     FileExecutor,
-    LogView,
+    LogLevelSelector,
     MessageFormatter,
     ModelMenuManager,
     MultiLineInputField,
@@ -136,25 +133,6 @@ class ForShapeMainWindow(QMainWindow):
         """
         return word if count == 1 else f"{word}s"
 
-    def _set_log_panel_visibility(self, visible: bool):
-        """
-        Set the visibility of the log panel and update the action text.
-
-        Args:
-            visible: True to show the log panel, False to hide it
-        """
-        if visible:
-            self.log_widget.show()
-        else:
-            self.log_widget.hide()
-
-        # Always set text to "Show Logs" as requested
-        self.toggle_logs_action.setText("Show Logs")
-        self.toggle_logs_action.setChecked(visible)
-
-        # Save to config
-        self.ui_config_manager.set("show_logs", visible)
-
     def _set_variables_panel_visibility(self, visible: bool):
         """
         Set the visibility of the variables panel and update the action text.
@@ -183,12 +161,6 @@ class ForShapeMainWindow(QMainWindow):
         menubar = self.menuBar()
         view_menu = menubar.addMenu("View")
 
-        # Add toggle logs action
-        self.toggle_logs_action = QAction("Show Logs", self)
-        self.toggle_logs_action.setCheckable(True)
-        self.toggle_logs_action.triggered.connect(self.toggle_log_panel)
-        view_menu.addAction(self.toggle_logs_action)
-
         # Add toggle variables action
         self.toggle_variables_action = QAction("Show Variables", self)
         self.toggle_variables_action.setCheckable(True)
@@ -208,35 +180,11 @@ class ForShapeMainWindow(QMainWindow):
 
         # Add log level dropdown
         view_menu.addSeparator()
-        log_level_label = QLabel("  Log Level: ")
-        log_level_label.setFont(QFont("Consolas", 9))
-
-        self.log_level_combo = QComboBox()
-        self.log_level_combo.setFont(QFont("Consolas", 9))
-        self.log_level_combo.addItem("DEBUG", LogLevel.DEBUG)
-        self.log_level_combo.addItem("INFO", LogLevel.INFO)
-        self.log_level_combo.addItem("WARN", LogLevel.WARN)
-        self.log_level_combo.addItem("ERROR", LogLevel.ERROR)
-
-        # Restore log level from config, default to INFO if not set
+        self.log_level_selector = LogLevelSelector()
         saved_log_level = self.ui_config_manager.get("log_level", "INFO")
-        log_level_index = {"DEBUG": 0, "INFO": 1, "WARN": 2, "ERROR": 3}.get(saved_log_level, 1)
-        self.log_level_combo.setCurrentIndex(log_level_index)
-
-        self.log_level_combo.currentIndexChanged.connect(self.on_log_level_changed)
-
-        # Create a widget container for label and combo
-        log_level_widget = QWidget()
-        log_level_layout = QHBoxLayout(log_level_widget)
-        log_level_layout.setContentsMargins(5, 2, 5, 2)
-        log_level_layout.addWidget(log_level_label)
-        log_level_layout.addWidget(self.log_level_combo)
-        log_level_layout.addStretch()
-
-        # Add the widget to the menu using QWidgetAction
-        log_level_action = QWidgetAction(self)
-        log_level_action.setDefaultWidget(log_level_widget)
-        view_menu.addAction(log_level_action)
+        self.log_level_selector.set_level(saved_log_level)
+        self.log_level_selector.combo.currentIndexChanged.connect(self.on_log_level_changed)
+        view_menu.addAction(self.log_level_selector.create_menu_action(self))
 
         # Create Model menu dynamically from provider config
         model_menu = menubar.addMenu("Model")
@@ -247,7 +195,7 @@ class ForShapeMainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
-        # Create horizontal splitter for conversation and log
+        # Create horizontal splitter for conversation and variables
         splitter = QSplitter(Qt.Horizontal)
 
         # Left side: Conversation area
@@ -255,9 +203,6 @@ class ForShapeMainWindow(QMainWindow):
         conversation_layout = QVBoxLayout(conversation_widget)
         conversation_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Right side: Log area
-        self.log_view = LogView()
-        self.log_widget = self.log_view.get_widget()
         self.welcome_widget = WelcomeWidget(lambda: self.ai_client, self.config)
         self.message_handler = ConversationView(self.message_formatter, self.logger, self.welcome_widget)
 
@@ -266,17 +211,12 @@ class ForShapeMainWindow(QMainWindow):
         # Variables area
         self.variables_widget = VariablesView(working_dir=self.config.working_dir)
 
-        # Add all panels to splitter
+        # Add panels to splitter
         splitter.addWidget(conversation_widget)
-        splitter.addWidget(self.log_widget)
         splitter.addWidget(self.variables_widget)
 
-        # Set initial splitter sizes (60% conversation, 20% logs, 20% variables)
-        splitter.setSizes([600, 200, 200])
-
-        # Restore show_logs state from config, default to hidden
-        show_logs = self.ui_config_manager.get("show_logs", False)
-        self._set_log_panel_visibility(show_logs)
+        # Set initial splitter sizes (75% conversation, 25% variables)
+        splitter.setSizes([750, 250])
 
         # Restore show_variables state from config, default to visible
         show_variables = self.ui_config_manager.get("show_variables", True)
@@ -416,9 +356,6 @@ class ForShapeMainWindow(QMainWindow):
 
         # Add input container to main layout
         main_layout.addWidget(input_container)
-
-        # Connect logger signal to log view
-        self.logger.log_message.connect(self.log_view.on_log_message)
 
         self.file_executor = FileExecutor(self.config, self.message_handler, self.logger)
 
@@ -612,13 +549,6 @@ class ForShapeMainWindow(QMainWindow):
 
         # Update logger if provided
         if logger is not None:
-            # Disconnect old logger
-            try:
-                self.logger.log_message.disconnect(self.log_view.on_log_message if self.log_view else lambda: None)
-            except Exception:
-                pass
-
-            # Update to new logger
             self.logger = logger
 
             # Update handlers' loggers
@@ -630,9 +560,6 @@ class ForShapeMainWindow(QMainWindow):
                 self.drag_drop_handler.logger = logger
             if self.model_menu_manager:
                 self.model_menu_manager.logger = logger
-
-            # Connect new logger
-            self.logger.log_message.connect(self.log_view.on_log_message)
 
         # Update model menu manager's AI client
         if self.model_menu_manager:
@@ -920,10 +847,6 @@ class ForShapeMainWindow(QMainWindow):
         except Exception as e:
             self.logger.debug(f"Could not play notification sound: {e}")
 
-    def toggle_log_panel(self):
-        """Toggle the visibility of the log panel."""
-        self._set_log_panel_visibility(not self.log_widget.isVisible())
-
     def toggle_variables_panel(self):
         """Toggle the visibility of the variables panel."""
         self._set_variables_panel_visibility(not self.variables_widget.isVisible())
@@ -990,18 +913,10 @@ class ForShapeMainWindow(QMainWindow):
         Args:
             index: The index of the selected item in the combo box
         """
-        # Get the LogLevel enum value from the combo box data
-        log_level = self.log_level_combo.itemData(index)
-
-        # Update the logger's minimum level
+        log_level = self.log_level_selector.current_level()
         self.logger.set_min_level(log_level)
-
-        # Save to config
         self.ui_config_manager.set("log_level", log_level.name)
-
-        # Show a brief message in the log display
-        level_name = log_level.name
-        self.logger.info(f"Log level changed to {level_name}")
+        self.logger.info(f"Log level changed to {log_level.name}")
 
     def on_run_script(self):
         """Handle Rebuild button click - delegate to file executor."""

@@ -7,40 +7,32 @@ This module provides the interactive GUI interface using PySide2.
 from typing import TYPE_CHECKING
 
 from PySide2.QtCore import QCoreApplication, Qt
-from PySide2.QtGui import QDragEnterEvent, QDropEvent, QFont
+from PySide2.QtGui import QDragEnterEvent, QDropEvent
 from PySide2.QtWidgets import (
-    QAction,
-    QDialog,
-    QHBoxLayout,
-    QLabel,
     QMainWindow,
-    QPushButton,
     QSplitter,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from agent.provider_config_loader import ProviderConfigLoader
-from agent.request import ImageMessage, TextMessage
-from agent.step_config import StepConfig, StepConfigRegistry
 
-from .dialogs import CheckpointSelector, ImagePreviewDialog
 from .ui import (
-    AttachmentWidget,
+    AIRequestController,
+    CheckpointManager,
     ConversationView,
     DragDropHandler,
     FileExecutor,
-    LogLevelSelector,
+    InputAreaManager,
+    MenuBarManager,
     MessageFormatter,
     ModelMenuManager,
-    MultiLineInputField,
-    TokenStatusLabel,
+    PrestartHandler,
+    ScreenshotHandler,
     WelcomeWidget,
 )
 from .ui_config_manager import UIConfigManager
 from .variables import VariablesView
-from .workers import AIWorker
 
 if TYPE_CHECKING:
     from agent.ai_agent import AIAgent
@@ -85,20 +77,14 @@ class ForShapeMainWindow(QMainWindow):
         self.config = config
         self.image_context = image_context
         self.handle_exit = exit_handler
-        self.is_ai_busy = False  # Track if AI is currently processing
-        self.current_step_config = None  # Store the current StepConfig when AI is busy
-        self.worker = None  # Current worker thread
-        self.captured_images = []  # Store captured images to attach to next message
-        self.attached_files = []  # Store attached Python files to include in next message
-        self.api_debugger = None  # API debugger instance (will be set later)
-
-        # Prestart check mode
-        self.prestart_checker = prestart_checker
-        self.prestart_check_mode = (
-            True if prestart_checker else False
-        )  # Start in prestart check mode if checker provided
-        self.completion_callback = completion_callback
         self.window_close_callback = window_close_callback
+
+        # Shared state for attachments
+        self.captured_images = []
+        self.attached_files = []
+
+        # API debugger instance (will be set later)
+        self.api_debugger = None
 
         # Initialize message formatter
         self.message_formatter = MessageFormatter(self.logger)
@@ -110,84 +96,51 @@ class ForShapeMainWindow(QMainWindow):
         self.ui_config_manager = UIConfigManager(self.config.get_forshape_dir())
         self.ui_config_manager.load()
 
-        # Initialize handler instances (will be fully configured after UI setup)
-        self.file_executor = None
-        self.drag_drop_handler = None
-        self.model_menu_manager = None
+        # Initialize component managers
+        self._init_component_managers(prestart_checker, completion_callback)
 
         # Enable drag and drop
         self.setAcceptDrops(True)
 
         self.setup_ui()
 
-    def _pluralize(self, word: str, count: int) -> str:
-        """
-        Return singular or plural form of a word based on count.
+    def _init_component_managers(self, prestart_checker, completion_callback):
+        """Initialize all component managers."""
+        # Menu bar manager
+        self.menu_bar_manager = MenuBarManager(self.ui_config_manager, self.logger)
 
-        Args:
-            word: The singular form of the word
-            count: The count to determine singular/plural
+        # Checkpoint manager
+        self.checkpoint_manager = CheckpointManager(self.config, self.logger)
 
-        Returns:
-            The word with 's' appended if count != 1, otherwise the original word
-        """
-        return word if count == 1 else f"{word}s"
+        # Screenshot handler
+        self.screenshot_handler = ScreenshotHandler(self.image_context, self.logger)
 
-    def _set_variables_panel_visibility(self, visible: bool):
-        """
-        Set the visibility of the variables panel and update the action text.
+        # Prestart handler
+        self.prestart_handler = PrestartHandler(prestart_checker, completion_callback, self.logger)
 
-        Args:
-            visible: True to show the variables panel, False to hide it
-        """
-        if visible:
-            self.variables_widget.show()
-        else:
-            self.variables_widget.hide()
+        # AI request controller
+        self.ai_request_controller = AIRequestController(self.logger)
+        self.ai_request_controller.set_ai_client(self.ai_client)
+        self.ai_request_controller.set_history_logger(self.history_logger)
 
-        # Always set text to "Show Variables" as requested
-        self.toggle_variables_action.setText("Show Variables")
-        self.toggle_variables_action.setChecked(visible)
+        # Input area manager
+        self.input_area_manager = InputAreaManager(self.message_formatter, self.logger)
 
-        # Save to config
-        self.ui_config_manager.set("show_variables", visible)
+        # File executor and drag drop handler (will be configured after UI setup)
+        self.file_executor = None
+        self.drag_drop_handler = None
+        self.model_menu_manager = None
 
     def setup_ui(self):
         """Setup the user interface components."""
         self.setWindowTitle("ForShape AI - Interactive 3D Shape Generator")
         self.setMinimumSize(1000, 600)
 
-        # Create menu bar
-        menubar = self.menuBar()
-        view_menu = menubar.addMenu("View")
-
-        # Add toggle variables action
-        self.toggle_variables_action = QAction("Show Variables", self)
-        self.toggle_variables_action.setCheckable(True)
-        self.toggle_variables_action.triggered.connect(self.toggle_variables_panel)
-        view_menu.addAction(self.toggle_variables_action)
-
-        # Add toggle API dump action
-        self.toggle_api_dump_action = QAction("Dump API Data", self)
-        self.toggle_api_dump_action.setCheckable(True)
-        self.toggle_api_dump_action.triggered.connect(self.toggle_api_dump)
-        view_menu.addAction(self.toggle_api_dump_action)
-
-        # Add dump history action
-        self.dump_history_action = QAction("Dump History", self)
-        self.dump_history_action.triggered.connect(self.dump_history)
-        view_menu.addAction(self.dump_history_action)
-
-        # Add log level dropdown
-        view_menu.addSeparator()
-        self.log_level_selector = LogLevelSelector()
-        saved_log_level = self.ui_config_manager.get("log_level", "INFO")
-        self.log_level_selector.set_level(saved_log_level)
-        self.log_level_selector.combo.currentIndexChanged.connect(self.on_log_level_changed)
-        view_menu.addAction(self.log_level_selector.create_menu_action(self))
+        # Create menu bar using MenuBarManager
+        self.menu_bar_manager.create_view_menu(self)
 
         # Create Model menu dynamically from provider config
-        model_menu = menubar.addMenu("Model")
+        model_menu = self.menuBar().addMenu("Model")
         self._create_model_menu_items(model_menu)
 
         # Create central widget and layout
@@ -218,170 +171,90 @@ class ForShapeMainWindow(QMainWindow):
         # Set initial splitter sizes (75% conversation, 25% variables)
         splitter.setSizes([750, 250])
 
-        # Restore show_variables state from config, default to visible
-        show_variables = self.ui_config_manager.get("show_variables", True)
-        self._set_variables_panel_visibility(show_variables)
-
         main_layout.addWidget(splitter, stretch=1)
 
-        # Create input area with buttons
-        input_container = QWidget()
-        input_container_layout = QVBoxLayout(input_container)
-        input_container_layout.setContentsMargins(0, 0, 0, 0)
-        input_container_layout.setSpacing(5)
+        # Create input area using InputAreaManager
+        input_container = self.input_area_manager.create_widget(self.on_user_input)
+        self.input_area_manager.set_state_references(self.captured_images, self.attached_files)
+        self.input_area_manager.connect_attachment_removed(self._on_attachment_removed)
 
-        # First row: Capture and New Chat buttons (new row above input)
-        first_row = QWidget()
-        first_row_layout = QHBoxLayout(first_row)
-        first_row_layout.setContentsMargins(0, 0, 0, 0)
+        # Connect input area signals
+        self.input_area_manager.capture_requested.connect(self._on_capture_screenshot)
+        self.input_area_manager.new_chat_requested.connect(self.clear_conversation)
+        self.input_area_manager.rewind_requested.connect(self._on_rewind_clicked)
+        self.input_area_manager.cancel_requested.connect(self._on_cancel_ai)
+        self.input_area_manager.run_script_requested.connect(self._on_run_script)
 
-        # Add Capture button
-        self.capture_button = QPushButton("Capture")
-        self.capture_button.setFont(QFont("Consolas", 10))
-        self.capture_button.setToolTip(
-            "Capture - take a screenshot of the current 3D scene to attach to next message\n\nTip: You can also drag & drop image files onto the window!"
-        )
-        self.capture_button.clicked.connect(self.on_capture_screenshot)
-
-        # Add New Chat button
-        self.new_chat_button = QPushButton("New Chat")
-        self.new_chat_button.setFont(QFont("Consolas", 10))
-        self.new_chat_button.setToolTip("New Chat - clear the chatbox and conversation history")
-        self.new_chat_button.clicked.connect(self.clear_conversation)
-
-        # Add Rewind button
-        self.rewind_button = QPushButton("Rewind")
-        self.rewind_button.setFont(QFont("Consolas", 10))
-        self.rewind_button.setToolTip("Rewind - restore files from a previous checkpoint")
-        self.rewind_button.clicked.connect(self.on_rewind_clicked)
-
-        first_row_layout.addWidget(self.capture_button)
-        first_row_layout.addWidget(self.new_chat_button)
-        first_row_layout.addWidget(self.rewind_button)
-        first_row_layout.addStretch()  # Push buttons to the left
-
-        # Second row: input field and cancel button
-        second_row = QWidget()
-        second_row_layout = QHBoxLayout(second_row)
-        second_row_layout.setContentsMargins(0, 0, 0, 0)
-
-        input_label = QLabel("You:")
-        self.input_field = MultiLineInputField()
-        self.input_field.setFont(QFont("Consolas", 10))
-        self.input_field.setPlaceholderText(
-            "Type your message here... - Drag & drop images or .py files to attach\nPress Enter to send, Shift+Enter for new line"
-        )
-        self.input_field.submit_callback = self.on_user_input
-
-        # Configure for 5 lines high with word wrap and scrolling
-        self.input_field.setLineWrapMode(QTextEdit.WidgetWidth)
-        self.input_field.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.input_field.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
-        # Set height to approximately 5 lines
-        font_metrics = self.input_field.fontMetrics()
-        line_height = font_metrics.lineSpacing()
-        self.input_field.setFixedHeight(line_height * 5 + 10)  # 5 lines + padding
-
-        # Add Cancel button
-        self.cancel_button = QPushButton("Cancel")
-        self.cancel_button.setFont(QFont("Consolas", 10))
-        self.cancel_button.setToolTip("Cancel - stop the current AI processing")
-        self.cancel_button.clicked.connect(self.on_cancel_ai)
-        self.cancel_button.setVisible(False)  # Initially hidden
-        self.cancel_button.setStyleSheet("background-color: #FF6B6B; color: white; font-weight: bold;")
-
-        second_row_layout.addWidget(input_label)
-        second_row_layout.addWidget(self.input_field, stretch=1)
-        second_row_layout.addWidget(self.cancel_button)
-
-        # Third row: Build and Teardown buttons
-        third_row = QWidget()
-        third_row_layout = QHBoxLayout(third_row)
-        third_row_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Add Incremental Build button
-        self.incremental_build_button = QPushButton("Incremental Build")
-        self.incremental_build_button.setFont(QFont("Consolas", 10))
-        self.incremental_build_button.setToolTip(
-            "Incremental Build - run a script in incremental build mode (skips construction if objects exist)"
-        )
-        self.incremental_build_button.clicked.connect(self.on_incremental_build_script)
-
-        # Add Rebuild button
-        self.run_button = QPushButton("Rebuild")
-        self.run_button.setFont(QFont("Consolas", 10))
-        self.run_button.setToolTip("Rebuild - run a Python script from the working directory")
-        self.run_button.clicked.connect(self.on_run_script)
-
-        # Add Teardown button
-        self.teardown_button = QPushButton("Teardown")
-        self.teardown_button.setFont(QFont("Consolas", 10))
-        self.teardown_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
-        self.teardown_button.clicked.connect(self.on_redo_script)
-
-        # Add Export button
-        self.export_button = QPushButton("Export")
-        self.export_button.setFont(QFont("Consolas", 10))
-        self.export_button.setToolTip("Export - run export.py from the working directory")
-        self.export_button.clicked.connect(self.on_export_clicked)
-
-        # Add Import button
-        self.import_button = QPushButton("Import")
-        self.import_button.setFont(QFont("Consolas", 10))
-        self.import_button.setToolTip("Import - run import.py from the working directory")
-        self.import_button.clicked.connect(self.on_import_clicked)
-
-        third_row_layout.addWidget(self.incremental_build_button)
-        third_row_layout.addWidget(self.run_button)
-        third_row_layout.addWidget(self.teardown_button)
-        third_row_layout.addWidget(self.export_button)
-        third_row_layout.addWidget(self.import_button)
-        third_row_layout.addStretch()  # Push buttons to the left
-
-        # Create attachment widget for showing pending attachments as chips
-        self.attachment_widget = AttachmentWidget()
-        self.attachment_widget.set_state_references(self.captured_images, self.attached_files)
-        self.attachment_widget.attachment_removed.connect(self._on_attachment_removed)
-
-        # Add all rows to the input container
-        input_container_layout.addWidget(first_row)
-        input_container_layout.addWidget(self.attachment_widget)
-        input_container_layout.addWidget(second_row)
-        input_container_layout.addWidget(third_row)
-
-        # Fourth row: Token usage status label
-        self.token_status_label = TokenStatusLabel(self.message_formatter)
-        input_container_layout.addWidget(self.token_status_label)
-
-        # Add input container to main layout
         main_layout.addWidget(input_container)
 
-        self.file_executor = FileExecutor(self.config, self.message_handler, self.logger)
+        # Wire up component managers with references they need
+        self._wire_component_managers()
 
-        self.drag_drop_handler = DragDropHandler(self.message_handler, self.logger, self.image_context)
-        # Set state references for drag drop handler
-        self.drag_drop_handler.set_state_references(
-            self.captured_images, self.attached_files, lambda: self.is_ai_busy, self.input_field, self.attachment_widget
+        # Restore UI state from config
+        self.menu_bar_manager.restore_variables_panel_state()
+
+        # Display welcome message
+        self.message_handler.display_welcome()
+
+    def _wire_component_managers(self):
+        """Wire up all component managers with their required references."""
+        # Menu bar manager
+        self.menu_bar_manager.set_message_handler(self.message_handler)
+        self.menu_bar_manager.set_variables_widget(self.variables_widget)
+        self.menu_bar_manager.set_config(self.config)
+
+        # Checkpoint manager
+        self.checkpoint_manager.set_message_handler(self.message_handler)
+
+        # Screenshot handler
+        self.screenshot_handler.set_message_handler(self.message_handler)
+        self.screenshot_handler.set_state_references(
+            self.captured_images,
+            self.input_area_manager.attachment_widget,
+            lambda: self.ai_request_controller.is_busy(),
         )
 
+        # Prestart handler
+        self.prestart_handler.set_message_handler(self.message_handler)
+        self.prestart_handler.set_config(self.config)
+        self.prestart_handler.set_main_window(self)
+
+        # AI request controller
+        self.ai_request_controller.set_message_handler(self.message_handler)
+        self.ai_request_controller.set_token_status_label(self.input_area_manager.token_status_label)
+        self.ai_request_controller.set_cancel_button(self.input_area_manager.cancel_button)
+        self.ai_request_controller.set_main_window(self)
+
+        # File executor
+        self.file_executor = FileExecutor(self.config, self.message_handler, self.logger)
+
+        # Drag drop handler
+        self.drag_drop_handler = DragDropHandler(self.message_handler, self.logger, self.image_context)
+        self.drag_drop_handler.set_state_references(
+            self.captured_images,
+            self.attached_files,
+            lambda: self.ai_request_controller.is_busy(),
+            self.input_area_manager.input_field,
+            self.input_area_manager.attachment_widget,
+        )
+
+        # Model menu manager
         self.model_menu_manager = ModelMenuManager(
             self.provider_config_loader, self.message_handler, self.logger, self.ui_config_manager
         )
         self.model_menu_manager.set_ai_client(self.ai_client)
-        self.model_menu_manager.set_callbacks(self.prestart_checker, self.completion_callback, self.enable_ai_mode)
+        self.model_menu_manager.set_callbacks(
+            self.prestart_handler.prestart_checker,
+            self.prestart_handler.completion_callback,
+            self.enable_ai_mode,
+        )
 
-        # IMPORTANT: Refresh the entire Model menu to use the real manager
-        # The menu was created with a temp manager, and Add/Delete API Key actions
-        # are still bound to that temp manager. Refreshing recreates everything.
+        # Refresh the entire Model menu to use the real manager
         self.model_menu_manager.refresh_model_menu(self)
 
         # Clean up temp manager references
         if hasattr(self, "_temp_model_combos"):
             del self._temp_model_combos
-
-        # Display welcome message
-        self.message_handler.display_welcome()
 
     def _create_model_menu_items(self, model_menu):
         """
@@ -391,8 +264,6 @@ class ForShapeMainWindow(QMainWindow):
         Args:
             model_menu: The QMenu to add model selection widgets to
         """
-        # Delegate to model menu manager (will be called before manager is initialized)
-        # So we need to handle this case
         if self.model_menu_manager:
             self.model_menu_manager.create_model_menu_items(model_menu, self)
         else:
@@ -408,6 +279,47 @@ class ForShapeMainWindow(QMainWindow):
             if hasattr(temp_manager, "model_combos"):
                 self._temp_model_combos = temp_manager.model_combos
 
+    # -------------------------------------------------------------------------
+    # Signal handlers - delegate to component managers
+    # -------------------------------------------------------------------------
+
+    def _on_capture_screenshot(self):
+        """Handle Capture button click."""
+        self.screenshot_handler.capture(self)
+
+    def _on_rewind_clicked(self):
+        """Handle Rewind button click."""
+        self.checkpoint_manager.show_checkpoint_selector(self)
+
+    def _on_cancel_ai(self):
+        """Handle Cancel button click."""
+        self.ai_request_controller.cancel_request()
+
+    def _on_run_script(self, mode: str):
+        """Handle script execution button clicks."""
+        if not self.file_executor:
+            return
+
+        if mode == "rebuild":
+            self.file_executor.on_run_script(self)
+        elif mode == "teardown":
+            self.file_executor.on_redo_script(self)
+        elif mode == "incremental":
+            self.file_executor.on_incremental_build_script(self)
+        elif mode == "export":
+            self.file_executor.on_export_clicked()
+        elif mode == "import":
+            self.file_executor.on_import_clicked()
+
+    def _on_attachment_removed(self, chip_type, data):
+        """Handle attachment chip removal."""
+        if chip_type == "file":
+            self.input_area_manager.update_input_placeholder()
+
+    # -------------------------------------------------------------------------
+    # Public methods
+    # -------------------------------------------------------------------------
+
     def clear_conversation(self):
         """Clear the conversation display and AI history."""
         # Clear the AI agent's conversation history
@@ -421,79 +333,58 @@ class ForShapeMainWindow(QMainWindow):
 
         self.message_handler.clear_conversation()
 
-    def on_rewind_clicked(self):
-        """Handle Rewind button click - show checkpoint selector and restore files."""
-        # Get the edits directory from the context provider
-        if not self.config:
-            self.message_handler.display_error("Context provider not initialized.")
+    def enable_ai_mode(self):
+        """Enable normal AI interaction mode after prestart checks pass."""
+        self.prestart_handler.enable_ai_mode(self.ai_client)
+
+    def on_user_input(self):
+        """Handle user input when Enter is pressed."""
+        user_input = self.input_area_manager.get_text()
+
+        if not user_input:
             return
 
-        edits_dir = self.config.get_edits_dir()
+        # Display user input
+        self.message_handler.append_message("You", user_input)
 
-        # Check if edits directory exists
-        if not edits_dir.exists():
+        # Clear input field
+        self.input_area_manager.clear_input()
+
+        # Force UI to update immediately
+        QCoreApplication.processEvents()
+
+        # Handle prestart check mode
+        if self.prestart_handler.is_active():
+            should_enable_ai = self.prestart_handler.handle_input(user_input, self)
+            if should_enable_ai:
+                self.enable_ai_mode()
+            return
+
+        # Check if AI client is available
+        if not self.ai_client:
             self.message_handler.append_message(
-                "System", "No edit history found. The edits directory does not exist yet."
+                "System", "⚠ AI is not yet initialized. Please wait for setup to complete."
             )
             return
 
-        # Get all sessions using EditHistory
-        from agent.edit_history import EditHistory
-
-        session_names = EditHistory.list_all_sessions(edits_dir)
-
-        if not session_names:
-            self.message_handler.append_message("System", "No checkpoints found. Edit history is empty.")
+        # Check if AI is currently busy
+        if self.ai_request_controller.is_busy():
+            self.ai_request_controller.add_pending_message(user_input)
             return
 
-        # Get session info for each session
-        sessions = []
-        for session_name in session_names:
-            session_info = EditHistory.get_session_info(edits_dir, session_name)
-            if "error" not in session_info:
-                sessions.append(session_info)
+        # Submit request to AI
+        self.ai_request_controller.submit_request(user_input, self.attached_files, self.captured_images)
 
-        if not sessions:
-            self.message_handler.append_message("System", "No valid checkpoints found.")
-            return
+        # Clear captured images after sending
+        if self.captured_images:
+            self.captured_images.clear()
 
-        # Show checkpoint selector dialog
-        dialog = CheckpointSelector(sessions, self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_session = dialog.get_selected_session()
-            if selected_session:
-                self.restore_checkpoint(selected_session)
+        # Clear attached files and reset placeholder after sending
+        if self.attached_files:
+            self.attached_files.clear()
+            self.input_area_manager.update_input_placeholder()
 
-    def restore_checkpoint(self, session_info):
-        """
-        Restore files from a selected checkpoint.
-
-        Args:
-            session_info: Dictionary containing session information
-        """
-        session_name = session_info.get("session_name")
-        conversation_id = session_info.get("conversation_id")
-        file_count = session_info.get("file_count", 0)
-
-        self.message_handler.append_message(
-            "System", f"Restoring {file_count} file(s) from checkpoint: {conversation_id}..."
-        )
-
-        # Get paths
-        working_dir = self.config.working_dir
-        edits_dir = self.config.get_edits_dir()
-
-        # Restore using EditHistory
-        from agent.edit_history import EditHistory
-
-        success, message = EditHistory.restore_from_session(edits_dir, session_name, working_dir, self.logger)
-
-        if success:
-            self.message_handler.append_message("System", f"✓ {message}")
-            self.logger.info(f"Restored checkpoint: {conversation_id}")
-        else:
-            self.message_handler.display_error(f"Failed to restore checkpoint:\n{message}")
-            self.logger.error(f"Failed to restore checkpoint {conversation_id}: {message}")
+        self.input_area_manager.refresh_attachments()
 
     def set_components(
         self,
@@ -520,6 +411,10 @@ class ForShapeMainWindow(QMainWindow):
         self.ai_client = ai_client
         self.history_logger = history_logger
 
+        # Update AI request controller
+        self.ai_request_controller.set_ai_client(ai_client)
+        self.ai_request_controller.set_history_logger(history_logger)
+
         # Create bridge to connect agent's wait manager to GUI dialogs
         from agent.async_ops import ClarificationInput
 
@@ -533,6 +428,8 @@ class ForShapeMainWindow(QMainWindow):
         # Update image_context if provided
         if image_context is not None:
             self.image_context = image_context
+            # Update screenshot handler's image context
+            self.screenshot_handler.set_image_context(image_context)
             # Update drag drop handler's image context
             if self.drag_drop_handler:
                 self.drag_drop_handler.image_context = image_context
@@ -540,12 +437,8 @@ class ForShapeMainWindow(QMainWindow):
         # Update api_debugger if provided
         if api_debugger is not None:
             self.api_debugger = api_debugger
-
-            # Restore dump_api_data state from config
-            saved_dump_api_data = self.ui_config_manager.get("dump_api_data", False)
-            if saved_dump_api_data:
-                self.api_debugger.set_enabled(True)
-                self.toggle_api_dump_action.setChecked(True)
+            self.menu_bar_manager.set_api_debugger(api_debugger)
+            self.menu_bar_manager.restore_api_dump_state()
 
         # Update logger if provided
         if logger is not None:
@@ -560,6 +453,9 @@ class ForShapeMainWindow(QMainWindow):
                 self.drag_drop_handler.logger = logger
             if self.model_menu_manager:
                 self.model_menu_manager.logger = logger
+
+        # Update menu bar manager's AI client
+        self.menu_bar_manager.set_ai_client(ai_client)
 
         # Update model menu manager's AI client
         if self.model_menu_manager:
@@ -583,440 +479,9 @@ class ForShapeMainWindow(QMainWindow):
         # Refresh welcome widget now that ai_client is available
         self.welcome_widget.refresh()
 
-    def handle_prestart_input(self, user_input: str):
-        """
-        Handle user input during prestart check mode.
-
-        Args:
-            user_input: The user's input
-        """
-        if not self.prestart_checker:
-            return
-
-        current_status = self.prestart_checker.get_status()
-
-        if current_status == "dir_mismatch":
-            # Handle directory mismatch response (yes/no/cancel)
-            should_continue = self.prestart_checker.handle_directory_mismatch(self, user_input)
-            if should_continue:
-                # Re-run prestart checks
-                status = self.prestart_checker.check(self)
-                if status == "ready":
-                    # Complete initialization if callback provided
-                    if self.completion_callback:
-                        self.completion_callback()
-                    self.enable_ai_mode()
-            else:
-                # User cancelled or error
-                self.prestart_check_mode = False
-        else:
-            # For "waiting", "need_api_key", or other status, re-run checks when user provides input
-            status = self.prestart_checker.check(self)
-            if status == "ready":
-                # Complete initialization if callback provided
-                if self.completion_callback:
-                    self.completion_callback()
-                self.enable_ai_mode()
-            elif status == "error":
-                self.prestart_check_mode = False
-
-    def enable_ai_mode(self):
-        """Enable normal AI interaction mode after prestart checks pass."""
-        self.prestart_check_mode = False
-        # Update welcome message to show full AI details now that ai_client is initialized
-        if self.ai_client:
-            context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
-            self.message_handler.append_message(
-                "System",
-                f"🎉 **Initialization Complete!**\n\n"
-                f"**Using model:** {self.ai_client.get_model()}\n"
-                f"**Context:** {context_status}\n\n"
-                f"You can now chat with the AI to generate 3D shapes!",
-            )
-
-        # Bring window to front after initialization completes
-        self.raise_()
-        self.activateWindow()
-        # Restore window if minimized
-        if self.isMinimized():
-            self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
-
-    def on_user_input(self):
-        """Handle user input when Enter is pressed."""
-        user_input = self.input_field.toPlainText().strip()
-
-        if not user_input:
-            return
-
-        # Display user input
-        self.message_handler.append_message("You", user_input)
-
-        # Clear input field
-        self.input_field.clear()
-
-        # Force UI to update immediately
-        QCoreApplication.processEvents()
-
-        # Handle prestart check mode
-        if self.prestart_check_mode:
-            self.handle_prestart_input(user_input)
-            return
-
-        # Check if AI client is available
-        if not self.ai_client:
-            self.message_handler.append_message(
-                "System", "⚠ AI is not yet initialized. Please wait for setup to complete."
-            )
-            return
-
-        # Check if AI is currently busy
-        if self.is_ai_busy:
-            # Add message to the current step config to be processed during next iteration
-            if self.current_step_config:
-                self.current_step_config.add_pending_message(user_input)
-                self.message_handler.append_message(
-                    "System", "✓ Your message will be added to the ongoing conversation..."
-                )
-            else:
-                self.message_handler.append_message("System", "⚠ AI is currently processing. Please wait...")
-            return
-
-        # Log user input
-        if self.history_logger:
-            self.history_logger.log_conversation("user", user_input)
-
-        # Build initial_messages for the main step (files and images)
-        initial_messages = []
-
-        # Add attached files as TextMessage
-        if self.attached_files:
-            file_count = len(self.attached_files)
-            self.message_handler.append_message(
-                "System", f"📎 Attaching {file_count} Python {self._pluralize('file', file_count)} to message..."
-            )
-            for file_info in self.attached_files:
-                file_content = f"[Attached Python file: {file_info['name']}]\n```python\n{file_info['content']}\n```"
-                initial_messages.append(TextMessage("user", file_content))
-
-        # Add images as ImageMessage
-        if self.captured_images:
-            image_count = len(self.captured_images)
-            self.message_handler.append_message(
-                "System", f"📷 Attaching {image_count} {self._pluralize('image', image_count)} to message..."
-            )
-            initial_messages.append(ImageMessage("Screenshot of the FreeCAD scene:", self.captured_images))
-
-        # Show in-progress indicator
-        self.message_handler.create_agent_progress_widget()
-
-        # Force UI to update to show the processing indicator
-        QCoreApplication.processEvents()
-
-        # Set busy state
-        self.is_ai_busy = True
-
-        # Show cancel button when AI starts processing
-        self.cancel_button.setVisible(True)
-
-        # Create StepConfig with the user input and store it for pending messages
-        main_step_config = StepConfig(initial_message=user_input)
-        self.current_step_config = main_step_config
-
-        # Create StepConfigRegistry and set the main step config
-        step_configs = StepConfigRegistry()
-        step_configs.set_config("main", main_step_config)
-
-        # Append messages for main step if any exist
-        if initial_messages:
-            step_configs.append_messages("main", initial_messages)
-
-        # Create and start worker thread for AI processing with step configs
-        self.worker = AIWorker(self.ai_client, user_input, step_configs)
-        self.worker.finished.connect(self.on_ai_response)
-        self.worker.token_update.connect(self.on_token_update)
-        self.worker.step_response.connect(self.on_step_response)
-        self.worker.start()
-
-        # Reset and show token status label for new request
-        self.token_status_label.reset()
-
-        # Clear captured images after sending
-        if self.captured_images:
-            self.captured_images.clear()
-
-        # Clear attached files and reset placeholder after sending
-        if self.attached_files:
-            self.attached_files.clear()
-            self.update_input_placeholder()
-
-        self.attachment_widget.refresh()
-
-    def on_cancel_ai(self):
-        """Handle cancel button click - cancel the current AI processing."""
-        if not self.is_ai_busy or not self.worker:
-            return
-
-        # Request cancellation from the worker
-        self.worker.cancel()
-
-        # Show cancellation message
-        self.message_handler.append_message("System", "Cancellation requested. Waiting for AI to stop...")
-
-        # Force UI to update
-        QCoreApplication.processEvents()
-
-    def on_token_update(self, token_data: dict):
-        """
-        Handle token usage updates during AI processing.
-
-        Args:
-            token_data: Dict with token usage information including iteration number
-        """
-        self.token_status_label.update_tokens(token_data)
-
-        if token_data:
-            # Force UI update
-            QCoreApplication.processEvents()
-
-    def on_ai_response(self, message: str, is_error: bool, token_data: dict = None):
-        """
-        Handle AI response completion from worker thread.
-
-        Args:
-            message: Error message (only used when is_error is True)
-            is_error: True if this is an error message, False otherwise
-            token_data: Optional dict with token usage information
-        """
-        # Update the token status label to show final count
-        self.token_status_label.finalize(token_data)
-
-        # Display error if any (success responses are handled by on_step_response)
-        if is_error:
-            if self.history_logger:
-                self.history_logger.log_conversation("error", message)
-            self.message_handler.display_error(message)
-
-        # Play notification sound when AI finishes
-        self.play_notification_sound()
-
-        # Bring main window to front when AI finishes
-        self.raise_()
-        self.activateWindow()
-        # Restore window if minimized
-        if self.isMinimized():
-            self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
-
-        # Reset busy state
-        self.is_ai_busy = False
-
-        # Clear the step config
-        self.current_step_config = None
-
-        # Hide cancel button when AI finishes
-        self.cancel_button.setVisible(False)
-
-        # Clean up worker thread
-        if self.worker:
-            self.worker.deleteLater()
-            self.worker = None
-
-        self.message_handler.agent_progress_done()
-
-    def on_step_response(self, step_name: str, response: str):
-        """
-        Handle step response from worker thread for async printing.
-
-        Args:
-            step_name: The name of the step that completed
-            response: The response from the step
-        """
-        # Display the step response
-        self.message_handler.append_message("AI", response)
-
-    def play_notification_sound(self):
-        """Play a notification sound when AI finishes processing."""
-        try:
-            import platform
-
-            if platform.system() == "Windows":
-                import winsound
-
-                winsound.MessageBeep(winsound.MB_ICONASTERISK)
-            else:
-                print("\a")  # ASCII bell character
-        except Exception as e:
-            self.logger.debug(f"Could not play notification sound: {e}")
-
-    def toggle_variables_panel(self):
-        """Toggle the visibility of the variables panel."""
-        self._set_variables_panel_visibility(not self.variables_widget.isVisible())
-
-    def toggle_api_dump(self):
-        """Toggle API data dumping."""
-        if self.api_debugger is None:
-            self.message_handler.append_message("System", "API debugger not initialized yet.")
-            self.toggle_api_dump_action.setChecked(False)
-            return
-
-        # Toggle the enabled state
-        new_state = not self.api_debugger.enabled
-        self.api_debugger.set_enabled(new_state)
-
-        # Save to config
-        self.ui_config_manager.set("dump_api_data", new_state)
-
-        if new_state:
-            dump_dir = self.api_debugger.output_dir
-            self.message_handler.append_message(
-                "System", f"API data dumping enabled. Data will be saved to: {dump_dir}"
-            )
-            self.logger.info(f"API data dumping enabled - output: {dump_dir}")
-        else:
-            self.message_handler.append_message("System", "API data dumping disabled.")
-            self.logger.info("API data dumping disabled")
-
-    def dump_history(self):
-        """Dump the conversation history to a file."""
-        if not self.ai_client:
-            self.message_handler.append_message("System", "AI client not initialized yet.")
-            return
-
-        try:
-            # Get the history manager from AI client
-            history_manager = self.ai_client.get_history_manager()
-
-            # Use working directory's .forshape folder for history dumps
-            history_dir = self.config.get_history_dumps_dir()
-
-            # Get model name
-            model_name = self.ai_client.get_model()
-
-            # Dump history using chat_history_manager
-            dump_path = history_manager.dump_history(history_dir, model_name)
-
-            self.message_handler.append_message(
-                "System", f"Conversation history dumped successfully!\nSaved to: {dump_path}"
-            )
-            self.logger.info(f"History dumped to: {dump_path}")
-
-        except Exception as e:
-            import traceback
-
-            error_msg = f"Error dumping history: {str(e)}\n{traceback.format_exc()}"
-            self.message_handler.display_error(error_msg)
-            self.logger.error(f"Failed to dump history: {str(e)}")
-
-    def on_log_level_changed(self, index: int):
-        """
-        Handle log level dropdown selection change.
-
-        Args:
-            index: The index of the selected item in the combo box
-        """
-        log_level = self.log_level_selector.current_level()
-        self.logger.set_min_level(log_level)
-        self.ui_config_manager.set("log_level", log_level.name)
-        self.logger.info(f"Log level changed to {log_level.name}")
-
-    def on_run_script(self):
-        """Handle Rebuild button click - delegate to file executor."""
-        if self.file_executor:
-            self.file_executor.on_run_script(self)
-
-    def on_redo_script(self):
-        """Handle Teardown button click - delegate to file executor."""
-        if self.file_executor:
-            self.file_executor.on_redo_script(self)
-
-    def on_incremental_build_script(self):
-        """Handle Incremental Build button click - delegate to file executor."""
-        if self.file_executor:
-            self.file_executor.on_incremental_build_script(self)
-
-    def update_input_placeholder(self):
-        """Delegate to drag drop handler."""
-        if self.drag_drop_handler:
-            self.drag_drop_handler.update_input_placeholder()
-
-    def _on_attachment_removed(self, chip_type, data):
-        """Handle attachment chip removal."""
-        if chip_type == "file":
-            self.update_input_placeholder()
-
-    def on_capture_screenshot(self):
-        """Handle Capture button click - captures scene screenshot."""
-        if not self.image_context:
-            self.message_handler.append_message("System", "ImageContext not configured")
-            return
-
-        if self.is_ai_busy:
-            self.message_handler.append_message("System", "AI is currently processing. Please wait...")
-            return
-
-        # Show capturing message
-        self.message_handler.append_message("System", "Capturing screenshot...")
-
-        # Force UI to update
-        QCoreApplication.processEvents()
-
-        try:
-            # Fit all objects in view before capturing (so user can see what will be captured)
-            self.image_context.fit()
-
-            # Capture screenshot with base64 encoding using image_context
-            result = self.image_context.capture_encoded(perspective="isometric")
-
-            if result is None or not result.get("success"):
-                self.message_handler.append_message("System", "Screenshot capture failed")
-                return
-
-            file_path = result.get("file", "unknown")
-
-            # Show preview dialog for user to confirm or cancel (and potentially annotate)
-            preview_dialog = ImagePreviewDialog(file_path, self)
-            if preview_dialog.exec_() == QDialog.Accepted and preview_dialog.is_confirmed():
-                # User confirmed - the annotated image has been saved to file_path
-                # Re-encode the potentially modified image
-                import base64
-
-                try:
-                    with open(file_path, "rb") as image_file:
-                        image_base64 = base64.b64encode(image_file.read()).decode("utf-8")
-
-                    # Update the result with the new base64 encoding
-                    result["image_base64"] = image_base64
-
-                    # Add the captured (and potentially annotated) image data to the list
-                    self.captured_images.append(result)
-
-                    self.attachment_widget.refresh()
-
-                    # Show success message
-                    self.message_handler.append_message(
-                        "System",
-                        f"Screenshot confirmed!\nSaved to: {file_path}",
-                    )
-                except Exception as e:
-                    self.message_handler.append_message("System", f"Error encoding annotated image: {str(e)}")
-            else:
-                # User cancelled - discard the image
-                self.message_handler.append_message("System", "Screenshot cancelled. Image will not be attached.")
-
-        except Exception:
-            import traceback
-
-            error_msg = f"Error capturing screenshot:\n{traceback.format_exc()}"
-            self.message_handler.append_message("System", error_msg)
-
-    def on_export_clicked(self):
-        """Handle Export button click - delegate to file executor."""
-        if self.file_executor:
-            self.file_executor.on_export_clicked()
-
-    def on_import_clicked(self):
-        """Handle Import button click - delegate to file executor."""
-        if self.file_executor:
-            self.file_executor.on_import_clicked()
+    # -------------------------------------------------------------------------
+    # Drag and drop event delegation
+    # -------------------------------------------------------------------------
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Delegate to drag drop handler."""
@@ -1032,6 +497,10 @@ class ForShapeMainWindow(QMainWindow):
         """Delegate to drag drop handler."""
         if self.drag_drop_handler:
             self.drag_drop_handler.drop_event(event)
+
+    # -------------------------------------------------------------------------
+    # Window events
+    # -------------------------------------------------------------------------
 
     def closeEvent(self, event):
         """Handle window close event."""

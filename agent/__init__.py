@@ -24,8 +24,10 @@ from .logger_protocol import LoggerProtocol
 from .permission_manager import PermissionManager, PermissionResponse
 from .provider_config_loader import ModelConfig, ProviderConfig, ProviderConfigLoader
 from .request import RequestBuilder
-from .step import NextStepJump, Step, StepJump, StepResult, ToolCallStep, ToolExecutor
+from .step import DynamicStepJump, NextStepJump, Step, StepJump, StepResult, ToolCallStep, ToolExecutor
 from .step_config import StepConfig, StepConfigRegistry
+from .step_jump_controller import StepJumpController
+from .tools.step_jump_tools import StepJumpTools
 from .tools.tool_manager import ToolManager
 
 __all__ = [
@@ -33,6 +35,9 @@ __all__ = [
     "Step",
     "StepJump",
     "NextStepJump",
+    "DynamicStepJump",
+    "StepJumpController",
+    "StepJumpTools",
     "StepResult",
     "HistoryMessage",
     "ToolCallStep",

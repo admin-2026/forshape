@@ -7,7 +7,7 @@ each of which can call tools to interact with the file system.
 Supports multiple API providers: OpenAI, Fireworks, and more.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .api_debugger import APIDebugger
 from .api_provider import APIProvider, create_api_provider
@@ -16,6 +16,9 @@ from .edit_history import EditHistory
 from .logger_protocol import LoggerProtocol
 from .step import Step, StepResult
 from .step_config import StepConfigRegistry
+
+if TYPE_CHECKING:
+    from .step_jump_controller import StepJumpController
 
 
 class AIAgent:
@@ -38,6 +41,7 @@ class AIAgent:
         provider: str = "openai",
         provider_config=None,
         response_steps: list[str] = None,
+        step_jump_controller: Optional["StepJumpController"] = None,
     ):
         """
         Initialize the AI agent.
@@ -53,6 +57,7 @@ class AIAgent:
             provider: API provider to use ("openai", "fireworks", etc.)
             provider_config: Optional ProviderConfig instance for provider configuration
             response_steps: Optional list of step names whose responses will be collected for UI printing
+            step_jump_controller: Optional StepJumpController for dynamic step flow control
         """
         if start_step not in steps:
             raise ValueError(f"start_step '{start_step}' not found in steps")
@@ -69,6 +74,7 @@ class AIAgent:
         self._conversation_counter = 0
         self.edit_history = edit_history
         self.response_steps = set(response_steps) if response_steps else set()
+        self.step_jump_controller = step_jump_controller
 
     def _initialize_provider(
         self, provider_name: str, api_key: Optional[str], provider_config=None
@@ -138,6 +144,10 @@ class AIAgent:
         """
         if self.provider is None:
             raise RuntimeError(f"{self.provider_name} provider not initialized. Please check your API key.")
+
+        # Clear any stale jump requests from previous conversations
+        if self.step_jump_controller:
+            self.step_jump_controller.clear()
 
         # Generate a new conversation ID for this user request
         conversation_id = self._generate_conversation_id()

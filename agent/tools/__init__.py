@@ -7,6 +7,7 @@ Contains base tool class and core agent tools:
 - Calculator tools (mathematical operations)
 - Python lint tools (code linting with ruff)
 - Python compile tools (syntax checking)
+- Step jump tools (workflow control)
 """
 
 from .base import ToolBase
@@ -15,6 +16,7 @@ from .file_access_tools import FileAccessTools
 from .interaction_tools import InteractionTools
 from .python_compile_tools import PythonCompileTools
 from .python_lint_tools import PythonLintTools
+from .step_jump_tools import StepJumpTools
 
 __all__ = [
     "ToolBase",
@@ -23,4 +25,5 @@ __all__ = [
     "CalculatorTools",
     "PythonCompileTools",
     "PythonLintTools",
+    "StepJumpTools",
 ]

@@ -283,6 +283,24 @@ class EditHistory:
         """
         return str(self.session_folder) if self.session_folder else None
 
+    def get_changed_files(self) -> list[str]:
+        """
+        Get a list of unique files that were changed in the current session.
+
+        This includes both edited files and newly created files.
+
+        Returns:
+            List of relative file paths that were changed (deduplicated)
+        """
+        changed_files = set()
+        for op in self.file_operations:
+            action = op.get("action")
+            if action in ("edit", "create"):
+                file_path = op.get("file")
+                if file_path:
+                    changed_files.add(file_path)
+        return list(changed_files)
+
     @staticmethod
     def list_all_sessions(edits_dir: str) -> list:
         """

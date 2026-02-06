@@ -160,6 +160,21 @@ class NextStepJump(StepJump):
         return self._next_step
 
 
+class ChangedFilesStepJump(StepJump):
+    """A StepJump that jumps to next step only if files were changed (edited or created)."""
+
+    def __init__(self, next_step: str, edit_history):
+        self._next_step = next_step
+        self._edit_history = edit_history
+
+    def get_next_step(self, result) -> Optional[str]:
+        """Return next step only if files were changed, otherwise None to stop."""
+        changed_files = self._edit_history.get_changed_files()
+        if changed_files:
+            return self._next_step
+        return None
+
+
 class LintStepJump(StepJump):
     """A StepJump that jumps to lint_err_fix only if there are lint issues."""
 
@@ -374,7 +389,7 @@ class ForShapeAI:
             tool_executor=tool_executor,
             max_iterations=50,
             logger=self.logger,
-            step_jump=NextStepJump("lint"),
+            step_jump=ChangedFilesStepJump("lint", self.edit_history),
         )
 
         # Create the lint step with its own tool executor containing only lint tools

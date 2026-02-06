@@ -8,10 +8,13 @@ to check Python files for syntax errors.
 import json
 import py_compile
 from pathlib import Path
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from ..edit_history import EditHistory
 from .base import ToolBase
+
+if TYPE_CHECKING:
+    from log import Logger
 
 
 class PythonCompileTools(ToolBase):
@@ -21,16 +24,23 @@ class PythonCompileTools(ToolBase):
     Provides tools to compile Python files and check for syntax errors.
     """
 
-    def __init__(self, working_dir: str, edit_history: Optional[EditHistory] = None):
+    def __init__(
+        self,
+        working_dir: str,
+        edit_history: Optional[EditHistory] = None,
+        logger: Optional["Logger"] = None,
+    ):
         """
         Initialize Python compile tools.
 
         Args:
             working_dir: Working directory for file operations
             edit_history: Optional EditHistory instance for getting changed files
+            logger: Optional Logger instance for logging
         """
         self.working_dir = Path(working_dir)
         self.edit_history = edit_history
+        self.logger = logger
 
     def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
@@ -203,11 +213,17 @@ class PythonCompileTools(ToolBase):
             compiled_files: list[str] = []
 
             for file_path in resolved_files:
+                # Log resolved files
+                if self.logger:
+                    self.logger.info(f"compile tool compiling: {file_path}")
                 try:
                     # Compile the file (don't create .pyc files)
                     py_compile.compile(str(file_path), doraise=True)
                     compiled_files.append(str(file_path))
                 except py_compile.PyCompileError as e:
+                    # Log compilation failure
+                    if self.logger:
+                        self.logger.warning(f"Compilation failed for {file_path}: {e.msg}")
                     # Extract error details
                     error_info = {
                         "file": str(file_path),

@@ -697,7 +697,7 @@ class ForShapeAI:
             tool_manager.register_provider(visualization_tools)
 
         # Register constants analysis tools
-        constants_tools = ConstantsTools(working_dir=str(self.config.working_dir))
+        constants_tools = ConstantsTools(working_dir=str(self.config.working_dir), logger=self.logger)
         tool_manager.register_provider(constants_tools)
 
         # Register step jump tools for routing to other workflows

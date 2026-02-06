@@ -149,6 +149,7 @@ class AIRequestController:
         # Create StepConfigRegistry and set the main step config
         step_configs = StepConfigRegistry()
         step_configs.set_config("main", main_step_config)
+        # step_configs.set_config("router", main_step_config)
 
         # Append messages for main step if any exist
         if initial_messages:

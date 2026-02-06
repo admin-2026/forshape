@@ -17,11 +17,14 @@ class StepJumpController:
         self._valid_destinations = valid_destinations
         self._target_step: Optional[str] = None
         self._return_step: Optional[str] = None
+        # Saved context for call resumption
+        self._saved_messages: Optional[list[dict]] = None
 
     def clear(self) -> None:
-        """Clear any pending jump/call requests."""
+        """Clear any pending jump/call requests and saved context."""
         self._target_step = None
         self._return_step = None
+        self._saved_messages = None
 
     def request_jump(self, from_step: str, to_step: str) -> tuple[bool, str]:
         """
@@ -74,6 +77,34 @@ class StepJumpController:
     def has_pending_return(self) -> bool:
         """Check if there's a pending return step."""
         return self._return_step is not None
+
+    def is_call_pending(self) -> bool:
+        """Check if a call (not jump) was just requested."""
+        return self._target_step is not None and self._return_step is not None
+
+    def save_call_context(self, messages: list[dict]) -> None:
+        """
+        Save the calling step's messages for resumption after the called step completes.
+
+        Args:
+            messages: The API messages list from the calling step
+        """
+        self._saved_messages = list(messages)  # Make a copy
+
+    def get_and_clear_saved_messages(self) -> Optional[list[dict]]:
+        """
+        Get saved messages and clear them.
+
+        Returns:
+            The saved messages list, or None if no saved context exists
+        """
+        messages = self._saved_messages
+        self._saved_messages = None
+        return messages
+
+    def has_saved_context(self) -> bool:
+        """Check if there's saved context from a previous call."""
+        return self._saved_messages is not None
 
     def get_valid_destinations(self, from_step: str) -> list[str]:
         """Get list of valid destination steps from the given step."""

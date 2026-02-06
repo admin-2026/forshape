@@ -5,7 +5,7 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
@@ -16,6 +16,9 @@ from ..step_config import StepConfig
 from .step_jump import StepJump
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
+
+if TYPE_CHECKING:
+    from ..step_jump_controller import StepJumpController
 
 
 class Step:
@@ -75,6 +78,7 @@ class Step:
         token_callback: Optional[Callable[[dict], None]] = None,
         cancellation_check: Optional[Callable[[], bool]] = None,
         response_content_callback: Optional[Callable[[str, str], None]] = None,
+        step_jump_controller: Optional["StepJumpController"] = None,
     ) -> StepResult:
         """
         Run the step with a user message. Executes the tool-calling loop.
@@ -89,18 +93,41 @@ class Step:
             token_callback: Optional callback function to receive token usage updates
             cancellation_check: Optional function that returns True if cancellation requested
             response_content_callback: Optional callback function to receive response content (step_name, content)
+            step_jump_controller: Optional StepJumpController for dynamic step flow control
 
         Returns:
             StepResult containing history_messages, api_messages, token usage, and status
         """
-        # Get the initial message from the step_config if available
-        user_messages = []
-        if step_config:
-            user_message = step_config.get_initial_message()
-            if user_message:
-                user_messages.append(Instruction(user_message, description="User Request"))
+        # Check if we're resuming from a call_step (has saved context)
+        if step_jump_controller and step_jump_controller.has_saved_context():
+            messages = step_jump_controller.get_and_clear_saved_messages()
+            self._log_info("Resuming from call_step with saved messages")
 
-        messages = self.request_builder.build_messages(history, user_messages, initial_messages)
+            # Add a message to inform LLM about the called step's completion
+            # The called step's result should be in the history
+            if history:
+                # Find the last assistant message from history (from the called step)
+                last_result = None
+                for msg in reversed(history):
+                    if msg.get("role") == "assistant":
+                        last_result = msg.get("content", "")
+                        break
+                if last_result:
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": f"[Called step completed with result: {last_result}]",
+                        }
+                    )
+        else:
+            # Build messages fresh (normal flow)
+            user_messages = []
+            if step_config:
+                user_message = step_config.get_initial_message()
+                if user_message:
+                    user_messages.append(Instruction(user_message, description="User Request"))
+
+            messages = self.request_builder.build_messages(history, user_messages, initial_messages)
 
         # Initialize token usage tracking
         total_prompt_tokens = 0
@@ -219,6 +246,18 @@ class Step:
                         )
 
                     messages.extend(result_messages)
+
+                    # Check if a call_step was requested - save context and return early
+                    if step_jump_controller and step_jump_controller.is_call_pending():
+                        step_jump_controller.save_call_context(messages)
+                        self._log_info("call_step detected, saving context and yielding to called step")
+                        return StepResult(
+                            history_messages=[],  # No history yet, will continue after call returns
+                            api_messages=messages,
+                            token_usage=_make_token_usage(),
+                            status="call_pending",
+                            step_jump=self.step_jump,
+                        )
 
                     # Continue the loop to get the next response
                     continue

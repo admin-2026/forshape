@@ -253,10 +253,13 @@ class AIAgent:
                 token_callback=step_token_callback,
                 cancellation_check=self._is_cancelled,
                 response_content_callback=step_response_callback if step_name in self.response_steps else None,
+                step_jump_controller=self.step_jump_controller,
             )
 
-            # Add all history messages from the step result to chat history
-            self.history_manager.add_history_messages(result.history_messages)
+            # Add history messages only if step actually completed (not call_pending)
+            # For call_pending, we'll continue later and add history then
+            if result.status != "call_pending":
+                self.history_manager.add_history_messages(result.history_messages)
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)

@@ -5,6 +5,7 @@ A Step represents a single execution unit that runs a tool-calling loop
 until completion or max iterations.
 """
 
+import traceback
 from typing import TYPE_CHECKING, Callable, Optional
 
 from ..api_debugger import APIDebugger
@@ -280,6 +281,10 @@ class Step:
                 )
 
             except Exception as e:
+                # Log full exception details for debugging
+                error_traceback = traceback.format_exc()
+                self._log_error(f"Exception in step execution: {type(e).__name__}: {str(e)}")
+                self._log_error(f"Full traceback:\n{error_traceback}")
                 return StepResult(
                     history_messages=[
                         HistoryMessage(

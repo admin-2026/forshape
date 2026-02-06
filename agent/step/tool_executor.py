@@ -7,6 +7,7 @@ ToolCallStep to avoid code duplication.
 """
 
 import json
+import traceback
 from typing import Any, Callable, Optional
 
 from ..api_debugger import APIDebugger
@@ -38,6 +39,11 @@ class ToolExecutor:
         """Log error message if logger is available."""
         if self.logger:
             self.logger.error(message)
+
+    def _log_info(self, message: str):
+        """Log info message if logger is available."""
+        if self.logger:
+            self.logger.info(message)
 
     def execute_tool_calls(
         self,
@@ -86,7 +92,16 @@ class ToolExecutor:
                     raise
 
             # Execute the tool
-            tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
+            self._log_info(f"Executing tool: {tool_name} with args: {tool_args}")
+            try:
+                tool_result = self.tool_manager.execute_tool(tool_name, tool_args)
+                self._log_info(f"Tool {tool_name} completed successfully")
+            except Exception as e:
+                error_traceback = traceback.format_exc()
+                self._log_error(f"Tool {tool_name} execution failed: {type(e).__name__}: {str(e)}")
+                self._log_error(f"Tool args: {tool_args}")
+                self._log_error(f"Full traceback:\n{error_traceback}")
+                raise
 
             # Dump tool execution data if debugger is enabled
             if api_debugger:
@@ -100,10 +115,19 @@ class ToolExecutor:
             # Get the provider and let it process the result
             tool_provider = self.tool_manager.get_provider(tool_name)
             if tool_provider:
-                provider_result_messages = tool_provider.process_result(tool_call_id, tool_name, tool_result)
-                for result_message in provider_result_messages:
-                    message_dict = result_message.get_message()
-                    if message_dict:
-                        result_messages.append(message_dict)
+                try:
+                    provider_result_messages = tool_provider.process_result(tool_call_id, tool_name, tool_result)
+                    for result_message in provider_result_messages:
+                        message_dict = result_message.get_message()
+                        if message_dict:
+                            result_messages.append(message_dict)
+                except Exception as e:
+                    error_traceback = traceback.format_exc()
+                    self._log_error(f"Tool provider processing failed for {tool_name}: {type(e).__name__}: {str(e)}")
+                    self._log_error(f"Tool result was: {tool_result}")
+                    self._log_error(f"Full traceback:\n{error_traceback}")
+                    raise
+            else:
+                self._log_error(f"No provider found for tool: {tool_name}")
 
         return result_messages, False

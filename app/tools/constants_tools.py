@@ -105,18 +105,37 @@ class ConstantsTools(ToolBase):
         """Get usage instructions for constants tools."""
         return """
 ### Constants Analysis Tools
-1. **analyze_constants** - Analyze constants and find their references across the codebase
 
-### Constants Analysis Examples
+**analyze_constants** - Scan constants.py and *_constants.py files to extract constant definitions and find where they are used across the codebase.
 
-**User says: "What constants are defined in this project?"**
-> Use analyze_constants to get a report of all constants with their values and references
+#### What It Returns
+- **name**: The constant's identifier (e.g., `WIDTH`, `DEFAULT_COLOR`)
+- **value**: The resolved runtime value (e.g., `100`, `"#FF0000"`)
+- **expression**: The original source expression (e.g., `BASE_WIDTH * 2`)
+- **source**: Which file defines it (e.g., `shape_constants.py`)
+- **referenced**: List of files that use this constant
 
-**User says: "Which files use the WIDTH constant?"**
-> Use analyze_constants and look at the referenced field for WIDTH
+#### When to Use
+- Understanding what configuration values exist in a project
+- Finding unused constants (use `max_references=0`)
+- Tracing where a specific constant is used throughout the code
+- Auditing constants from a specific file (use `source_filter`)
 
-**User says: "Export constants report to a file"**
-> Use analyze_constants with output_yaml=true to save the report as constants_report.yaml
+#### Parameters
+- `fields`: Limit output to specific fields (default: all). Use `["name", "value"]` for a compact overview.
+- `source_filter`: Show only constants from a specific file (e.g., `"shape_constants.py"`)
+- `min_references` / `max_references`: Filter by usage count
+- `output_yaml`: Save report to `constants_report.yaml` instead of returning JSON
+
+#### Examples
+
+| User Request | Action |
+|--------------|--------|
+| "List all constants" | Call `analyze_constants()` with no arguments |
+| "What constants are unused?" | Call `analyze_constants(max_references=0)` |
+| "Show me shape-related constants" | Call `analyze_constants(source_filter="shape_constants.py")` |
+| "Where is DEFAULT_WIDTH used?" | Call `analyze_constants()`, then find DEFAULT_WIDTH in the result and check its `referenced` field |
+| "Give me a quick summary of constants" | Call `analyze_constants(fields=["name", "value", "source"])` |
 """
 
     def _find_constants_files(self) -> list[str]:

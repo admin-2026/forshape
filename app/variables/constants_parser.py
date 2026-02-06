@@ -47,7 +47,22 @@ class ConstantsParser:
         try:
             # Start with base namespace if provided (for object-specific constants)
             namespace = dict(base_namespace) if base_namespace else {}
-            exec(self.content, namespace)
+
+            # Parse and strip imports to avoid execution errors
+            # Import statements are removed but the constants from base_namespace are available
+            tree = ast.parse(self.content)
+
+            # Filter out import statements, keep only assignments and other safe nodes
+            new_body = []
+            for node in tree.body:
+                if not isinstance(node, (ast.Import, ast.ImportFrom)):
+                    new_body.append(node)
+
+            tree.body = new_body
+
+            # Compile and execute the modified AST
+            code = compile(tree, filename="<constants>", mode="exec")
+            exec(code, namespace)
 
             resolved = {}
             for name, value in namespace.items():

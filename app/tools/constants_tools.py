@@ -272,7 +272,11 @@ class ConstantsTools(ToolBase):
                 try:
                     with open(base_constants_path, encoding="utf-8") as f:
                         content = f.read()
-                    exec(content, base_namespace)
+                    # Strip imports before executing to avoid resolution errors
+                    tree = ast.parse(content)
+                    tree.body = [node for node in tree.body if not isinstance(node, (ast.Import, ast.ImportFrom))]
+                    code = compile(tree, filename="<constants>", mode="exec")
+                    exec(code, base_namespace)
                 except Exception:
                     pass
 

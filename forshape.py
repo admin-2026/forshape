@@ -19,7 +19,7 @@ from typing import Optional
 
 from PySide2.QtWidgets import QApplication
 
-from agent import NextStepJump, StepJump, ToolCallStep, ToolExecutor
+from agent import NextStepJump, StepJump, StepJumpController, StepJumpTools, ToolCallStep, ToolExecutor
 from agent.async_ops import PermissionInput, WaitManager
 from agent.chat_history_manager import HistoryPolicy
 from agent.permission_manager import PermissionManager
@@ -38,6 +38,7 @@ from app import (
     PrestartChecker,
     Step,
 )
+from app.tools import ConstantsTools
 
 # System message instructions
 BASE_INSTRUCTION = """
@@ -218,6 +219,44 @@ LINT_ERR_FIX_USER = (
     "Fix the lint errors shown in the results above. If there are no errors, respond that no fixes are needed."
 )
 
+ROUTER_SYSTEM = """You are an AI assistant router that helps users navigate different workflows for 3D shape creation.
+
+## Your Role
+You are the entry point for user requests. Based on what the user asks, you should:
+1. Route them to the appropriate workflow using jump_to_step or call_step
+2. Help them use utility tools directly (like analyze_constants, list_files)
+3. Provide guidance on available workflows and tools
+
+## Available Workflows
+- **doc_print**: Prints current FreeCAD document structure and lists files, then goes to main workflow
+- **main**: The primary workflow for creating and manipulating 3D shapes
+- **lint**: Run code linting on Python files
+- **lint_err_fix**: Fix lint errors in code
+
+## When to Route vs Handle Directly
+**Route to doc_print** when the user wants to:
+- Create, modify, or manipulate 3D shapes (this shows document context first)
+- Write or edit Python scripts for shape generation
+- Work with FreeCAD documents
+- Any substantial code generation task
+
+**Route to main directly** when:
+- You already know the document state or don't need to show it
+- The user is continuing a previous task
+
+**Handle directly** when the user wants to:
+- Analyze constants in the project (use analyze_constants tool)
+- List files in the project (use list_files tool)
+- Get information about the project structure
+- Ask questions that don't require code generation
+
+## Guidelines
+- Be concise in your responses
+- If unsure whether to route or handle directly, ask the user for clarification
+- Use jump_to_step (not call_step) when routing since these are primary workflows
+- Prefer doc_print over main for shape creation tasks to provide full context
+"""
+
 
 class ForShapeAI:
     """Main orchestrator class for the AI-powered GUI interface."""
@@ -337,7 +376,31 @@ class ForShapeAI:
         permission_input = PermissionInput()
         permission_manager = PermissionManager(permission_requester=permission_input)
 
-        # Create and configure tool manager with all tools
+        # Create StepJumpController for dynamic step flow control
+        # Router can jump to doc_print (which goes to main), main, lint, lint_err_fix
+        step_jump_controller = StepJumpController(
+            valid_destinations={
+                "router": ["doc_print", "main", "lint", "lint_err_fix"],
+            }
+        )
+
+        # Create and configure tool manager for router step (has all tools + step jump tools)
+        router_tool_manager = ToolManager(logger=self.logger)
+        self._register_router_step_tools(router_tool_manager, wait_manager, permission_manager, step_jump_controller)
+
+        router_system_elements = [
+            Instruction(ROUTER_SYSTEM, description="Router instructions"),
+            DynamicContent(router_tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
+        ]
+
+        router_user_elements = [
+            FileLoader(str(self.config.get_forshape_path()), required=False, description="User preferences"),
+        ]
+
+        router_request_builder = RequestBuilder(router_system_elements, router_user_elements)
+        router_tool_executor = ToolExecutor(tool_manager=router_tool_manager, logger=self.logger)
+
+        # Create and configure tool manager for main step
         tool_manager = ToolManager(logger=self.logger)
         self._register_main_step_tools(tool_manager, wait_manager, permission_manager)
 
@@ -385,6 +448,16 @@ class ForShapeAI:
             messages=[doc_print_tool_call],
             logger=self.logger,
             step_jump=NextStepJump("main"),
+        )
+
+        # Create the router step - entry point that routes user to workflows or handles utility tasks
+        router_step = Step(
+            name="router",
+            request_builder=router_request_builder,
+            tool_executor=router_tool_executor,
+            max_iterations=20,
+            logger=self.logger,
+            step_jump=None,  # Router decides dynamically via StepJumpTools
         )
 
         # Create the main step with tool executor
@@ -452,23 +525,26 @@ class ForShapeAI:
             logger=self.logger,
         )
 
-        # Create AI agent with steps (doc_print runs before main, lint runs after main, lint_err_fix after lint)
+        # Create AI agent with steps
+        # Flow: router -> (main -> lint -> lint_err_fix) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
             steps={
+                "router": router_step,
                 "doc_print": doc_print_step,
                 "main": main_step,
                 "lint": lint_step,
                 "lint_err_fix": lint_err_fix_step,
             },
-            start_step="doc_print",
+            start_step="router",
             logger=self.logger,
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config,
             edit_history=self.edit_history,
-            response_steps=["main", "lint_err_fix"],
+            response_steps=["router", "main", "lint_err_fix"],
+            step_jump_controller=step_jump_controller,
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
@@ -568,6 +644,65 @@ class ForShapeAI:
             exclude_patterns=[],
         )
         tool_manager.register_provider(file_access_tools)
+
+    def _register_router_step_tools(
+        self,
+        tool_manager: ToolManager,
+        wait_manager: WaitManager,
+        permission_manager: PermissionManager,
+        step_jump_controller: StepJumpController,
+    ) -> None:
+        """
+        Register tools for the router step with the tool manager.
+
+        The router step has access to all main step tools plus ConstantsTools and StepJumpTools.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+            wait_manager: WaitManager instance for user interactions
+            permission_manager: PermissionManager instance for permission checks
+            step_jump_controller: StepJumpController for step flow control
+        """
+        from agent.tools.calculator_tools import CalculatorTools
+        from agent.tools.file_access_tools import FileAccessTools
+        from agent.tools.interaction_tools import InteractionTools
+        from app.tools import FreeCADTools, VisualizationTools
+
+        # Register file access tools
+        file_access_tools = FileAccessTools(
+            working_dir=self.config.working_dir,
+            logger=self.logger,
+            permission_manager=permission_manager,
+            edit_history=self.edit_history,
+            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
+            exclude_patterns=[],
+        )
+        tool_manager.register_provider(file_access_tools)
+
+        # Register interaction tools
+        interaction_tools = InteractionTools(wait_manager)
+        tool_manager.register_provider(interaction_tools)
+
+        # Register calculator tools
+        calculator_tools = CalculatorTools()
+        tool_manager.register_provider(calculator_tools)
+
+        # Register FreeCAD object manipulation tools
+        freecad_tools = FreeCADTools(permission_manager=permission_manager)
+        tool_manager.register_provider(freecad_tools)
+
+        # Register visualization tools if image_context is available
+        if self.image_context is not None:
+            visualization_tools = VisualizationTools(image_context=self.image_context)
+            tool_manager.register_provider(visualization_tools)
+
+        # Register constants analysis tools
+        constants_tools = ConstantsTools(working_dir=str(self.config.working_dir))
+        tool_manager.register_provider(constants_tools)
+
+        # Register step jump tools for routing to other workflows
+        step_jump_tools = StepJumpTools(controller=step_jump_controller, current_step="router")
+        tool_manager.register_provider(step_jump_tools)
 
     def run(self):
         """Start the interactive GUI interface."""

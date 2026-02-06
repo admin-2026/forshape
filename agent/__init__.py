@@ -24,7 +24,7 @@ from .logger_protocol import LoggerProtocol
 from .permission_manager import PermissionManager, PermissionResponse
 from .provider_config_loader import ModelConfig, ProviderConfig, ProviderConfigLoader
 from .request import RequestBuilder
-from .step import Step, StepJump, StepResult, ToolCallStep, ToolExecutor
+from .step import NextStepJump, Step, StepJump, StepResult, ToolCallStep, ToolExecutor
 from .step_config import StepConfig, StepConfigRegistry
 from .tools.tool_manager import ToolManager
 
@@ -32,6 +32,7 @@ __all__ = [
     "AIAgent",
     "Step",
     "StepJump",
+    "NextStepJump",
     "StepResult",
     "HistoryMessage",
     "ToolCallStep",

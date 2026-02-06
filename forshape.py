@@ -19,7 +19,7 @@ from typing import Optional
 
 from PySide2.QtWidgets import QApplication
 
-from agent import StepJump, ToolCallStep, ToolExecutor
+from agent import NextStepJump, StepJump, ToolCallStep, ToolExecutor
 from agent.async_ops import PermissionInput, WaitManager
 from agent.chat_history_manager import HistoryPolicy
 from agent.permission_manager import PermissionManager
@@ -148,16 +148,6 @@ When creating new objects:
 - Import and call it from main.py
 - Extract any reusable logic into appropriate <feature>_lib.py files
 """
-
-
-class NextStepJump(StepJump):
-    """A StepJump that always jumps to a fixed next step."""
-
-    def __init__(self, next_step: str):
-        self._next_step = next_step
-
-    def get_next_step(self, result) -> str:
-        return self._next_step
 
 
 class ChangedFilesStepJump(StepJump):

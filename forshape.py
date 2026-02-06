@@ -176,23 +176,26 @@ class ChangedFilesStepJump(StepJump):
 
 
 class LintStepJump(StepJump):
-    """A StepJump that jumps to lint_err_fix only if there are lint issues."""
+    """A StepJump that jumps to lint_err_fix only if there are lint or compile issues."""
 
     def __init__(self, next_step: str):
         self._next_step = next_step
 
     def get_next_step(self, result) -> Optional[str]:
-        """Return next step only if lint found issues, otherwise None to stop."""
+        """Return next step only if lint or compile found issues, otherwise None to stop."""
         import json
 
-        # Look through api_messages for the lint result
+        # Look through api_messages for the lint and compile results
         for msg in result.api_messages:
             if msg.get("role") == "tool":
                 content = msg.get("content", "")
                 try:
-                    lint_result = json.loads(content)
-                    # Check if this is a successful lint result with issues
-                    if lint_result.get("success") and lint_result.get("issue_count", 0) > 0:
+                    tool_result = json.loads(content)
+                    # Check if this is a lint result with issues
+                    if tool_result.get("success") and tool_result.get("issue_count", 0) > 0:
+                        return self._next_step
+                    # Check if this is a compile result with errors
+                    if "error_count" in tool_result and tool_result.get("error_count", 0) > 0:
                         return self._next_step
                 except (json.JSONDecodeError, TypeError):
                     continue
@@ -212,6 +215,20 @@ BEST_PRACTICES = """
 - Avoid inserting dangerous code into the generated script.
 - After creating a new object, export it in the export.py. Usually, we export the top level object not components of the top level object.
 """
+
+LINT_ERR_FIX_SYSTEM = """You are a code assistant that fixes Python lint and syntax errors.
+
+Your task is to fix any lint errors or syntax/compilation errors reported from the previous step. Focus only on fixing the errors, do not make other changes.
+
+Guidelines:
+- Fix lint errors reported by the lint_python tool (code style, unused imports, etc.)
+- Fix syntax errors reported by the compile_python tool (invalid syntax, indentation errors, etc.)
+- Do not refactor or improve code beyond fixing the errors
+- If there are no errors to fix, do nothing
+- Use the edit_file tool to make corrections
+"""
+
+LINT_ERR_FIX_USER = "Fix the lint and compilation errors shown in the results above. If there are no errors, respond that no fixes are needed."
 
 
 class ForShapeAI:
@@ -409,7 +426,16 @@ class ForShapeAI:
                     copy_result_to_response=True,
                     key="lint_step_lint_python",
                     policy=HistoryPolicy.LATEST,
-                )
+                ),
+                ToolCall(
+                    name="compile_python",
+                    arguments={
+                        "use_edit_history": True,
+                    },
+                    copy_result_to_response=True,
+                    key="lint_step_compile_python",
+                    policy=HistoryPolicy.LATEST,
+                ),
             ]
         )
         lint_step = ToolCallStep(
@@ -425,26 +451,9 @@ class ForShapeAI:
         self._register_lint_err_fix_step_tools(lint_err_fix_tool_manager, permission_manager)
         lint_err_fix_tool_executor = ToolExecutor(tool_manager=lint_err_fix_tool_manager, logger=self.logger)
 
-        lint_err_fix_system = Instruction(
-            """You are a code assistant that fixes Python lint errors.
-
-Your task is to fix any lint errors reported from the previous lint step. Focus only on fixing the errors, do not make other changes.
-
-Guidelines:
-- Fix only the reported lint errors
-- Do not refactor or improve code beyond fixing the errors
-- If there are no errors to fix, do nothing
-- Use the edit_file tool to make corrections
-""",
-            description="Lint error fix instructions",
-        )
-        lint_err_fix_user = Instruction(
-            "Fix the lint errors shown in the lint results above. If there are no errors, respond that no fixes are needed.",
-            description="Lint error fix task",
-        )
         lint_err_fix_request_builder = RequestBuilder(
-            system_elements=[lint_err_fix_system],
-            user_elements=[lint_err_fix_user],
+            system_elements=[Instruction(LINT_ERR_FIX_SYSTEM, description="Lint and compile error fix instructions")],
+            user_elements=[Instruction(LINT_ERR_FIX_USER, description="Lint and compile error fix task")],
         )
         lint_err_fix_step = Step(
             name="lint_err_fix",
@@ -537,9 +546,13 @@ Guidelines:
         Args:
             tool_manager: ToolManager instance to register tools with
         """
+        from agent.tools.python_compile_tools import PythonCompileTools
         from agent.tools.python_lint_tools import PythonLintTools
 
         tool_manager.register_provider(PythonLintTools())
+        tool_manager.register_provider(
+            PythonCompileTools(working_dir=self.config.working_dir, edit_history=self.edit_history)
+        )
 
     def _register_lint_err_fix_step_tools(
         self, tool_manager: ToolManager, permission_manager: PermissionManager

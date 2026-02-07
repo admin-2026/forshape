@@ -10,8 +10,13 @@ This module provides functionality to check and setup:
 """
 
 import os
+import re
 import shutil
+import threading
+import urllib.request
 from typing import TYPE_CHECKING, Literal, Optional
+
+from PySide2.QtCore import QTimer
 
 if TYPE_CHECKING:
     from .config_manager import ConfigurationManager
@@ -44,6 +49,50 @@ class PrestartChecker:
             message_handler: Message handler for displaying messages
         """
         self.message_handler = message_handler
+
+    def check_version(self):
+        """Check if a newer version is available in a background thread."""
+        threading.Thread(target=self._fetch_and_compare_version, daemon=True).start()
+
+    def _fetch_and_compare_version(self):
+        """Fetch remote version and compare with local. Runs in background thread."""
+        try:
+            from about import APP_VERSION, VERSION_URL
+
+            response = urllib.request.urlopen(VERSION_URL, timeout=5)
+            content = response.read().decode("utf-8")
+            match = re.search(r'APP_VERSION\s*=\s*["\']([^"\']+)["\']', content)
+            if not match:
+                self.logger.warn("Version check: could not parse remote version")
+                return
+
+            remote_version = match.group(1)
+            if self._is_newer(remote_version, APP_VERSION):
+                self.logger.info(f"New version available: {remote_version} (current: {APP_VERSION})")
+                # Post message to UI on main thread
+                QTimer.singleShot(
+                    0,
+                    lambda: self.message_handler.append_message(
+                        "System",
+                        f"**New version available:** {remote_version} (current: {APP_VERSION})",
+                    ),
+                )
+            else:
+                self.logger.info(f"Version is up to date: {APP_VERSION}")
+        except Exception as e:
+            self.logger.warn(f"Version check failed: {e}")
+
+    @staticmethod
+    def _is_newer(remote: str, local: str) -> bool:
+        """Return True if remote version is newer than local version."""
+
+        def parse(v):
+            return [int(x) for x in v.split(".")]
+
+        try:
+            return parse(remote) > parse(local)
+        except (ValueError, AttributeError):
+            return False
 
     def check(self) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
         """
@@ -260,7 +309,7 @@ class PrestartChecker:
 
             # Check if template source exists
             if not os.path.exists(source_path):
-                self.logger.warning(f"Template source not found: {source_path}")
+                self.logger.warn(f"Template source not found: {source_path}")
                 continue
 
             # Copy the template file

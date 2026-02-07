@@ -749,6 +749,9 @@ class ForShapeAI:
         # Set the message handler for prestart checker
         self.prestart_checker.set_message_handler(self.main_window.message_handler)
 
+        # Check for newer version in background
+        self.prestart_checker.check_version()
+
         # Create and register document observer to monitor active document changes
         self.document_observer = ActiveDocumentObserver(
             prestart_checker=self.prestart_checker,

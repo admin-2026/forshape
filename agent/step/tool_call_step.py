@@ -5,7 +5,7 @@ This module provides a ToolCallStep that directly calls tools (no AI)
 and puts responses in history for other steps to process.
 """
 
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 from ..api_debugger import APIDebugger
 from ..api_provider import APIProvider
@@ -17,6 +17,9 @@ from ..step_config import StepConfig
 from .step_jump import StepJump
 from .step_result import StepResult
 from .tool_executor import ToolExecutor
+
+if TYPE_CHECKING:
+    from ..step_jump_controller import StepJumpController
 
 
 class ToolCallStep:
@@ -74,6 +77,7 @@ class ToolCallStep:
         token_callback: Optional[Callable[[dict], None]] = None,  # Ignored - no tokens
         cancellation_check: Optional[Callable[[], bool]] = None,
         response_content_callback: Optional[Callable[[str, str], None]] = None,  # Ignored - no user facing response
+        step_jump_controller: Optional["StepJumpController"] = None,  # Ignored - no dynamic step flow
     ) -> StepResult:
         """
         Run the step by executing tool calls from initial_messages.

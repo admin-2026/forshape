@@ -31,6 +31,7 @@ from .ui import (
     ScreenshotHandler,
     WelcomeWidget,
 )
+from .ui.about_dialog import create_about_menu
 from .ui_config_manager import UIConfigManager
 from .variables import VariablesView
 
@@ -142,6 +143,9 @@ class ForShapeMainWindow(QMainWindow):
         # Create Model menu dynamically from provider config
         model_menu = self.menuBar().addMenu("Model")
         self._create_model_menu_items(model_menu)
+
+        # Create Help menu with About action
+        create_about_menu(self)
 
         # Create central widget and layout
         central_widget = QWidget()

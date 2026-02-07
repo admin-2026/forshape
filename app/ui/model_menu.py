@@ -366,7 +366,7 @@ class ModelMenuManager:
                     # we might need to trigger completion callback
                     if self.completion_callback and not self.ai_client:
                         if self.prestart_checker:
-                            status = self.prestart_checker.check(parent_window)
+                            status = self.prestart_checker.check()
                             if status == "ready":
                                 self.completion_callback()
                                 if self.enable_ai_mode_callback:

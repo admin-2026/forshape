@@ -70,10 +70,10 @@ class PrestartHandler:
 
         if current_status == "dir_mismatch":
             # Handle directory mismatch response (yes/no/cancel)
-            should_continue = self.prestart_checker.handle_directory_mismatch(parent_widget, user_input)
+            should_continue = self.prestart_checker.handle_directory_mismatch(user_input)
             if should_continue:
                 # Re-run prestart checks
-                status = self.prestart_checker.check(parent_widget)
+                status = self.prestart_checker.check()
                 if status == "ready":
                     # Complete initialization if callback provided
                     if self.completion_callback:
@@ -84,7 +84,7 @@ class PrestartHandler:
                 self.prestart_check_mode = False
         else:
             # For "waiting", "need_api_key", or other status, re-run checks when user provides input
-            status = self.prestart_checker.check(parent_widget)
+            status = self.prestart_checker.check()
             if status == "ready":
                 # Complete initialization if callback provided
                 if self.completion_callback:

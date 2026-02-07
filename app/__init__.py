@@ -19,6 +19,7 @@ from agent import (
 
 from .config_manager import ConfigurationManager
 from .dependency_manager import DependencyManager
+from .document_observer import ActiveDocumentObserver
 from .logger import Logger, LogLevel
 from .main_window import ForShapeMainWindow
 from .prestart_checker import PrestartChecker
@@ -39,4 +40,5 @@ __all__ = [
     "APIDebugger",
     "ApiKeyManager",
     "EditHistory",
+    "ActiveDocumentObserver",
 ]

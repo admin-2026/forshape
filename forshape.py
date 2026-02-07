@@ -26,6 +26,7 @@ from agent.permission_manager import PermissionManager
 from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder, ToolCall, ToolCallMessage
 from agent.tools.tool_manager import ToolManager
 from app import (
+    ActiveDocumentObserver,
     AIAgent,
     APIDebugger,
     ApiKeyManager,
@@ -307,6 +308,7 @@ class ForShapeAI:
 
         # GUI window (will be created in run())
         self.main_window = None
+        self.document_observer = None
         self.running = True
 
     def _complete_initialization(self):
@@ -744,8 +746,23 @@ class ForShapeAI:
 
         self.main_window.show()
 
+        # Set the message handler for prestart checker
+        self.prestart_checker.set_message_handler(self.main_window.message_handler)
+
+        # Create and register document observer to monitor active document changes
+        self.document_observer = ActiveDocumentObserver(
+            prestart_checker=self.prestart_checker,
+            logger=self.logger,
+            message_handler=self.main_window.message_handler,
+            enable_ai_mode_callback=self.main_window.enable_ai_mode,
+        )
+        if self.document_observer.register():
+            self.logger.info("Document observer registered successfully")
+        else:
+            self.logger.warning("Failed to register document observer")
+
         # Run initial prestart check
-        status = self.prestart_checker.check(self.main_window)
+        status = self.prestart_checker.check()
         if status == "ready":
             # All checks passed, complete initialization (which also sets components) and enable AI
             self._complete_initialization()
@@ -763,8 +780,14 @@ class ForShapeAI:
 
     def handle_exit(self):
         """Handle graceful exit of the application."""
+        # Unregister document observer
+        if self.document_observer is not None:
+            self.document_observer.unregister()
+            self.logger.info("Document observer unregistered")
+
         # Write session end marker to log
-        self.history_logger.write_session_end()
+        if self.history_logger is not None:
+            self.history_logger.write_session_end()
         self.running = False
 
 

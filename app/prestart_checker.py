@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Literal, Optional
 if TYPE_CHECKING:
     from .config_manager import ConfigurationManager
     from .logger import Logger
-    from .main_window import ForShapeMainWindow
+    from .ui import ConversationView
 
 
 class PrestartChecker:
@@ -32,12 +32,20 @@ class PrestartChecker:
         """
         self.config = config
         self.logger = logger
+        self.message_handler = None
         self.status: Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"] = "waiting"
         self.api_key: Optional[str] = None
 
-    def check(
-        self, window: "ForShapeMainWindow"
-    ) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
+    def set_message_handler(self, message_handler: "ConversationView"):
+        """
+        Set or update the message handler.
+
+        Args:
+            message_handler: Message handler for displaying messages
+        """
+        self.message_handler = message_handler
+
+    def check(self) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:
         """
         Check configuration setup and FreeCAD document status.
 
@@ -51,9 +59,6 @@ class PrestartChecker:
 
         Uses chatbox for interaction instead of modal dialogs so user can interact with FreeCAD.
 
-        Args:
-            window: The main window instance to display messages
-
         Returns:
             Status string: "ready" if all checks passed, "waiting" if waiting for user action,
                           "dir_mismatch" if directory needs confirmation, "need_api_key" if no API keys configured,
@@ -63,7 +68,7 @@ class PrestartChecker:
         try:
             import FreeCAD as App
         except ImportError:
-            window.message_handler.append_message(
+            self.self.message_handler.append_message(
                 "System",
                 "❌ **FreeCAD Not Available**\n\n"
                 "FreeCAD module could not be imported. Please run this from FreeCAD's Python console.",
@@ -73,7 +78,7 @@ class PrestartChecker:
 
         # Check 2: Is there an active document?
         if App.ActiveDocument is None:
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System",
                 "⚠️ **No Active Document**\n\n"
                 "There is no active FreeCAD document.\n\n"
@@ -88,7 +93,7 @@ class PrestartChecker:
         # Check 3: Is the document saved?
         doc_path = App.ActiveDocument.FileName
         if not doc_path or doc_path == "":
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System",
                 f"⚠️ **Document Not Saved**\n\n"
                 f"The active document '{App.ActiveDocument.Name}' has not been saved yet.\n\n"
@@ -104,7 +109,7 @@ class PrestartChecker:
         current_dir = os.path.abspath(self.config.working_dir)
 
         if doc_dir != current_dir:
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System",
                 f"⚠️ **Working Directory Mismatch**\n\n"
                 f"The current working directory does not match the document's location.\n\n"
@@ -120,7 +125,7 @@ class PrestartChecker:
 
         # At this point, working directory is correct
         # Check 5: Setup .forshape directory (now that we know the correct location)
-        if not self._check_and_setup_directories(window):
+        if not self._check_and_setup_directories():
             self.status = "error"
             return "error"
 
@@ -135,7 +140,7 @@ class PrestartChecker:
         configured_providers = provider_loader.get_providers()
 
         if not configured_providers:
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System",
                 "⚠️ **No Providers Configured**\n\n"
                 "No API providers found in provider-config.json. Please check your configuration.",
@@ -168,7 +173,7 @@ class PrestartChecker:
             message_lines.append("**After adding an API key:**")
             message_lines.append("• Type anything (e.g., 'ready') to continue")
 
-            window.message_handler.append_message("System", "\n".join(message_lines))
+            self.message_handler.append_message("System", "\n".join(message_lines))
             self.status = "need_api_key"
             return "need_api_key"
 
@@ -182,7 +187,7 @@ class PrestartChecker:
         )
 
         keys_message = ", ".join(configured_keys) if configured_keys else "None"
-        window.message_handler.append_message(
+        self.message_handler.append_message(
             "System",
             f"✅ **All Checks Passed!**\n\n"
             f"📄 Document: `{os.path.basename(doc_path)}`\n"
@@ -193,12 +198,9 @@ class PrestartChecker:
         self.status = "ready"
         return "ready"
 
-    def _check_and_setup_directories(self, window: "ForShapeMainWindow") -> bool:
+    def _check_and_setup_directories(self) -> bool:
         """
         Check and setup configuration directories and files.
-
-        Args:
-            window: The main window instance to display messages
 
         Returns:
             True if successful, False on error
@@ -213,30 +215,27 @@ class PrestartChecker:
 
             # Show what was created if anything
             if created_items:
-                window.message_handler.append_message(
+                self.message_handler.append_message(
                     "System", "✅ **Configuration Setup**\n\n" + "\n".join(created_items)
                 )
 
             # Copy template files to working directory if they don't exist
-            self._setup_template_files(window)
+            self._setup_template_files()
 
             return True
 
         except Exception as e:
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System", f"❌ **Configuration Setup Failed**\n\nFailed to create configuration directories:\n{str(e)}"
             )
             self.logger.error(f"Failed to setup directories: {e}")
             return False
 
-    def _setup_template_files(self, window: "ForShapeMainWindow") -> None:
+    def _setup_template_files(self) -> None:
         """
         Copy template files to the working directory if they don't exist.
 
         Template files: constants.py, main.py, export.py, import.py
-
-        Args:
-            window: The main window instance to display messages
         """
         # Get the templates directory path (relative to this module)
         module_dir = os.path.dirname(os.path.abspath(__file__))
@@ -275,7 +274,7 @@ class PrestartChecker:
         # Inform user if any files were copied
         if copied_files:
             files_list = "\n".join([f"• {f}" for f in copied_files])
-            window.message_handler.append_message(
+            self.message_handler.append_message(
                 "System",
                 f"✅ **Template Files Created**\n\n"
                 f"The following template files have been created in your working directory:\n"
@@ -283,12 +282,11 @@ class PrestartChecker:
                 f"You can now customize these files for your project.",
             )
 
-    def handle_directory_mismatch(self, window: "ForShapeMainWindow", user_input: str) -> bool:
+    def handle_directory_mismatch(self, user_input: str) -> bool:
         """
         Handle user response to directory mismatch.
 
         Args:
-            window: The main window instance
             user_input: User's response (yes/no/cancel)
 
         Returns:
@@ -297,19 +295,19 @@ class PrestartChecker:
         try:
             import FreeCAD as App
         except ImportError:
-            window.message_handler.append_message("System", "❌ FreeCAD not available")
+            self.message_handler.append_message("System", "❌ FreeCAD not available")
             return False
 
         response = user_input.strip().lower()
 
         if response == "cancel":
-            window.message_handler.append_message("System", "❌ Setup cancelled. You can close the window.")
+            self.message_handler.append_message("System", "❌ Setup cancelled. You can close the window.")
             self.status = "error"
             return False
         elif response == "yes":
             doc_path = App.ActiveDocument.FileName if App.ActiveDocument else None
             if not doc_path:
-                window.message_handler.append_message(
+                self.message_handler.append_message(
                     "System", "⚠️ Document is no longer available. Please save it again."
                 )
                 return True
@@ -323,13 +321,13 @@ class PrestartChecker:
                 self.config.update_working_directory(doc_dir)
 
                 self.logger.info(f"Changed working directory to: {doc_dir}")
-                window.message_handler.append_message(
+                self.message_handler.append_message(
                     "System",
                     f"✅ **Directory Changed**\n\nWorking directory changed to: `{doc_dir}`\n\nRechecking setup...",
                 )
                 return True
             except Exception as e:
-                window.message_handler.append_message(
+                self.message_handler.append_message(
                     "System",
                     f"❌ **Error Changing Directory**\n\n"
                     f"Failed to change working directory: {str(e)}\n\n"
@@ -342,10 +340,10 @@ class PrestartChecker:
             current_dir = self.config.working_dir
             self.config.update_working_directory(current_dir)
 
-            window.message_handler.append_message("System", "Continuing with current directory. Rechecking setup...")
+            self.message_handler.append_message("System", "Continuing with current directory. Rechecking setup...")
             return True
         else:
-            window.message_handler.append_message("System", "⚠️ Please type 'yes', 'no', or 'cancel'")
+            self.message_handler.append_message("System", "⚠️ Please type 'yes', 'no', or 'cancel'")
             return True
 
     def get_status(self) -> Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"]:

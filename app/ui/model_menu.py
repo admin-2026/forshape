@@ -386,6 +386,20 @@ class ModelMenuManager:
             parent_window: Parent window for the dialog
         """
         try:
+            from ..dialogs import show_confirmation_dialog
+
+            # Show confirmation dialog
+            confirmed = show_confirmation_dialog(
+                parent_window,
+                "Confirm Deletion",
+                f"Are you sure you want to delete the API key for {display_name}?",
+                default_no=True,
+            )
+
+            # If user did not confirm, return without deleting
+            if not confirmed:
+                return
+
             # Delete the API key
             api_key_manager = self._get_api_key_manager()
             api_key_manager.delete_api_key(provider_name)

@@ -61,6 +61,11 @@ class WidgetBase:
         widget.setReadOnly(True)
         widget.setOpenExternalLinks(True)
         widget.setFrameShape(QTextBrowser.NoFrame)
+
+        # Disable border line. Comment them out to help debug GUI issue
+        widget.setLineWidth(0)
+        widget.setStyleSheet("QTextBrowser { border: none; }")
+
         # Disable scrollbars - the parent QListWidget handles scrolling
         widget.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         widget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

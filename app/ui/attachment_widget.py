@@ -34,12 +34,10 @@ class AttachmentChip(QWidget):
             filepath = attachment_data.get("file", "image")
             name = os.path.basename(filepath)
             bg_color = "#d4edda"
-            border_color = "#a3d9a5"
         else:
             icon = "\U0001f4ce"
             name = attachment_data.get("name", "file")
             bg_color = "#d1ecf1"
-            border_color = "#9ecfda"
 
         label = QLabel(f"{icon} {name}")
         layout.addWidget(label)
@@ -52,9 +50,7 @@ class AttachmentChip(QWidget):
         close_btn.clicked.connect(lambda: self.remove_clicked.emit(self.attachment_data))
         layout.addWidget(close_btn)
 
-        self.setStyleSheet(
-            f"AttachmentChip {{ background-color: {bg_color}; border: 1px solid {border_color}; border-radius: 10px; }}"
-        )
+        self.setStyleSheet(f"AttachmentChip {{ background-color: {bg_color}; border: none; border-radius: 10px; }}")
 
 
 class AttachmentWidget(QWidget):

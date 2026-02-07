@@ -1,0 +1,29 @@
+# -*- coding: utf-8 -*-
+__Name__ = "ForShape AI"
+__Comment__ = "AI assistant for 3D shape generation"
+__Icon__ = "forshape_icon.svg"
+__Help__ = "Launch ForShape AI assistant"
+__Author__ = ""
+__Version__ = "0.1.0"
+__Date__ = "2026-02-06"
+
+import sys
+
+import FreeCAD
+
+param = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/ForShapeAI")
+script_folder = param.GetString("ScriptFolder")
+
+if not script_folder:
+    FreeCAD.Console.PrintError(
+        "ForShape AI: script folder not configured.\n"
+        "Please run install_macro.py first:\n"
+        "  script_folder = 'C:/path/to/shape_gen_2'; exec(open(f'{script_folder}/install_macro.py').read())\n"
+    )
+else:
+    if script_folder not in sys.path:
+        sys.path.append(script_folder)
+
+    from forshape import ForShapeAI
+
+    ForShapeAI().run()

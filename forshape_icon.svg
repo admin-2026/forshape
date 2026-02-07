@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- 3D cube -->
+  <polygon points="32,8 52,20 52,44 32,56 12,44 12,20" fill="#4a90d9" stroke="#2c5f8a" stroke-width="2"/>
+  <polygon points="32,8 52,20 32,32 12,20" fill="#6bb3f0" stroke="#2c5f8a" stroke-width="2"/>
+  <line x1="32" y1="32" x2="32" y2="56" stroke="#2c5f8a" stroke-width="2"/>
+  <!-- AI text -->
+  <text x="32" y="42" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#ffffff">AI</text>
+</svg>

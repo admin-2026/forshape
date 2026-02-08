@@ -77,7 +77,7 @@ Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
 
-The box is created with the bottom left corner on the plane origin. The box dimensions are specified using x_size, y_size, and z_size.
+The box is created from the global coordinate origin, extending in the positive X, Y, and Z directions.
 
 **Public Methods:**
 
@@ -103,17 +103,28 @@ The box is created with the bottom left corner on the plane origin. The box dime
   AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
   ```
 
-`AdditiveBox.create_fillet_side_box(label, x_size, y_size, z_size, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
-- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp.
+`AdditiveBox.create_fillet_side_box(label, x_size, y_size, z_size, front_left_edge_radius=0, top_left_edge_radius=0, rear_left_edge_radius=0, bottom_left_edge_radius=0, front_right_edge_radius=0, top_right_edge_radius=0, rear_right_edge_radius=0, bottom_right_edge_radius=0, bottom_front_edge_radius=0, top_front_edge_radius=0, bottom_rear_edge_radius=0, top_rear_edge_radius=0, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular box with individually rounded edges. Each of the 12 edges can have a different fillet radius. Use radius=0 for edges that should remain sharp.
 - **Parameters:**
   - `label` (str): Name/label for the box object
   - `x_size` (float): X-axis dimension in mm
   - `y_size` (float): Y-axis dimension in mm
   - `z_size` (float): Z-axis dimension in mm
-  - `radius1` (float): Fillet radius for Edge1 in mm (0 for no fillet)
-  - `radius3` (float): Fillet radius for Edge3 in mm (0 for no fillet)
-  - `radius5` (float): Fillet radius for Edge5 in mm (0 for no fillet)
-  - `radius7` (float): Fillet radius for Edge7 in mm (0 for no fillet)
+  - Vertical edges (4):
+    - `front_left_edge_radius` (float): Fillet radius for Edge1 (default: 0)
+    - `rear_left_edge_radius` (float): Fillet radius for Edge3 (default: 0)
+    - `front_right_edge_radius` (float): Fillet radius for Edge5 (default: 0)
+    - `rear_right_edge_radius` (float): Fillet radius for Edge7 (default: 0)
+  - Top edges (4):
+    - `top_left_edge_radius` (float): Fillet radius for Edge2 (default: 0)
+    - `top_right_edge_radius` (float): Fillet radius for Edge6 (default: 0)
+    - `top_front_edge_radius` (float): Fillet radius for Edge10 (default: 0)
+    - `top_rear_edge_radius` (float): Fillet radius for Edge12 (default: 0)
+  - Bottom edges (4):
+    - `bottom_left_edge_radius` (float): Fillet radius for Edge4 (default: 0)
+    - `bottom_right_edge_radius` (float): Fillet radius for Edge8 (default: 0)
+    - `bottom_front_edge_radius` (float): Fillet radius for Edge9 (default: 0)
+    - `bottom_rear_edge_radius` (float): Fillet radius for Edge11 (default: 0)
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
@@ -123,14 +134,17 @@ The box is created with the bottom left corner on the plane origin. The box dime
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Box with all edges rounded with different radiuses
-  AdditiveBox.create_fillet_side_box('box1', x_size=20, y_size=10, z_size=5, radius1=1, radius3=2, radius5=3, radius7=4)
-  # Box with only some edges rounded (others sharp)
-  AdditiveBox.create_fillet_side_box('box2', x_size=15, y_size=12, z_size=8, radius1=2, radius3=0, radius5=2, radius7=0, x_offset=25)
-  # Box with all edges rounded uniformly (similar to uniform fillet)
-  AdditiveBox.create_fillet_side_box('box3', x_size=10, y_size=10, z_size=10, radius1=1.5, radius3=1.5, radius5=1.5, radius7=1.5, y_offset=20)
-  # Box with asymmetric rounding
-  AdditiveBox.create_fillet_side_box('box4', x_size=30, y_size=20, z_size=15, radius1=5, radius3=0, radius5=0, radius7=5, x_offset=15, yaw=45)
+  # Box with all vertical edges rounded with different radiuses
+  AdditiveBox.create_fillet_side_box('box1', x_size=20, y_size=10, z_size=5,
+      front_left_edge_radius=1, rear_left_edge_radius=2, front_right_edge_radius=3, rear_right_edge_radius=4)
+  # Box with top edges rounded
+  AdditiveBox.create_fillet_side_box('box2', x_size=15, y_size=12, z_size=8,
+      top_left_edge_radius=2, top_right_edge_radius=2, top_front_edge_radius=2, top_rear_edge_radius=2)
+  # Box with all 12 edges rounded uniformly
+  AdditiveBox.create_fillet_side_box('box3', x_size=10, y_size=10, z_size=10,
+      front_left_edge_radius=1.5, top_left_edge_radius=1.5, rear_left_edge_radius=1.5, bottom_left_edge_radius=1.5,
+      front_right_edge_radius=1.5, top_right_edge_radius=1.5, rear_right_edge_radius=1.5, bottom_right_edge_radius=1.5,
+      bottom_front_edge_radius=1.5, top_front_edge_radius=1.5, bottom_rear_edge_radius=1.5, top_rear_edge_radius=1.5)
   ```
 
 ### 5. Pad

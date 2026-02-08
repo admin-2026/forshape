@@ -63,22 +63,23 @@ class AdditiveBox(Shape):
         return (x_offset + displacement.x, y_offset + displacement.y, z_offset + displacement.z)
 
     @staticmethod
-    def _calculate_fillet_radius_with_epsilon(radius, width, length):
+    def _calculate_fillet_radius_with_epsilon(radius, length, width, height):
         """
         Calculate fillet radius with epsilon adjustment when needed.
-        Epsilon is subtracted when diameter equals width or length to prevent
+        Epsilon is subtracted when diameter equals length, width, or height to prevent
         adjacent fillets from touching in FreeCAD.
 
         Args:
             radius: The desired fillet radius
-            width: The width of the slot
-            length: The length of the slot
+            length: The length of the box
+            width: The width of the box
+            height: The height of the box
 
         Returns:
             float: The adjusted radius (with epsilon subtracted if needed)
         """
         diameter = 2 * radius
-        if diameter == width or diameter == length:
+        if diameter == length or diameter == width or diameter == height:
             epsilon = Context.get_epsilon()
             return radius - epsilon
         else:
@@ -173,10 +174,18 @@ class AdditiveBox(Shape):
         x_size=None,
         y_size=None,
         z_size=None,
-        radius1=0,
-        radius3=0,
-        radius5=0,
-        radius7=0,
+        front_left_edge_radius=0,
+        top_left_edge_radius=0,
+        rear_left_edge_radius=0,
+        bottom_left_edge_radius=0,
+        front_right_edge_radius=0,
+        top_right_edge_radius=0,
+        rear_right_edge_radius=0,
+        bottom_right_edge_radius=0,
+        bottom_front_edge_radius=0,
+        top_front_edge_radius=0,
+        bottom_rear_edge_radius=0,
+        top_rear_edge_radius=0,
         x_offset=0,
         y_offset=0,
         z_offset=0,
@@ -185,15 +194,23 @@ class AdditiveBox(Shape):
         roll=0,
     ):
         """
-        Creates a box with individually rounded side edges.
+        Creates a box with individually rounded edges.
 
         Args:
             label: Name/label for the box object
             x_size, y_size, z_size: Size in each axis
-            radius1: Fillet radius for Edge1 in mm (0 for no fillet)
-            radius3: Fillet radius for Edge3 in mm (0 for no fillet)
-            radius5: Fillet radius for Edge5 in mm (0 for no fillet)
-            radius7: Fillet radius for Edge7 in mm (0 for no fillet)
+            front_left_edge_radius: Fillet radius for Edge1 (0 for no fillet)
+            top_left_edge_radius: Fillet radius for Edge2 (0 for no fillet)
+            rear_left_edge_radius: Fillet radius for Edge3 (0 for no fillet)
+            bottom_left_edge_radius: Fillet radius for Edge4 (0 for no fillet)
+            front_right_edge_radius: Fillet radius for Edge5 (0 for no fillet)
+            top_right_edge_radius: Fillet radius for Edge6 (0 for no fillet)
+            rear_right_edge_radius: Fillet radius for Edge7 (0 for no fillet)
+            bottom_right_edge_radius: Fillet radius for Edge8 (0 for no fillet)
+            bottom_front_edge_radius: Fillet radius for Edge9 (0 for no fillet)
+            top_front_edge_radius: Fillet radius for Edge10 (0 for no fillet)
+            bottom_rear_edge_radius: Fillet radius for Edge11 (0 for no fillet)
+            top_rear_edge_radius: Fillet radius for Edge12 (0 for no fillet)
             x_offset, y_offset, z_offset: Position offsets
             yaw, pitch, roll: Rotation angles
 
@@ -210,21 +227,27 @@ class AdditiveBox(Shape):
 
         # Determine expected children based on radiuses
         box_label = label + "_box"
-        fillet1_label = label + "_fillet1"
-        fillet3_label = label + "_fillet3"
-        fillet5_label = label + "_fillet5"
-        fillet7_label = label + "_fillet7"
-
         created_children = [box_label]
         expected_children = [(box_label, "PartDesign::AdditiveBox")]
 
-        # Track which fillets we need
-        fillet_config = {
-            "Edge1": (radius1, fillet1_label),
-            "Edge3": (radius3, fillet3_label),
-            "Edge5": (radius5, fillet5_label),
-            "Edge7": (radius7, fillet7_label),
+        # Track which fillets we need (edge number -> radius mapping)
+        edge_radii = {
+            1: front_left_edge_radius,
+            2: top_left_edge_radius,
+            3: rear_left_edge_radius,
+            4: bottom_left_edge_radius,
+            5: front_right_edge_radius,
+            6: top_right_edge_radius,
+            7: rear_right_edge_radius,
+            8: bottom_right_edge_radius,
+            9: bottom_front_edge_radius,
+            10: top_front_edge_radius,
+            11: bottom_rear_edge_radius,
+            12: top_rear_edge_radius,
         }
+        fillet_config = {}
+        for i, radius in edge_radii.items():
+            fillet_config[f"Edge{i}"] = (radius, f"{label}_fillet{i}")
 
         for edge, (radius, fillet_label) in fillet_config.items():
             if radius > 0:
@@ -273,7 +296,7 @@ class AdditiveBox(Shape):
             for edge, (radius, fillet_label) in fillet_config.items():
                 if radius > 0 and fillet_label in children:
                     existing_fillet = children[fillet_label]
-                    new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+                    new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, length, width, height)
 
                     if existing_fillet.Radius != new_radius:
                         existing_fillet.Radius = new_radius
@@ -314,7 +337,7 @@ class AdditiveBox(Shape):
                 obj.newObject("PartDesign::Fillet", fillet_label)
                 fillet = Context.get_object(fillet_label)
                 fillet.Base = (last_feature, [edge])
-                fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
+                fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, length, width, height)
                 last_feature = fillet
                 has_fillets = True
                 App.ActiveDocument.recompute()

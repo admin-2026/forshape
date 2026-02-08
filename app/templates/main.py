@@ -12,8 +12,8 @@ def build_model():
 
     Example:
     AdditiveBox.create_box(
-        'example_box', 'XY_Plane',
-        100, 50, 30,  # length, width, height
+        'example_box',
+        x_size=100, y_size=50, z_size=30,
         x_offset=0, y_offset=0, z_offset=0
     )
     """

@@ -81,10 +81,10 @@ The box is created with the bottom left corner on the plane origin. The box dime
 
 **Public Methods:**
 
-`AdditiveBox.create_box(label, plane_label, x_size, y_size, z_size, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveBox.create_box(label, x_size, y_size, z_size, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a box on the XY plane. x_size, y_size, z_size map directly to length, width, height.
 - **Parameters:**
   - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
   - `x_size` (float): X-axis dimension in mm
   - `y_size` (float): Y-axis dimension in mm
   - `z_size` (float): Z-axis dimension in mm
@@ -97,45 +97,16 @@ The box is created with the bottom left corner on the plane origin. The box dime
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Basic box on XY plane: 10mm length, 20mm width, 5mm height
-  AdditiveBox.create_box('b1', 'XY_Plane', x_size=10, y_size=20, z_size=5)
+  # Basic box: 10mm x 20mm x 5mm
+  AdditiveBox.create_box('b1', x_size=10, y_size=20, z_size=5)
   # Box with offset and rotation
-  AdditiveBox.create_box('b2', 'XY_Plane', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
-  # Box on YZ plane: 5mm height, 10mm length, 20mm width
-  AdditiveBox.create_box('b3', 'YZ_Plane', x_size=5, y_size=10, z_size=20)
+  AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
   ```
 
-`AdditiveBox.create_slot(label, plane_label, x_size, y_size, z_size, radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
-- **Description:** Creates a rectangular slot with rounded corners using fillets. Useful for creating elongated holes or slots with smooth edges. Dimensions follow the same plane-dependent mapping as create_box.
-- **Parameters:**
-  - `label` (str): Name/label for the slot object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
-  - `x_size` (float): X-axis dimension in mm
-  - `y_size` (float): Y-axis dimension in mm
-  - `z_size` (float): Z-axis dimension in mm
-  - `radius` (float): Fillet radius for rounded corners in mm
-  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
-  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
-  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
-- **Example:**
-  ```python
-  from shapes.additive_box import AdditiveBox
-  # Basic slot with rounded corners on XY plane: 20mm length, 10mm width, 5mm height
-  AdditiveBox.create_slot('slot1', 'XY_Plane', x_size=20, y_size=10, z_size=5, radius=2)
-  # Fully rounded slot (stadium shape) - diameter equals width
-  AdditiveBox.create_slot('slot2', 'XY_Plane', x_size=30, y_size=10, z_size=5, radius=5, x_offset=25)
-  # Slot with offset and rotation
-  AdditiveBox.create_slot('slot3', 'XY_Plane', x_size=15, y_size=8, z_size=3, radius=1.5, x_offset=10, y_offset=15, yaw=45)
-  ```
-
-`AdditiveBox.create_round_side_box(label, plane_label, x_size, y_size, z_size, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
-- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp. Dimensions follow the same plane-dependent mapping as create_box.
+`AdditiveBox.create_fillet_side_box(label, x_size, y_size, z_size, radius1, radius3, radius5, radius7, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Description:** Creates a rectangular box with individually rounded side edges. Each of the 4 vertical edges can have a different fillet radius. Use radius=0 for edges that should remain sharp.
 - **Parameters:**
   - `label` (str): Name/label for the box object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'YZ_Plane', 'XZ_Plane')
   - `x_size` (float): X-axis dimension in mm
   - `y_size` (float): Y-axis dimension in mm
   - `z_size` (float): Z-axis dimension in mm
@@ -152,14 +123,14 @@ The box is created with the bottom left corner on the plane origin. The box dime
 - **Example:**
   ```python
   from shapes.additive_box import AdditiveBox
-  # Box with all edges rounded with different radiuses on XY plane
-  AdditiveBox.create_round_side_box('box1', 'XY_Plane', x_size=20, y_size=10, z_size=5, radius1=1, radius3=2, radius5=3, radius7=4)
+  # Box with all edges rounded with different radiuses
+  AdditiveBox.create_fillet_side_box('box1', x_size=20, y_size=10, z_size=5, radius1=1, radius3=2, radius5=3, radius7=4)
   # Box with only some edges rounded (others sharp)
-  AdditiveBox.create_round_side_box('box2', 'XY_Plane', x_size=15, y_size=12, z_size=8, radius1=2, radius3=0, radius5=2, radius7=0, x_offset=25)
+  AdditiveBox.create_fillet_side_box('box2', x_size=15, y_size=12, z_size=8, radius1=2, radius3=0, radius5=2, radius7=0, x_offset=25)
   # Box with all edges rounded uniformly (similar to uniform fillet)
-  AdditiveBox.create_round_side_box('box3', 'XY_Plane', x_size=10, y_size=10, z_size=10, radius1=1.5, radius3=1.5, radius5=1.5, radius7=1.5, y_offset=20)
+  AdditiveBox.create_fillet_side_box('box3', x_size=10, y_size=10, z_size=10, radius1=1.5, radius3=1.5, radius5=1.5, radius7=1.5, y_offset=20)
   # Box with asymmetric rounding
-  AdditiveBox.create_round_side_box('box4', 'XY_Plane', x_size=30, y_size=20, z_size=15, radius1=5, radius3=0, radius5=0, radius7=5, x_offset=15, yaw=45)
+  AdditiveBox.create_fillet_side_box('box4', x_size=30, y_size=20, z_size=15, radius1=5, radius3=0, radius5=0, radius7=5, x_offset=15, yaw=45)
   ```
 
 ### 5. Pad
@@ -520,15 +491,12 @@ AdditiveBox.create_box('main_box', 'XY_Plane', x_size=20, y_size=20, z_size=10)
 # Create a cylinder with offset to position it
 AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offset=10)
 
-# Create a rounded slot (stadium shape)
-AdditiveBox.create_slot('slot', 'XY_Plane', x_size=15, y_size=6, z_size=15, radius=3, x_offset=25)
-
-# Cut the cylinder and slot from the box
-Boolean.cut('box_with_holes', 'main_box', ['hole', 'slot'])
+# Cut the cylinder from the box
+Boolean.cut('box_with_holes', 'main_box', ['hole'])
 
 # Organize objects into a folder
 Folder.create_folder('my_project')
-Folder.add_to_folder('my_project', ['box_with_holes', 'hole', 'slot'])
+Folder.add_to_folder('my_project', ['box_with_holes', 'hole'])
 
 # Export the result
 Export.export('box_with_holes', 'box_with_holes.step')
@@ -549,7 +517,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_slot`, `create_cylinder`, `create_prism`, `create_pad`, `create_clone`, and `create_copy` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_cylinder`, `create_prism`, `create_pad`, `create_clone`, and `create_copy` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 
@@ -558,4 +526,4 @@ Export.export('box_with_holes', 'box_with_holes.step')
 - Transform operations use absolute positioning (not relative)
 - Export automatically creates directories if they don't exist
 - When performing multiple operations, consider the order: create shapes, transform them, then apply boolean operations
-- For elongated holes with rounded ends (stadium/obround shapes), use `create_slot` with radius equal to half the width
+- For boxes with rounded edges, use `create_fillet_side_box` with individual edge radii

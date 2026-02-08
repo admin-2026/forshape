@@ -5,66 +5,34 @@ from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.additive_box;
 # reload(shapes.additive_box); from shapes.additive_box import AdditiveBox
-# AdditiveBox.create_box('addbox', 'XY_Plane', 2, 4, 10)
-# AdditiveBox.create_slot('slot', 'XY_Plane', 2, 4, 1, 0.5)
+# AdditiveBox.create_box('addbox', x_size=2, y_size=4, z_size=10)
 
 
 class AdditiveBox(Shape):
     @staticmethod
-    def _resolve_dimensions(plane_label, length, width, height, x_size, y_size, z_size):
+    def _resolve_dimensions(plane_label, x_size, y_size, z_size):
         """
-        Resolve final dimensions based on plane orientation and size parameters.
+        Resolve final dimensions based on plane orientation.
 
-        x_size, y_size, z_size overwrite length, width, height based on plane:
+        Maps x_size, y_size, z_size to length, width, height based on plane:
         - XY plane: x_size → length, y_size → width, z_size → height
         - YZ plane: x_size → height, y_size → length, z_size → width
         - XZ plane: x_size → length, y_size → height, z_size → width
 
         Args:
             plane_label: The plane orientation ('XY_Plane', 'YZ_Plane', 'XZ_Plane')
-            length, width, height: Original dimensions
-            x_size, y_size, z_size: Alternative size parameters
+            x_size, y_size, z_size: Size in each axis
 
         Returns:
-            tuple: (final_length, final_width, final_height)
+            tuple: (length, width, height)
         """
-        # Check if both dimension systems are provided
-        has_lwh = length is not None or width is not None or height is not None
-        has_xyz = x_size is not None or y_size is not None or z_size is not None
-
-        if has_lwh and has_xyz:
-            print(
-                "Warning: Both (length/width/height) and (x_size/y_size/z_size) provided. Using x_size/y_size/z_size."
-            )
-
-        # If x_size/y_size/z_size provided, map based on plane
-        if has_xyz:
-            if plane_label == "XY_Plane":
-                # x_size → length, y_size → width, z_size → height
-                if x_size is not None:
-                    length = x_size
-                if y_size is not None:
-                    width = y_size
-                if z_size is not None:
-                    height = z_size
-            elif plane_label == "YZ_Plane":
-                # x_size → height, y_size → length, z_size → width
-                if x_size is not None:
-                    height = x_size
-                if y_size is not None:
-                    length = y_size
-                if z_size is not None:
-                    width = z_size
-            elif plane_label == "XZ_Plane":
-                # x_size → length, y_size → height, z_size → width
-                if x_size is not None:
-                    length = x_size
-                if y_size is not None:
-                    height = y_size
-                if z_size is not None:
-                    width = z_size
-
-        return length, width, height
+        if plane_label == "XY_Plane":
+            return x_size, y_size, z_size
+        elif plane_label == "YZ_Plane":
+            return y_size, z_size, x_size
+        elif plane_label == "XZ_Plane":
+            return x_size, z_size, y_size
+        return x_size, y_size, z_size
 
     @staticmethod
     def _calculate_center_based_rotation_offset(length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll):
@@ -119,10 +87,6 @@ class AdditiveBox(Shape):
     @staticmethod
     def create_box(
         label,
-        plane_label,
-        length=None,
-        width=None,
-        height=None,
         x_size=None,
         y_size=None,
         z_size=None,
@@ -133,10 +97,8 @@ class AdditiveBox(Shape):
         pitch=0,
         roll=0,
     ):
-        # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(
-            plane_label, length, width, height, x_size, y_size, z_size
-        )
+        plane_label = "XY_Plane"
+        length, width, height = x_size, y_size, z_size
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
@@ -206,161 +168,15 @@ class AdditiveBox(Shape):
         return obj
 
     @staticmethod
-    def create_slot(
+    def create_fillet_side_box(
         label,
-        plane_label,
-        length=None,
-        width=None,
-        height=None,
-        radius=0,
         x_size=None,
         y_size=None,
         z_size=None,
-        x_offset=0,
-        y_offset=0,
-        z_offset=0,
-        yaw=0,
-        pitch=0,
-        roll=0,
-    ):
-        # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(
-            plane_label, length, width, height, x_size, y_size, z_size
-        )
-
-        # Handle incremental build mode
-        incremental_build_obj = Shape._incremental_build_if_possible(label)
-        if incremental_build_obj is not None:
-            return incremental_build_obj
-
-        # Determine expected children based on radius
-        slot_label = label + "_slot"
-        fillet_label = label + "_fillet"
-
-        if radius == 0:
-            # No fillet needed, just create a box
-            created_children = [slot_label]
-            expected_children = [(slot_label, "PartDesign::AdditiveBox")]
-        else:
-            # Need both slot and fillet
-            created_children = [slot_label, fillet_label]
-            expected_children = [(slot_label, "PartDesign::AdditiveBox"), (fillet_label, "PartDesign::Fillet")]
-
-        # Handle teardown mode
-        if Shape._teardown_if_needed(label, created_children=created_children):
-            return None
-
-        # Calculate center-based rotation offset
-        adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
-            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
-        )
-
-        # Check for existing object and get children if they exist
-        existing_obj, children = Shape._get_or_recreate_body(label, expected_children)
-
-        if existing_obj is not None:
-            # Children exist, update their properties
-            existing_slot = children[slot_label]
-            needs_recompute = False
-
-            # Update slot dimensions
-            new_length = f"{length} mm"
-            new_width = f"{width} mm"
-            new_height = f"{height} mm"
-
-            if str(existing_slot.Length) != new_length:
-                existing_slot.Length = new_length
-                needs_recompute = True
-            if str(existing_slot.Width) != new_width:
-                existing_slot.Width = new_width
-                needs_recompute = True
-            if str(existing_slot.Height) != new_height:
-                existing_slot.Height = new_height
-                needs_recompute = True
-
-            # Update attachment, offset, and rotation with adjusted offset
-            if Shape._update_attachment_and_offset(
-                existing_slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
-            ):
-                needs_recompute = True
-
-            # Update fillet if it exists (radius > 0)
-            if radius > 0:
-                existing_fillet = children[fillet_label]
-                new_radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
-
-                if existing_fillet.Radius != new_radius:
-                    existing_fillet.Radius = new_radius
-                    needs_recompute = True
-
-                # Ensure slot is hidden when fillet exists
-                if existing_slot.Visibility:
-                    existing_slot.Visibility = False
-                    needs_recompute = True
-            else:
-                # No fillet, ensure slot is visible
-                if not existing_slot.Visibility:
-                    existing_slot.Visibility = True
-                    needs_recompute = True
-
-            if needs_recompute:
-                App.ActiveDocument.recompute()
-
-            return existing_obj
-
-        # Create new object if it doesn't exist
-        obj = Shape._create_object(label)
-
-        App.ActiveDocument.addObject("PartDesign::AdditiveBox", slot_label)
-        slot = Context.get_object(slot_label)
-        obj.addObject(slot)
-        slot.Length = f"{length} mm"
-        slot.Width = f"{width} mm"
-        slot.Height = f"{height} mm"
-
-        Shape._update_attachment_and_offset(
-            slot, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
-        )
-        App.ActiveDocument.recompute()
-
-        # Only create fillet if radius > 0
-        if radius > 0:
-            obj.newObject("PartDesign::Fillet", fillet_label)
-            fillet = Context.get_object(fillet_label)
-            fillet.Base = (
-                slot,
-                [
-                    "Edge1",
-                    "Edge3",
-                    "Edge5",
-                    "Edge7",
-                ],
-            )
-            # Subtract epsilon only when diameter equals width or length to prevent adjacent fillets from touching
-            fillet.Radius = AdditiveBox._calculate_fillet_radius_with_epsilon(radius, width, length)
-
-            slot.Visibility = False
-            App.ActiveDocument.recompute()
-        else:
-            # No fillet, keep slot visible
-            slot.Visibility = True
-
-        return obj
-
-    @staticmethod
-    def create_round_side_box(
-        label,
-        plane_label,
-        length=None,
-        width=None,
-        height=None,
         radius1=0,
         radius3=0,
         radius5=0,
         radius7=0,
-        x_size=None,
-        y_size=None,
-        z_size=None,
         x_offset=0,
         y_offset=0,
         z_offset=0,
@@ -373,27 +189,19 @@ class AdditiveBox(Shape):
 
         Args:
             label: Name/label for the box object
-            plane_label: Plane to attach to (e.g., 'XY_Plane')
-            length: Length dimension in mm
-            width: Width dimension in mm
-            height: Height dimension in mm
+            x_size, y_size, z_size: Size in each axis
             radius1: Fillet radius for Edge1 in mm (0 for no fillet)
             radius3: Fillet radius for Edge3 in mm (0 for no fillet)
             radius5: Fillet radius for Edge5 in mm (0 for no fillet)
             radius7: Fillet radius for Edge7 in mm (0 for no fillet)
-            x_size: Alternative to length/width/height (plane-dependent)
-            y_size: Alternative to length/width/height (plane-dependent)
-            z_size: Alternative to length/width/height (plane-dependent)
             x_offset, y_offset, z_offset: Position offsets
             yaw, pitch, roll: Rotation angles
 
         Returns:
             The created/updated object
         """
-        # Resolve dimensions based on plane and size parameters
-        length, width, height = AdditiveBox._resolve_dimensions(
-            plane_label, length, width, height, x_size, y_size, z_size
-        )
+        plane_label = "XY_Plane"
+        length, width, height = x_size, y_size, z_size
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)

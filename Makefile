@@ -1,7 +1,10 @@
-.PHONY: install format lint fix
+.PHONY: install format lint fix readme
 
 install:
-	pip install ruff
+	pip install ruff grip
+
+readme:
+	grip README.md
 
 format:
 	ruff format .

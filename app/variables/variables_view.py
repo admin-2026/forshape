@@ -33,9 +33,22 @@ class VariablesView(QWidget):
         """
         super().__init__(parent)
         self.working_dir = working_dir or "."
+        self._files_changed = False
         self._setup_ui()
+
+    def showEvent(self, event):
+        """Set up file watcher and load variables when shown."""
+        super().showEvent(event)
         self._setup_file_watcher()
         self._load_variables()
+        self._files_changed = False
+        self.refresh_button.setText("Refresh")
+        self.refresh_button.setStyleSheet("")
+
+    def hideEvent(self, event):
+        """Stop file watcher when hidden."""
+        super().hideEvent(event)
+        self._stop_file_watcher()
 
     def _find_constants_files(self):
         """Find all constants files in the working directory.
@@ -142,6 +155,7 @@ class VariablesView(QWidget):
 
     def _setup_file_watcher(self):
         """Set up file system watcher for constants files."""
+        self._stop_file_watcher()
         self.file_watcher = QFileSystemWatcher()
         self._watched_files = set()
 
@@ -154,8 +168,20 @@ class VariablesView(QWidget):
         self._update_watched_files()
         self.file_watcher.fileChanged.connect(self._on_file_changed)
 
+    def _stop_file_watcher(self):
+        """Stop and clean up the file system watcher."""
+        if hasattr(self, "file_watcher") and self.file_watcher is not None:
+            paths = self.file_watcher.files() + self.file_watcher.directories()
+            if paths:
+                self.file_watcher.removePaths(paths)
+            self.file_watcher.deleteLater()
+            self.file_watcher = None
+            self._watched_files = set()
+
     def _update_watched_files(self):
         """Update the list of watched constants files."""
+        if self.file_watcher is None:
+            return
         current_files = set(self._find_constants_files())
 
         # Remove files that no longer exist
@@ -170,17 +196,22 @@ class VariablesView(QWidget):
 
         self._watched_files = current_files
 
+    def _mark_file_changed(self):
+        """Mark that files have changed and update the Refresh button."""
+        self._files_changed = True
+        self.refresh_button.setText("Refresh (file changed)")
+        self.refresh_button.setStyleSheet("QPushButton { color: #e65100; font-weight: bold; }")
+
     def _on_file_changed(self, path):
         """Handle file change event.
 
         Args:
             path: Path to the changed file
         """
-        # Reload variables when file changes
-        self._load_variables()
+        self._mark_file_changed()
 
         # Re-add the file to the watcher (required after some editors save by delete+create)
-        if path not in self.file_watcher.files():
+        if self.file_watcher is not None and path not in self.file_watcher.files():
             if os.path.exists(path):
                 self.file_watcher.addPath(path)
 
@@ -190,12 +221,14 @@ class VariablesView(QWidget):
         Args:
             path: Path to the changed directory
         """
-        # Update watched files and reload
         self._update_watched_files()
-        self._load_variables()
+        self._mark_file_changed()
 
     def _on_refresh_clicked(self):
         """Handle refresh button click."""
+        self._files_changed = False
+        self.refresh_button.setText("Refresh")
+        self.refresh_button.setStyleSheet("")
         self._update_watched_files()
         self._load_variables()
 

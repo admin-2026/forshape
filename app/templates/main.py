@@ -3,7 +3,8 @@
 # This script builds your 3D model using the shapes library.
 # Import constants from constants.py and use shapes to create geometry.
 
-
+# Recommended: Use versioned imports for stability
+# from shapes.v{N}.additive_box import AdditiveBox
 # from constants import *
 
 

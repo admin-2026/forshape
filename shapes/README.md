@@ -2,6 +2,49 @@
 
 A Python library for programmatically creating and manipulating 3D shapes in FreeCAD. This library provides a clean API for generating parametric shapes, performing boolean operations, transformations, and exporting to various file formats.
 
+## API Versioning
+
+The shapes library supports versioning to maintain backward compatibility as the API evolves.
+
+### Importing Specific Versions
+
+**Recommended:** Always use versioned imports to ensure your scripts remain stable as the library evolves.
+
+```python
+# Recommended: Import from a specific version
+from shapes.v1 import AdditiveBox, Boolean
+
+# Alternative: Import the latest version (default) - may break when library updates
+from shapes import AdditiveBox, Boolean
+```
+
+### Mixing Versions in the Same Script
+
+Different versions can be mixed in the same script:
+
+```python
+from shapes.v1 import AdditiveBox as BoxV1
+from shapes import AdditiveBox as BoxLatest
+
+# Use v1 API
+BoxV1.create_box('box_v1', x_size=10, y_size=10, z_size=5)
+
+# Use latest API
+BoxLatest.create_box('box_latest', x_size=20, y_size=20, z_size=10)
+```
+
+### Available Versions
+
+- `shapes.v1` - Initial version (current stable API)
+- `shapes` - Always points to the latest version
+
+### Version Compatibility
+
+When new versions are released:
+- Old versions remain available via `shapes.vN` imports
+- The main `shapes` import always provides the latest API
+- Versioned imports guarantee stability for existing scripts
+
 ## Classes Overview
 
 ### 1. Shape (Base Class)
@@ -32,7 +75,7 @@ The cylinder is created at the given plane center. The height is extruded in the
   - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from shapes.additive_cylinder import AdditiveCylinder
+  from shapes.v1 import AdditiveCylinder
   # Basic cylinder
   AdditiveCylinder.create_cylinder('c1', 'XY_Plane', 5, 10)
   # Cylinder with offset and rotation
@@ -63,7 +106,7 @@ The prism is created at the given plane center. The height is extruded in the po
   - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from shapes.additive_prism import AdditivePrism
+  from shapes.v1 import AdditivePrism
   # Hexagonal prism
   AdditivePrism.create_prism('hex1', 'XY_Plane', 6, 5, 10)
   # Triangle with offset and rotation
@@ -96,7 +139,7 @@ The box is created from the global coordinate origin, extending in the positive 
   - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from shapes.additive_box import AdditiveBox
+  from shapes.v1 import AdditiveBox
   # Basic box: 10mm x 20mm x 5mm
   AdditiveBox.create_box('b1', x_size=10, y_size=20, z_size=5)
   # Box with offset and rotation
@@ -133,7 +176,7 @@ The box is created from the global coordinate origin, extending in the positive 
   - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
-  from shapes.additive_box import AdditiveBox
+  from shapes.v1 import AdditiveBox
   # Box with all vertical edges rounded with different radiuses
   AdditiveBox.create_fillet_side_box('box1', x_size=20, y_size=10, z_size=5,
       front_left_edge_radius=1, rear_left_edge_radius=2, front_right_edge_radius=3, rear_right_edge_radius=4)
@@ -162,7 +205,7 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   - `height` (float): Extrusion height in mm
 - **Example:**
   ```python
-  from shapes.pad import Pad
+  from shapes.v1 import Pad
   # Assuming 'my_sketch' already exists in the document
   Pad.create_pad('extruded_shape', 'my_sketch', 15)
   # Update existing pad with new height
@@ -185,8 +228,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   - `radius` (float): Fillet radius in mm
 - **Example:**
   ```python
-  from shapes.edge_feature import EdgeFeature
-  from shapes.additive_box import AdditiveBox
+  from shapes.v1 import EdgeFeature, AdditiveBox
   # Create a box
   AdditiveBox.create_box('box1', 'XY_Plane', x_size=10, y_size=10, z_size=10)
   # Add fillet to specific edges
@@ -228,7 +270,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   - `secondary` (str, object, or list): Secondary object(s) to fuse with
 - **Example:**
   ```python
-  from shapes.boolean import Boolean
+  from shapes.v1 import Boolean
   Boolean.fuse('fused', 'box1', 'box2')
   ```
 
@@ -270,7 +312,7 @@ Provides spatial transformation operations for objects.
   - `z` (float): Z coordinate
 - **Example:**
   ```python
-  from shapes.transform import Transform
+  from shapes.v1 import Transform
   Transform.translate_to('box1', 10, 20, 5)
   ```
 
@@ -309,7 +351,7 @@ Exports FreeCAD objects to various file formats.
   - BREP (.brep) - Boundary representation
 - **Example:**
   ```python
-  from shapes.export import Export
+  from shapes.v1 import Export
   Export.export('box1', 'C:/output/mybox.step')
   Export.export('cylinder1', 'C:/output/cylinder.stl', 'stl')
   ```
@@ -328,7 +370,7 @@ Manages folder organization in FreeCAD documents. Creates folders (DocumentObjec
 - **Returns:** The folder object, or None if in teardown mode
 - **Example:**
   ```python
-  from shapes.folder import Folder
+  from shapes.v1 import Folder
   # Create a folder
   Folder.create_folder('my_parts')
   ```
@@ -365,8 +407,7 @@ Creates a Body object with a Clone feature that references another object. Clone
 - **Returns:** The Body object containing the clone, or None if in teardown mode
 - **Example:**
   ```python
-  from shapes.clone import Clone
-  from shapes.additive_box import AdditiveBox
+  from shapes.v1 import Clone, AdditiveBox
 
   # Create original object
   AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
@@ -404,8 +445,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   - **Copy:** Creates an independent geometric copy that doesn't update with the original
 - **Example:**
   ```python
-  from shapes.copy import Copy
-  from shapes.additive_box import AdditiveBox
+  from shapes.v1 import Copy, AdditiveBox
 
   # Create original object
   AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
@@ -447,7 +487,7 @@ Imports 3D geometry from external files into the FreeCAD document. Supports mult
 - **Note:** This method is idempotent - if an object with the label already exists, it returns the existing object without re-importing
 - **Example:**
   ```python
-  from shapes.import_geometry import ImportGeometry
+  from shapes.v1 import ImportGeometry
 
   # Import STEP file with auto-detected type
   ImportGeometry.import_geometry('C:/models/part.step')
@@ -475,7 +515,7 @@ Imports 3D geometry from external files into the FreeCAD document. Supports mult
   - This method is idempotent - if the Body and geometry already exist, returns the existing Body
 - **Example:**
   ```python
-  from shapes.import_geometry import ImportGeometry
+  from shapes.v1 import ImportGeometry
 
   # Import STEP file as Body (creates 'part_imported' Body with 'part_geometry' child)
   body = ImportGeometry.import_as_body('C:/models/part.step')
@@ -493,11 +533,7 @@ Imports 3D geometry from external files into the FreeCAD document. Supports mult
 ## Complete Usage Example
 
 ```python
-from shapes.additive_box import AdditiveBox
-from shapes.additive_cylinder import AdditiveCylinder
-from shapes.boolean import Boolean
-from shapes.folder import Folder
-from shapes.export import Export
+from shapes.v1 import AdditiveBox, AdditiveCylinder, Boolean, Folder, Export
 
 # Create a box (20mm x 20mm x 10mm on XY plane)
 AdditiveBox.create_box('main_box', 'XY_Plane', x_size=20, y_size=20, z_size=10)

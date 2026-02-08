@@ -5,9 +5,6 @@
 
 # ===== Constants =====
 
-# Example: 3D printing tolerance
-TOLERANCE_3D_PRINT = 0.2  # mm
-
 # Add your constants here
 # Example:
 # LENGTH = 100.0  # mm

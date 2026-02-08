@@ -57,28 +57,28 @@ class PrestartChecker:
     def _fetch_and_compare_version(self):
         """Fetch remote version and compare with local. Runs in background thread."""
         try:
-            from about import APP_VERSION, VERSION_URL
+            from about import VERSION_URL, __version__
 
             response = urllib.request.urlopen(VERSION_URL, timeout=5)
             content = response.read().decode("utf-8")
-            match = re.search(r'APP_VERSION\s*=\s*["\']([^"\']+)["\']', content)
+            match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
             if not match:
                 self.logger.warn("Version check: could not parse remote version")
                 return
 
             remote_version = match.group(1)
-            if self._is_newer(remote_version, APP_VERSION):
-                self.logger.info(f"New version available: {remote_version} (current: {APP_VERSION})")
+            if self._is_newer(remote_version, __version__):
+                self.logger.info(f"New version available: {remote_version} (current: {__version__})")
                 # Post message to UI on main thread
                 QTimer.singleShot(
                     0,
                     lambda: self.message_handler.append_message(
                         "System",
-                        f"**New version available:** {remote_version} (current: {APP_VERSION})",
+                        f"**New version available:** {remote_version} (current: {__version__})",
                     ),
                 )
             else:
-                self.logger.info(f"Version is up to date: {APP_VERSION}")
+                self.logger.info(f"Version is up to date: {__version__}")
         except Exception as e:
             self.logger.warn(f"Version check failed: {e}")
 

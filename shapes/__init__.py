@@ -3,6 +3,17 @@ FreeCAD shape generation and manipulation.
 
 This package contains classes and utilities for creating and manipulating
 3D shapes using FreeCAD.
+
+Versioning:
+    The shapes package supports versioning. Import from specific versions:
+
+        from shapes.v1 import AdditiveBox as BoxV1
+        from shapes import AdditiveBox  # Latest version
+
+    You can mix different versions in the same script:
+
+        from shapes.v1 import AdditiveBox as BoxV1
+        from shapes.v2 import AdditiveBox as BoxV2  # When v2 exists
 """
 
 from .additive_box import AdditiveBox
@@ -39,3 +50,5 @@ __all__ = [
     "Clone",
     "Copy",
 ]
+
+__version__ = "1.0.0"

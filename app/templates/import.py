@@ -1,8 +1,6 @@
 # Import and Placement
 #
 # This script imports external geometry and places it in your model.
-# Useful for importing PCBs, components, or other reference geometry.
-
 
 # from constants import *
 

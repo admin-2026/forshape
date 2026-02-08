@@ -195,24 +195,24 @@ class InputAreaManager(QObject):
         third_row_layout = QHBoxLayout(third_row)
         third_row_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Add Incremental Build button
-        self.incremental_build_button = QPushButton("Incremental Build")
-        self.incremental_build_button.setFont(QFont("Consolas", 10))
-        self.incremental_build_button.setToolTip(
-            "Incremental Build - run a script in incremental build mode (skips construction if objects exist)"
-        )
-        self.incremental_build_button.clicked.connect(lambda: self.run_script_requested.emit("incremental"))
+        # Incremental Build button disabled due to low usage
+        # self.incremental_build_button = QPushButton("Incremental Build")
+        # self.incremental_build_button.setFont(QFont("Consolas", 10))
+        # self.incremental_build_button.setToolTip(
+        #     "Incremental Build - run a script in incremental build mode (skips construction if objects exist)"
+        # )
+        # self.incremental_build_button.clicked.connect(lambda: self.run_script_requested.emit("incremental"))
 
-        # Add Rebuild button
-        self.run_button = QPushButton("Rebuild")
+        # Add Build button
+        self.run_button = QPushButton("Build")
         self.run_button.setFont(QFont("Consolas", 10))
-        self.run_button.setToolTip("Rebuild - run a Python script from the working directory")
+        self.run_button.setToolTip("Build - run a Python script from the working directory")
         self.run_button.clicked.connect(lambda: self.run_script_requested.emit("rebuild"))
 
         # Add Teardown button
         self.teardown_button = QPushButton("Teardown")
         self.teardown_button.setFont(QFont("Consolas", 10))
-        self.teardown_button.setToolTip("Teardown - run a script in teardown mode to remove objects")
+        self.teardown_button.setToolTip("Teardown - run a script to teardown an object into components")
         self.teardown_button.clicked.connect(lambda: self.run_script_requested.emit("teardown"))
 
         # Add Export button
@@ -227,7 +227,7 @@ class InputAreaManager(QObject):
         self.import_button.setToolTip("Import - run import.py from the working directory")
         self.import_button.clicked.connect(lambda: self.run_script_requested.emit("import"))
 
-        third_row_layout.addWidget(self.incremental_build_button)
+        # third_row_layout.addWidget(self.incremental_build_button)
         third_row_layout.addWidget(self.run_button)
         third_row_layout.addWidget(self.teardown_button)
         third_row_layout.addWidget(self.export_button)

@@ -185,7 +185,7 @@ class FileExecutor:
         Args:
             file_path: Path to the Python file to run
         """
-        self._execute_python_file_with_mode(file_path, "with_teardown", "Building (with teardown)")
+        self._execute_python_file_with_mode(file_path, "with_teardown", "Building")
 
     def redo_python_file(self, file_path):
         """

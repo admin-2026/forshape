@@ -209,11 +209,11 @@ class InputAreaManager(QObject):
         self.run_button.setToolTip("Build - run a Python script from the working directory")
         self.run_button.clicked.connect(lambda: self.run_script_requested.emit("rebuild"))
 
-        # Add Teardown button
-        self.teardown_button = QPushButton("Teardown")
-        self.teardown_button.setFont(QFont("Consolas", 10))
-        self.teardown_button.setToolTip("Teardown - run a script to teardown an object into components")
-        self.teardown_button.clicked.connect(lambda: self.run_script_requested.emit("teardown"))
+        # Teardown button disabled due to low usage
+        # self.teardown_button = QPushButton("Teardown")
+        # self.teardown_button.setFont(QFont("Consolas", 10))
+        # self.teardown_button.setToolTip("Teardown - run a script to teardown an object into components")
+        # self.teardown_button.clicked.connect(lambda: self.run_script_requested.emit("teardown"))
 
         # Add Export button
         self.export_button = QPushButton("Export")
@@ -229,7 +229,7 @@ class InputAreaManager(QObject):
 
         # third_row_layout.addWidget(self.incremental_build_button)
         third_row_layout.addWidget(self.run_button)
-        third_row_layout.addWidget(self.teardown_button)
+        # third_row_layout.addWidget(self.teardown_button)  # Disabled due to low usage
         third_row_layout.addWidget(self.export_button)
         third_row_layout.addWidget(self.import_button)
         third_row_layout.addStretch()  # Push buttons to the left

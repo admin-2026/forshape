@@ -3,7 +3,7 @@
 import glob
 import os
 
-from PySide2.QtCore import QFileSystemWatcher
+from PySide2.QtCore import QFileSystemWatcher, QThread, Signal
 from PySide2.QtGui import QColor, QFont
 from PySide2.QtWidgets import (
     QComboBox,
@@ -21,6 +21,52 @@ from PySide2.QtWidgets import (
 from .constants_parser import ConstantsParser
 
 
+class _ParseWorker(QThread):
+    """Worker thread for parsing constants files."""
+
+    finished = Signal(list, list)  # (all_variables, source_names)
+    error = Signal(str)
+
+    def __init__(self, working_dir, constants_files):
+        super().__init__()
+        self.working_dir = working_dir
+        self.constants_files = constants_files
+
+    def run(self):
+        try:
+            all_variables = []
+            base_namespace = {}
+            base_constants_path = os.path.join(self.working_dir, "constants.py")
+
+            if os.path.exists(base_constants_path):
+                with open(base_constants_path, encoding="utf-8") as f:
+                    content = f.read()
+                try:
+                    exec(content, base_namespace)
+                except Exception:
+                    pass
+
+            source_names = []
+            for file_path in self.constants_files:
+                source_name = os.path.basename(file_path)
+                source_names.append(source_name)
+                with open(file_path, encoding="utf-8") as f:
+                    content = f.read()
+
+                parser = ConstantsParser(content)
+                if file_path != base_constants_path:
+                    variables = parser.parse_and_resolve(base_namespace=base_namespace)
+                else:
+                    variables = parser.parse_and_resolve()
+
+                for name, resolved_value, expression in variables:
+                    all_variables.append((source_name, name, resolved_value, expression))
+
+            self.finished.emit(all_variables, source_names)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
 class VariablesView(QWidget):
     """Widget for displaying variables from constants.py and *_constants.py files."""
 
@@ -34,16 +80,15 @@ class VariablesView(QWidget):
         super().__init__(parent)
         self.working_dir = working_dir or "."
         self._files_changed = False
+        self._parse_worker = None
         self._setup_ui()
 
     def showEvent(self, event):
         """Set up file watcher and load variables when shown."""
         super().showEvent(event)
         self._setup_file_watcher()
-        self._load_variables()
         self._files_changed = False
-        self.refresh_button.setText("Refresh")
-        self.refresh_button.setStyleSheet("")
+        self._load_variables()
 
     def hideEvent(self, event):
         """Stop file watcher when hidden."""
@@ -227,8 +272,6 @@ class VariablesView(QWidget):
     def _on_refresh_clicked(self):
         """Handle refresh button click."""
         self._files_changed = False
-        self.refresh_button.setText("Refresh")
-        self.refresh_button.setStyleSheet("")
         self._update_watched_files()
         self._load_variables()
 
@@ -272,8 +315,18 @@ class VariablesView(QWidget):
         """
         self._apply_filter()
 
+    def _set_refresh_busy(self, busy):
+        """Set the refresh button to busy or normal state."""
+        self.refresh_button.setEnabled(not busy)
+        if busy:
+            self.refresh_button.setText("Parsing...")
+            self.refresh_button.setStyleSheet("QPushButton { color: grey; }")
+        else:
+            self.refresh_button.setText("Refresh")
+            self.refresh_button.setStyleSheet("")
+
     def _load_variables(self):
-        """Load and display variables from all constants files."""
+        """Load and display variables from all constants files in a background thread."""
         constants_files = self._find_constants_files()
 
         if not constants_files:
@@ -282,41 +335,26 @@ class VariablesView(QWidget):
             self._show_not_found_message()
             return
 
-        try:
-            self._all_variables = []
-            # Build base namespace from constants.py first
-            base_namespace = {}
-            base_constants_path = os.path.join(self.working_dir, "constants.py")
+        self._set_refresh_busy(True)
 
-            if os.path.exists(base_constants_path):
-                with open(base_constants_path, encoding="utf-8") as f:
-                    content = f.read()
-                try:
-                    exec(content, base_namespace)
-                except Exception:
-                    pass
+        self._parse_worker = _ParseWorker(self.working_dir, constants_files)
+        self._parse_worker.finished.connect(self._on_parse_finished)
+        self._parse_worker.error.connect(self._on_parse_error)
+        self._parse_worker.start()
 
-            source_names = []
-            for file_path in constants_files:
-                source_name = os.path.basename(file_path)
-                source_names.append(source_name)
-                with open(file_path, encoding="utf-8") as f:
-                    content = f.read()
+    def _on_parse_finished(self, all_variables, source_names):
+        """Handle parsing completion from the worker thread."""
+        self._all_variables = all_variables
+        self._update_file_filter(source_names)
+        self._apply_filter()
+        self._set_refresh_busy(False)
+        self._parse_worker = None
 
-                parser = ConstantsParser(content)
-                # Use base namespace for resolving object-specific constants
-                if file_path != base_constants_path:
-                    variables = parser.parse_and_resolve(base_namespace=base_namespace)
-                else:
-                    variables = parser.parse_and_resolve()
-
-                for name, resolved_value, expression in variables:
-                    self._all_variables.append((source_name, name, resolved_value, expression))
-
-            self._update_file_filter(source_names)
-            self._apply_filter()
-        except Exception as e:
-            self._show_error_message(str(e))
+    def _on_parse_error(self, error_msg):
+        """Handle parsing error from the worker thread."""
+        self._show_error_message(error_msg)
+        self._set_refresh_busy(False)
+        self._parse_worker = None
 
     def _update_file_filter(self, source_names):
         """Update the file filter dropdown with available files.

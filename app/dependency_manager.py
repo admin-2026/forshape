@@ -26,6 +26,9 @@ class DependencyManager:
         "keyring": {
             "prompt_before_install": False,
         },
+        "ruff": {
+            "prompt_before_install": False,
+        },
     }
 
     def __init__(self, local_lib_dir: Path):
@@ -108,7 +111,7 @@ class DependencyManager:
                 None,
                 "Installation Cancelled",
                 "Some required libraries are not installed.\n\n"
-                "The application will load but some features may not work.",
+                "The application will not load.",
             )
             error_msg = "Required libraries not installed. User declined installation."
             for pkg in missing_packages:

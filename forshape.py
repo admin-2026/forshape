@@ -292,10 +292,13 @@ class ForShapeAI:
             print(f"\n{error_msg}")
             print("\nPlease install the required libraries to use ForShape AI.")
             print(f"{'=' * 60}\n")
+            self._init_success = False
             return
 
+        # Mark initialization as successful
+        self._init_success = True
+
         # Initialize prestart checker (will setup directories and check API key)
-        # Create a minimal logger before directories exist
         self.logger = Logger(min_level=LogLevel.INFO)
         self.prestart_checker = PrestartChecker(self.config, self.logger)
 
@@ -709,6 +712,10 @@ class ForShapeAI:
 
     def run(self):
         """Start the interactive GUI interface."""
+        # Check if initialization was successful
+        if not getattr(self, "_init_success", True):
+            return 1
+
         # Create QApplication if it doesn't exist
         app = QApplication.instance()
         if app is None:

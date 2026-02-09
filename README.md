@@ -20,6 +20,8 @@ Install ForShape AI as a toolbar button in FreeCAD's Part and PartDesign workben
 
 #### Step 1: Run the install script
 
+First, please download this repository and extract it to your preferred location on your system.
+
 In FreeCAD's Python console, run:
 
 ```python

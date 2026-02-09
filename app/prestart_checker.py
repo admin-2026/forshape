@@ -16,12 +16,18 @@ import threading
 import urllib.request
 from typing import TYPE_CHECKING, Literal, Optional
 
-from PySide2.QtCore import QTimer
+from PySide2.QtCore import QObject, Signal
 
 if TYPE_CHECKING:
     from .config_manager import ConfigurationManager
     from .logger import Logger
     from .ui import ConversationView
+
+
+class _VersionSignal(QObject):
+    """Helper to safely emit UI updates from a background thread."""
+
+    message = Signal(str, str)
 
 
 class PrestartChecker:
@@ -52,6 +58,8 @@ class PrestartChecker:
 
     def check_version(self):
         """Check if a newer version is available in a background thread."""
+        self._version_signal = _VersionSignal()
+        self._version_signal.message.connect(self.message_handler.append_message)
         threading.Thread(target=self._fetch_and_compare_version, daemon=True).start()
 
     def _fetch_and_compare_version(self):
@@ -69,13 +77,10 @@ class PrestartChecker:
             remote_version = match.group(1)
             if self._is_newer(remote_version, __version__):
                 self.logger.info(f"New version available: {remote_version} (current: {__version__})")
-                # Post message to UI on main thread
-                QTimer.singleShot(
-                    0,
-                    lambda: self.message_handler.append_message(
-                        "System",
-                        f"**New version available:** {remote_version} (current: {__version__})",
-                    ),
+                self._version_signal.message.emit(
+                    "System",
+                    f"**New version available:** {remote_version} (current: {__version__})\n\n"
+                    f"Download: https://github.com/admin-2026/forshape/tree/main",
                 )
             else:
                 self.logger.info(f"Version is up to date: {__version__}")

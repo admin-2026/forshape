@@ -168,6 +168,8 @@ class AdditiveBox(Shape):
 
         return obj
 
+    # create_fillet_side_box is not exposed as an API in README.md
+    # Current LLM is not very robust on using fillet.
     @staticmethod
     def create_fillet_side_box(
         label,

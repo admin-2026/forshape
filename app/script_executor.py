@@ -18,6 +18,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+from shapes.edge_feature import EdgeFeatureException
+
 
 class ExecutionMode(Enum):
     """Execution mode for running scripts."""
@@ -130,6 +132,9 @@ class ScriptExecutor:
             with ScriptExecutor._capture_output() as get_output:
                 try:
                     exec(script_content, exec_globals)
+                except EdgeFeatureException as e:
+                    success = False
+                    error_msg = f"Edge feature error: {str(e)}"
                 except Exception as e:
                     success = False
                     error_msg = f"{type(e).__name__}: {str(e)}"

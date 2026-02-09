@@ -110,8 +110,7 @@ class DependencyManager:
             QMessageBox.information(
                 None,
                 "Installation Cancelled",
-                "Some required libraries are not installed.\n\n"
-                "The application will not load.",
+                "Some required libraries are not installed.\n\nThe application will not load.",
             )
             error_msg = "Required libraries not installed. User declined installation."
             for pkg in missing_packages:

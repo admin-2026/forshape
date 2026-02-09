@@ -8,7 +8,37 @@ from .shape import Shape
 # EdgeFeature.add_fillet('fillet1', 'b4', ['Edge1', 'Edge2'], 2)
 
 
+class EdgeFeatureException(Exception):
+    """Exception raised when an edge feature operation fails."""
+
+    pass
+
+
 class EdgeFeature(Shape):
+    @staticmethod
+    def _raise_if_feature_error(label, feature_type, error_message, feature_obj=None):
+        """
+        Check if the feature object has errors and raise an appropriate error.
+        Must be called after App.ActiveDocument.recompute().
+
+        Args:
+            label: The feature label
+            feature_type: Type of feature ('Fillet' or 'Chamfer')
+            error_message: The actionable error message to display
+            feature_obj: The feature object to check for errors after recompute (optional)
+        """
+        # Check if the feature object has errors (FreeCAD sometimes stores errors here instead of raising)
+        if hasattr(feature_obj, "getStatusString"):
+            original_error = feature_obj.getStatusString()
+            if original_error == "Valid":
+                return
+            if "BRep_API: command not done" in original_error:
+                raise EdgeFeatureException(
+                    f"{feature_type} '{label}' failed: {error_message} Original error: {original_error}"
+                )
+            else:
+                raise EdgeFeatureException(f"{feature_type} '{label}' failed: {original_error}.")
+
     @staticmethod
     def add_fillet(label, object_label, edges, radius):
         """
@@ -82,6 +112,12 @@ class EdgeFeature(Shape):
 
                 if needs_recompute:
                     App.ActiveDocument.recompute()
+                    EdgeFeature._raise_if_feature_error(
+                        label,
+                        "Fillet",
+                        f"The fillet radius ({radius}mm) may be too large for the selected edges. Try a smaller radius or check that the edges exist.",
+                        existing_fillet,
+                    )
 
                 return existing_fillet
 
@@ -91,6 +127,12 @@ class EdgeFeature(Shape):
         fillet.Base = (base_feature, edges)
         fillet.Radius = radius
         App.ActiveDocument.recompute()
+        EdgeFeature._raise_if_feature_error(
+            label,
+            "Fillet",
+            f"The fillet radius ({radius}mm) may be too large for the selected edges. Try a smaller radius or check that the edges exist.",
+            fillet,
+        )
 
         return fillet
 
@@ -186,7 +228,12 @@ class EdgeFeature(Shape):
                         needs_recompute = True
 
                 if needs_recompute:
+                    chamfer_msg = f"The chamfer size ({size}mm) may be too large for the selected edges"
+                    if angle is not None:
+                        chamfer_msg += f", or the angle ({angle}°) may be invalid"
+                    chamfer_msg += ". Try a smaller size or check that the edges exist."
                     App.ActiveDocument.recompute()
+                    EdgeFeature._raise_if_feature_error(label, "Chamfer", chamfer_msg, existing_chamfer)
 
                 return existing_chamfer
 
@@ -205,6 +252,11 @@ class EdgeFeature(Shape):
             chamfer.ChamferType = "Equal distance"
             chamfer.Size = size
 
+        chamfer_msg = f"The chamfer size ({size}mm) may be too large for the selected edges"
+        if angle is not None:
+            chamfer_msg += f", or the angle ({angle}°) may be invalid"
+        chamfer_msg += ". Try a smaller size or check that the edges exist."
         App.ActiveDocument.recompute()
+        EdgeFeature._raise_if_feature_error(label, "Chamfer", chamfer_msg, chamfer)
 
         return chamfer

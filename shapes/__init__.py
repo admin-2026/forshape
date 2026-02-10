@@ -19,6 +19,7 @@ Versioning:
 from .additive_box import AdditiveBox
 from .additive_cylinder import AdditiveCylinder
 from .additive_prism import AdditivePrism
+from .additive_sphere import AdditiveSphere
 from .boolean import Boolean
 from .clone import Clone
 from .context import Context
@@ -38,6 +39,7 @@ __all__ = [
     "AdditiveBox",
     "AdditiveCylinder",
     "AdditivePrism",
+    "AdditiveSphere",
     "Pad",
     "EdgeFeature",
     "ShapeException",

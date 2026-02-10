@@ -11,6 +11,7 @@ Users can import specific versions and mix them in scripts:
 from ..additive_box import AdditiveBox
 from ..additive_cone import AdditiveCone
 from ..additive_cylinder import AdditiveCylinder
+from ..additive_ellipsoid import AdditiveEllipsoid
 from ..additive_prism import AdditivePrism
 from ..additive_sphere import AdditiveSphere
 from ..additive_torus import AdditiveTorus
@@ -32,6 +33,7 @@ __all__ = [
     "AdditiveBox",
     "AdditiveCone",
     "AdditiveCylinder",
+    "AdditiveEllipsoid",
     "AdditivePrism",
     "AdditiveSphere",
     "AdditiveTorus",

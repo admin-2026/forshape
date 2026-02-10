@@ -1,17 +1,12 @@
 import FreeCAD as App
 
 from .context import Context
+from .exceptions import ShapeException
 from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.edge_feature;
 # reload(shapes.edge_feature); from shapes.edge_feature import EdgeFeature
 # EdgeFeature.add_fillet('fillet1', 'b4', ['Edge1', 'Edge2'], 2)
-
-
-class EdgeFeatureException(Exception):
-    """Exception raised when an edge feature operation fails."""
-
-    pass
 
 
 class EdgeFeature(Shape):
@@ -33,11 +28,11 @@ class EdgeFeature(Shape):
             if original_error == "Valid":
                 return
             if "BRep_API: command not done" in original_error:
-                raise EdgeFeatureException(
+                raise ShapeException(
                     f"{feature_type} '{label}' failed: {error_message} Original error: {original_error}"
                 )
             else:
-                raise EdgeFeatureException(f"{feature_type} '{label}' failed: {original_error}.")
+                raise ShapeException(f"{feature_type} '{label}' failed: {original_error}.")
 
     @staticmethod
     def add_fillet(label, object_label, edges, radius):

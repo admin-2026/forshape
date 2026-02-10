@@ -1,6 +1,7 @@
 import FreeCAD as App
 
 from .context import Context
+from .exceptions import ShapeException
 from .shape import Shape
 
 # from importlib import reload
@@ -20,19 +21,40 @@ class Boolean:
             secondary: Secondary object(s) - can be a single object or a list
             boolean_type: 0 for fuse, 1 for cut, 2 for common
         """
+        primary_label = primary
         primary = Context.get_object(primary)
+        if primary is None:
+            raise ShapeException(
+                f"Boolean '{label}' failed: Primary object '{primary_label}' not found. "
+                f"Please check that the object exists."
+            )
 
         # Traverse up the parent chain to find a PartDesign::Body
-        if primary is not None:
-            body_parent = Context.get_first_body_parent(primary)
-            if body_parent is not None:
-                primary = body_parent
+        body_parent = Context.get_first_body_parent(primary)
+        if body_parent is None:
+            raise ShapeException(
+                f"Boolean '{label}' failed: Primary object '{primary_label}' is not part of a Body. "
+                f"Boolean operations require the primary object to be in a PartDesign Body."
+            )
+        primary = body_parent
 
         # Handle secondary as either a list or a single object
-        if isinstance(secondary, list):
-            secondary_objects = [Context.get_first_body_parent(obj) for obj in secondary]
-        else:
-            secondary_objects = [Context.get_first_body_parent(secondary)]
+        secondary_labels = secondary if isinstance(secondary, list) else [secondary]
+        secondary_objects = []
+        for sec_label in secondary_labels:
+            sec_obj = Context.get_object(sec_label)
+            if sec_obj is None:
+                raise ShapeException(
+                    f"Boolean '{label}' failed: Secondary object '{sec_label}' not found. "
+                    f"Please check that all secondary objects exist."
+                )
+            body_parent = Context.get_first_body_parent(sec_obj)
+            if body_parent is None:
+                raise ShapeException(
+                    f"Boolean '{label}' failed: Secondary object '{sec_label}' is not part of a Body. "
+                    f"Boolean operations require the secondary object to be in a PartDesign Body."
+                )
+            secondary_objects.append(body_parent)
 
         # Try to get existing boolean object with the same label
         existing_boolean = Context.get_object(label)

@@ -24,6 +24,7 @@ from .clone import Clone
 from .context import Context
 from .copy import Copy
 from .edge_feature import EdgeFeature
+from .exceptions import ShapeException
 from .export import Export
 from .folder import Folder
 from .image_context import ImageContext, Perspective
@@ -39,6 +40,7 @@ __all__ = [
     "AdditivePrism",
     "Pad",
     "EdgeFeature",
+    "ShapeException",
     "Context",
     "Boolean",
     "Transform",

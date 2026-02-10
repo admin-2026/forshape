@@ -18,7 +18,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from shapes.edge_feature import EdgeFeatureException
+from shapes.exceptions import ShapeException
 
 
 class ExecutionMode(Enum):
@@ -132,9 +132,9 @@ class ScriptExecutor:
             with ScriptExecutor._capture_output() as get_output:
                 try:
                     exec(script_content, exec_globals)
-                except EdgeFeatureException as e:
+                except ShapeException as e:
                     success = False
-                    error_msg = f"Edge feature error: {str(e)}"
+                    error_msg = f"Error: {str(e)}"
                 except Exception as e:
                     success = False
                     error_msg = f"{type(e).__name__}: {str(e)}"

@@ -21,6 +21,7 @@ from .additive_cone import AdditiveCone
 from .additive_cylinder import AdditiveCylinder
 from .additive_prism import AdditivePrism
 from .additive_sphere import AdditiveSphere
+from .additive_torus import AdditiveTorus
 from .boolean import Boolean
 from .clone import Clone
 from .context import Context
@@ -42,6 +43,7 @@ __all__ = [
     "AdditiveCylinder",
     "AdditivePrism",
     "AdditiveSphere",
+    "AdditiveTorus",
     "Pad",
     "EdgeFeature",
     "ShapeException",

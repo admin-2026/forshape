@@ -17,6 +17,7 @@ Versioning:
 """
 
 from .additive_box import AdditiveBox
+from .additive_cone import AdditiveCone
 from .additive_cylinder import AdditiveCylinder
 from .additive_prism import AdditivePrism
 from .additive_sphere import AdditiveSphere
@@ -37,6 +38,7 @@ from .transform import Transform
 __all__ = [
     "Shape",
     "AdditiveBox",
+    "AdditiveCone",
     "AdditiveCylinder",
     "AdditivePrism",
     "AdditiveSphere",

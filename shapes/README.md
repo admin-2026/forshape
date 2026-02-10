@@ -82,7 +82,38 @@ The cylinder is created at the given plane center. The height is extruded in the
   AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, yaw=45)
   ```
 
-### 3. AdditiveSphere
+### 3. AdditiveCone
+Location: `additive_cone.py:9`
+
+Creates conical shapes using FreeCAD's PartDesign AdditiveCone feature with support for attachment offsets and rotation.
+
+The cone is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+
+**Public Methods:**
+
+`AdditiveCone.create_cone(label, plane_label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+- **Parameters:**
+  - `label` (str): Name/label for the cone object
+  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
+  - `base_radius` (float): Radius of the cone at the base in mm
+  - `top_radius` (float): Radius of the cone at the top in mm (0 for a pointed cone)
+  - `height` (float): Height of the cone in mm
+  - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
+  - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
+  - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
+  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+- **Example:**
+  ```python
+  from shapes.v1 import AdditiveCone
+  # Pointed cone
+  AdditiveCone.create_cone('cone1', 'XY_Plane', 5, 0, 10)
+  # Truncated cone with offset
+  AdditiveCone.create_cone('cone2', 'XY_Plane', 5, 3, 10, x_offset=10, y_offset=5)
+  ```
+
+### 4. AdditiveSphere
 Location: `additive_sphere.py:9`
 
 Creates spherical shapes using FreeCAD's PartDesign AdditiveSphere feature with support for attachment offsets.
@@ -107,7 +138,7 @@ The sphere is created centered at the XY plane center. Supports full 360-degree 
   AdditiveSphere.create_sphere('s2', 5, x_offset=10, y_offset=10, z_offset=5)
   ```
 
-### 4. AdditivePrism
+### 5. AdditivePrism
 Location: `additive_prism.py:9`
 
 Creates regular polygon prism shapes using FreeCAD's PartDesign AdditivePrism feature with support for attachment offsets and rotation.
@@ -140,7 +171,7 @@ The prism is created at the given plane center. The height is extruded in the po
   AdditivePrism.create_prism('oct1', 'XY_Plane', 8, 6, 12)
   ```
 
-### 5. AdditiveBox
+### 6. AdditiveBox
 Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
@@ -171,7 +202,7 @@ The box is created from the global coordinate origin, extending in the positive 
   AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
   ```
 
-### 6. Pad
+### 7. Pad
 Location: `pad.py:10`
 
 Creates a body with a pad feature from an existing sketch. Useful when you have a pre-existing sketch and want to extrude it into a 3D body.
@@ -193,7 +224,7 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   Pad.create_pad('extruded_shape', 'my_sketch', 20)
   ```
 
-### 7. EdgeFeature
+### 8. EdgeFeature
 Location: `edge_feature.py:10`
 
 Adds design features (fillets, chamfers, drafts) to edges or faces of existing objects.
@@ -236,7 +267,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   EdgeFeature.add_chamfer('chamfer3', 'box1', ['Edge11'], 1.0, angle=60)
   ```
 
-### 8. Boolean
+### 9. Boolean
 Location: `boolean.py:9`
 
 Performs boolean operations between shapes (union, difference, intersection).
@@ -277,7 +308,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 9. Transform
+### 10. Transform
 Location: `transform.py:5`
 
 Provides spatial transformation operations for objects.
@@ -310,7 +341,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 10. Export
+### 11. Export
 Location: `export.py:6`
 
 Exports FreeCAD objects to various file formats.
@@ -337,7 +368,7 @@ Exports FreeCAD objects to various file formats.
   Export.export('cylinder1', 'C:/output/cylinder.stl', 'stl')
   ```
 
-### 11. Folder
+### 12. Folder
 Location: `folder.py:9`
 
 Manages folder organization in FreeCAD documents. Creates folders (DocumentObjectGroup) and adds objects to them for better organization.
@@ -371,7 +402,7 @@ Manages folder organization in FreeCAD documents. Creates folders (DocumentObjec
   Folder.add_to_folder('my_parts', ['box1', 'box2', 'cylinder1', 'prism1'])
   ```
 
-### 12. Clone
+### 13. Clone
 Location: `clone.py:9`
 
 Creates a Body object with a Clone feature that references another object. Clones are useful for creating instances of existing objects that maintain a reference to the original, allowing for efficient reuse of geometry with different placements.
@@ -406,7 +437,7 @@ Creates a Body object with a Clone feature that references another object. Clone
   Clone.create_clone('clone1', 'original', offset=(10, 10, 0))
   ```
 
-### 13. Copy
+### 14. Copy
 Location: `copy.py:9`
 
 Creates a Body object with an independent geometric copy of another object. Unlike Clone which creates a parametric reference, Copy creates an independent copy that doesn't change when the original is modified.
@@ -444,7 +475,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   Copy.create_copy('copy1', 'original', offset=(10, 10, 0))
   ```
 
-### 14. ImportGeometry
+### 15. ImportGeometry
 Location: `import_geometry.py:11`
 
 Imports 3D geometry from external files into the FreeCAD document. Supports multiple common 3D file formats and can optionally wrap imported geometry in a PartDesign Body.

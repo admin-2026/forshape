@@ -1,6 +1,7 @@
 import FreeCAD as App
 
 from .context import Context
+from .exceptions import ShapeException
 from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.pad;
@@ -49,7 +50,10 @@ class Pad(Shape):
             # Update sketch reference
             sketch = Context.get_object(sketch_label)
             if sketch is None:
-                raise ValueError(f"Sketch not found: '{sketch_label}'")
+                raise ShapeException(
+                    f"Pad '{label}' failed: Sketch '{sketch_label}' not found. "
+                    f"Please check that the sketch exists before creating a pad."
+                )
 
             current_sketch = existing_pad.Profile[0] if existing_pad.Profile else None
             if current_sketch != sketch:
@@ -82,7 +86,10 @@ class Pad(Shape):
         # Get the sketch
         sketch = Context.get_object(sketch_label)
         if sketch is None:
-            raise ValueError(f"Sketch not found: '{sketch_label}'")
+            raise ShapeException(
+                f"Pad '{label}' failed: Sketch '{sketch_label}' not found. "
+                f"Please check that the sketch exists before creating a pad."
+            )
         sketch.Visibility = False
 
         # Create pad

@@ -2,6 +2,8 @@ import re
 
 import FreeCAD as App
 
+from .exceptions import ShapeException
+
 # from shapes.context import Context
 # from importlib import reload
 # reload(context)
@@ -34,7 +36,9 @@ class Context:
             value (float): The epsilon value in mm (must be positive)
         """
         if value <= 0:
-            raise ValueError("Epsilon must be a positive value")
+            raise ShapeException(
+                f"Context.set_epsilon failed: Epsilon must be a positive value. Please provide a value greater than 0."
+            )
         cls._epsilon = value
 
     @staticmethod

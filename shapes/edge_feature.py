@@ -60,20 +60,29 @@ class EdgeFeature(Shape):
         # Get the parent object
         parent_obj = Context.get_object(object_label)
         if parent_obj is None:
-            raise ValueError(f"Object not found: '{object_label}'")
+            raise ShapeException(
+                f"Fillet '{label}' failed: Object '{object_label}' not found. "
+                f"Please check that the object exists before adding a fillet."
+            )
 
         # Get the body (parent of the object)
         if parent_obj.TypeId == "PartDesign::Body":
             body = parent_obj
             # Get the last feature in the body to apply fillet to
             if not body.Group:
-                raise ValueError(f"Body '{object_label}' has no features to fillet")
+                raise ShapeException(
+                    f"Fillet '{label}' failed: Body '{object_label}' has no features to fillet. "
+                    f"Please add a feature (e.g., Pad, Box) to the body before adding a fillet."
+                )
             base_feature = body.Group[-1]
         else:
             # Object is a feature, get its parent body
             body = Context.get_first_body_parent(parent_obj)
             if body is None or body.TypeId != "PartDesign::Body":
-                raise ValueError(f"Object '{object_label}' is not part of a Body")
+                raise ShapeException(
+                    f"Fillet '{label}' failed: Object '{object_label}' is not part of a Body. "
+                    f"Fillet operations require the object to be inside a PartDesign Body."
+                )
             base_feature = parent_obj
 
         # Check if fillet already exists
@@ -84,8 +93,9 @@ class EdgeFeature(Shape):
             if Context.get_first_body_parent(existing_fillet) != body:
                 other_parent = Context.get_first_body_parent(existing_fillet)
                 other_parent_label = other_parent.Label if other_parent else "None"
-                raise ValueError(
-                    f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'"
+                raise ShapeException(
+                    f"Fillet '{label}' failed: Conflicting label exists with different parent '{other_parent_label}'. "
+                    f"Please use a different label or remove the existing fillet."
                 )
 
             # Update existing fillet
@@ -158,20 +168,29 @@ class EdgeFeature(Shape):
         # Get the parent object
         parent_obj = Context.get_object(object_label)
         if parent_obj is None:
-            raise ValueError(f"Object not found: '{object_label}'")
+            raise ShapeException(
+                f"Chamfer '{label}' failed: Object '{object_label}' not found. "
+                f"Please check that the object exists before adding a chamfer."
+            )
 
         # Get the body (parent of the object)
         if parent_obj.TypeId == "PartDesign::Body":
             body = parent_obj
             # Get the last feature in the body to apply chamfer to
             if not body.Group:
-                raise ValueError(f"Body '{object_label}' has no features to chamfer")
+                raise ShapeException(
+                    f"Chamfer '{label}' failed: Body '{object_label}' has no features to chamfer. "
+                    f"Please add a feature (e.g., Pad, Box) to the body before adding a chamfer."
+                )
             base_feature = body.Group[-1]
         else:
             # Object is a feature, get its parent body
             body = Context.get_first_body_parent(parent_obj)
             if body is None or body.TypeId != "PartDesign::Body":
-                raise ValueError(f"Object '{object_label}' is not part of a Body")
+                raise ShapeException(
+                    f"Chamfer '{label}' failed: Object '{object_label}' is not part of a Body. "
+                    f"Chamfer operations require the object to be inside a PartDesign Body."
+                )
             base_feature = parent_obj
 
         # Check if chamfer already exists
@@ -182,8 +201,9 @@ class EdgeFeature(Shape):
             if Context.get_first_body_parent(existing_chamfer) != body:
                 other_parent = Context.get_first_body_parent(existing_chamfer)
                 other_parent_label = other_parent.Label if other_parent else "None"
-                raise ValueError(
-                    f"Creating object with conflicting label: '{label}' already exists with different parent '{other_parent_label}'"
+                raise ShapeException(
+                    f"Chamfer '{label}' failed: Conflicting label exists with different parent '{other_parent_label}'. "
+                    f"Please use a different label or remove the existing chamfer."
                 )
 
             # Update existing chamfer

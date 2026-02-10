@@ -3,6 +3,7 @@ from datetime import datetime
 import FreeCAD as App
 
 from .context import Context
+from .exceptions import ShapeException
 
 
 class Shape:
@@ -186,8 +187,9 @@ class Shape:
                 if child is not None and Context.get_first_body_parent(child) != existing_obj:
                     other_parent = Context.get_first_body_parent(child)
                     other_parent_label = other_parent.Label if other_parent else "None"
-                    raise ValueError(
-                        f"Creating object with conflicting label: '{child_label}' already exists with different parent '{other_parent_label}'"
+                    raise ShapeException(
+                        f"Body '{label}' failed: Child '{child_label}' already exists with different parent '{other_parent_label}'. "
+                        f"Please use a different label or remove the existing child object."
                     )
 
                 # Check if child exists and has correct type
@@ -235,8 +237,9 @@ class Shape:
         elif "XZ_Plane" in plane_label:
             new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch))
         else:
-            raise ValueError(
-                f"Unknown plane type in plane_label '{plane_label}'. Expected XY_Plane, YZ_Plane, or XZ_Plane."
+            raise ShapeException(
+                f"Shape attachment failed: Unknown plane type in plane_label '{plane_label}'. "
+                f"Expected XY_Plane, YZ_Plane, or XZ_Plane. Please use a valid plane label."
             )
 
         if obj.AttachmentOffset != new_offset:

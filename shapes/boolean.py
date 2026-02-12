@@ -10,6 +10,24 @@ from .shape import Shape
 
 
 class Boolean:
+    BOOLEAN_TYPE_NAMES = {0: "Fuse", 1: "Cut", 2: "Common"}
+
+    @staticmethod
+    def _raise_if_boolean_error(label, boolean_obj, boolean_type, primary_label, secondary_labels):
+        """
+        Check if the boolean object has errors and raise an appropriate error.
+        Must be called after App.ActiveDocument.recompute().
+        """
+        if hasattr(boolean_obj, "getStatusString"):
+            status = boolean_obj.getStatusString()
+            if status != "Valid":
+                type_name = Boolean.BOOLEAN_TYPE_NAMES.get(boolean_type, str(boolean_type))
+                secondary_str = ", ".join(f"'{s}'" for s in secondary_labels)
+                raise ShapeException(
+                    f"Boolean {type_name} '{label}' failed: {status}. "
+                    f"Primary: '{primary_label}', Secondary: [{secondary_str}]."
+                )
+
     @staticmethod
     def _create_boolean(label, primary, secondary, boolean_type):
         """
@@ -95,6 +113,9 @@ class Boolean:
 
                         if needs_recompute:
                             App.ActiveDocument.recompute()
+                            Boolean._raise_if_boolean_error(
+                                label, existing_boolean, boolean_type, primary_label, secondary_labels
+                            )
 
                         return
 
@@ -107,6 +128,7 @@ class Boolean:
         boolean_obj.setObjects(secondary_objects)
         boolean_obj.Type = boolean_type
         App.ActiveDocument.recompute()
+        Boolean._raise_if_boolean_error(label, boolean_obj, boolean_type, primary_label, secondary_labels)
 
     @staticmethod
     def fuse(fuse_label, primary, secondary):

@@ -289,7 +289,7 @@ class Step:
                     history_messages=[
                         HistoryMessage(
                             role="assistant",
-                            content=f"Error during step execution: {str(e)}",
+                            content=f"{type(e).__name__}: {str(e)}",
                             key=f"{self.name}_error",
                         )
                     ],

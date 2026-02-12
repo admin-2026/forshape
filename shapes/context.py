@@ -37,7 +37,7 @@ class Context:
         """
         if value <= 0:
             raise ShapeException(
-                f"Context.set_epsilon failed: Epsilon must be a positive value. Please provide a value greater than 0."
+                "Context.set_epsilon failed: Epsilon must be a positive value. Please provide a value greater than 0."
             )
         cls._epsilon = value
 

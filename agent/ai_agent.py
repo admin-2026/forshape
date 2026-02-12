@@ -269,6 +269,9 @@ class AIAgent:
             # If step was cancelled or errored, stop execution
             if result.status in ("cancelled", "error"):
                 self.logger.info(f"Step {step_name} ended with status: {result.status}")
+                if result.status == "error":
+                    error_msg = result.history_messages[0].content if result.history_messages else "Unknown error"
+                    raise RuntimeError(error_msg)
                 break
 
             # Determine next step via StepJump

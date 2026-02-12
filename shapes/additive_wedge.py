@@ -33,15 +33,15 @@ class AdditiveWedge(Shape):
         label,
         plane_label,
         xmin=0,
-        xmax=None,
+        xmax=0,
         ymin=0,
-        ymax=None,
+        ymax=0,
         zmin=0,
-        zmax=None,
-        x2min=None,
-        x2max=None,
-        z2min=None,
-        z2max=None,
+        zmax=0,
+        x2min=0,
+        x2max=0,
+        z2min=0,
+        z2max=0,
         x_offset=0,
         y_offset=0,
         z_offset=0,
@@ -49,6 +49,15 @@ class AdditiveWedge(Shape):
         pitch=0,
         roll=0,
     ):
+        # print(
+        # f"create_wedge: label={label}, plane_label={plane_label}, "
+        # f"xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}, "
+        # f"zmin={zmin}, zmax={zmax}, x2min={x2min}, x2max={x2max}, "
+        # f"z2min={z2min}, z2max={z2max}, x_offset={x_offset}, "
+        # f"y_offset={y_offset}, z_offset={z_offset}, "
+        # f"yaw={yaw}, pitch={pitch}, roll={roll}"
+        # )
+
         from .context import Context
 
         # Handle incremental build mode

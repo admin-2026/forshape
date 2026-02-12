@@ -235,7 +235,7 @@ class Shape:
         elif "YZ_Plane" in plane_label:
             new_offset = App.Placement(App.Vector(y_offset, z_offset, x_offset), App.Rotation(pitch, roll, yaw))
         elif "XZ_Plane" in plane_label:
-            new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch))
+            new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch + 180))
         else:
             raise ShapeException(
                 f"Shape attachment failed: Unknown plane type in plane_label '{plane_label}'. "

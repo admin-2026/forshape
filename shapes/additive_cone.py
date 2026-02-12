@@ -10,7 +10,17 @@ from .shape import Shape
 class AdditiveCone(Shape):
     @staticmethod
     def create_cone(
-        label, plane_label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0
+        label,
+        plane_label,
+        base_radius,
+        top_radius,
+        height,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         from .context import Context
 
@@ -54,7 +64,7 @@ class AdditiveCone(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_cone, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_cone, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -75,7 +85,9 @@ class AdditiveCone(Shape):
         cone.Height = f"{height} mm"
         cone.Angle = "360.00 °"
 
-        Shape._update_attachment_and_offset(cone, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            cone, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

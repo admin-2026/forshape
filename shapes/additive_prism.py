@@ -11,7 +11,17 @@ from .shape import Shape
 class AdditivePrism(Shape):
     @staticmethod
     def create_prism(
-        label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0
+        label,
+        plane_label,
+        polygon,
+        circumradius,
+        height,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         """
         Create a prism shape using FreeCAD's PartDesign AdditivePrism feature.
@@ -25,9 +35,9 @@ class AdditivePrism(Shape):
             x_offset (float, optional): X-axis offset from attachment plane (default: 0)
             y_offset (float, optional): Y-axis offset from attachment plane (default: 0)
             z_offset (float, optional): Z-axis offset from attachment plane (default: 0)
-            yaw (float, optional): Rotation around Z-axis in degrees (default: 0)
-            pitch (float, optional): Rotation around Y-axis in degrees (default: 0)
-            roll (float, optional): Rotation around X-axis in degrees (default: 0)
+            z_rotation (float, optional): Rotation around Z-axis in degrees (default: 0)
+            y_rotation (float, optional): Rotation around Y-axis in degrees (default: 0)
+            x_rotation (float, optional): Rotation around X-axis in degrees (default: 0)
 
         Returns:
             The created or updated Body object
@@ -74,7 +84,7 @@ class AdditivePrism(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_prism, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_prism, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -96,7 +106,9 @@ class AdditivePrism(Shape):
         prism.FirstAngle = "0.00 °"
         prism.SecondAngle = "0.00 °"
 
-        Shape._update_attachment_and_offset(prism, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            prism, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

@@ -18,7 +18,7 @@ class Clone(Shape):
             label: The label for the new Body containing the clone
             base_obj_or_label: The object or label to clone
             offset: Tuple of (x, y, z) offset values. Defaults to (0, 0, 0).
-            rotation: Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0).
+            rotation: Tuple of (z_rotation, y_rotation, x_rotation) rotation values in degrees. Defaults to (0, 0, 0).
 
         Returns:
             The Body object containing the clone, or None if in teardown mode

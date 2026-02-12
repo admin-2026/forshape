@@ -10,7 +10,16 @@ from .shape import Shape
 class AdditiveTorus(Shape):
     @staticmethod
     def create_torus(
-        label, plane_label, ring_radius, tube_radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0
+        label,
+        plane_label,
+        ring_radius,
+        tube_radius,
+        x_offset=0,
+        y_offset=0,
+        z_offset=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         from .context import Context
 
@@ -56,7 +65,7 @@ class AdditiveTorus(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_torus, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_torus, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -78,7 +87,9 @@ class AdditiveTorus(Shape):
         torus.Angle2 = "180.00 °"
         torus.Angle3 = "360.00 °"
 
-        Shape._update_attachment_and_offset(torus, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            torus, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

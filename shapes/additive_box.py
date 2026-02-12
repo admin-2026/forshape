@@ -35,7 +35,9 @@ class AdditiveBox(Shape):
         return x_size, y_size, z_size
 
     @staticmethod
-    def _calculate_center_based_rotation_offset(length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll):
+    def _calculate_center_based_rotation_offset(
+        length, width, height, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+    ):
         """
         Calculate adjusted offset for center-based rotation.
 
@@ -45,14 +47,14 @@ class AdditiveBox(Shape):
         Args:
             length, width, height: Box dimensions
             x_offset, y_offset, z_offset: User-specified position offsets
-            yaw, pitch, roll: Rotation angles
+            z_rotation, y_rotation, x_rotation: Rotation angles
 
         Returns:
             tuple: (adjusted_x_offset, adjusted_y_offset, adjusted_z_offset)
         """
         # Box center is at (length/2, width/2, height/2) from its origin
         center = App.Vector(length / 2, width / 2, height / 2)
-        rotation = App.Rotation(yaw, pitch, roll)
+        rotation = App.Rotation(z_rotation, y_rotation, x_rotation)
 
         # Calculate displacement needed to rotate around center instead of corner
         # When rotating around center: rotate the center point and find how much it moved
@@ -94,9 +96,9 @@ class AdditiveBox(Shape):
         x_offset=0,
         y_offset=0,
         z_offset=0,
-        yaw=0,
-        pitch=0,
-        roll=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         plane_label = "XY_Plane"
         length, width, height = x_size, y_size, z_size
@@ -112,7 +114,7 @@ class AdditiveBox(Shape):
 
         # Calculate center-based rotation offset
         adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
-            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
+            length, width, height, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
         )
 
         # Check for existing object and get children if they exist
@@ -141,7 +143,14 @@ class AdditiveBox(Shape):
 
             # Update attachment, offset, and rotation with adjusted offset
             if Shape._update_attachment_and_offset(
-                existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+                existing_box,
+                plane_label,
+                adjusted_x_offset,
+                adjusted_y_offset,
+                adjusted_z_offset,
+                z_rotation,
+                y_rotation,
+                x_rotation,
             ):
                 needs_recompute = True
 
@@ -162,7 +171,14 @@ class AdditiveBox(Shape):
         box.Height = f"{height} mm"
 
         Shape._update_attachment_and_offset(
-            box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+            box,
+            plane_label,
+            adjusted_x_offset,
+            adjusted_y_offset,
+            adjusted_z_offset,
+            z_rotation,
+            y_rotation,
+            x_rotation,
         )
         App.ActiveDocument.recompute()
 
@@ -191,9 +207,9 @@ class AdditiveBox(Shape):
         x_offset=0,
         y_offset=0,
         z_offset=0,
-        yaw=0,
-        pitch=0,
-        roll=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         """
         Creates a box with individually rounded edges.
@@ -214,7 +230,7 @@ class AdditiveBox(Shape):
             bottom_rear_edge_radius: Fillet radius for Edge11 (0 for no fillet)
             top_rear_edge_radius: Fillet radius for Edge12 (0 for no fillet)
             x_offset, y_offset, z_offset: Position offsets
-            yaw, pitch, roll: Rotation angles
+            z_rotation, y_rotation, x_rotation: Rotation angles
 
         Returns:
             The created/updated object
@@ -262,7 +278,7 @@ class AdditiveBox(Shape):
 
         # Calculate center-based rotation offset
         adjusted_x_offset, adjusted_y_offset, adjusted_z_offset = AdditiveBox._calculate_center_based_rotation_offset(
-            length, width, height, x_offset, y_offset, z_offset, yaw, pitch, roll
+            length, width, height, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
         )
 
         # Check for existing object and get children if they exist
@@ -290,7 +306,14 @@ class AdditiveBox(Shape):
 
             # Update attachment, offset, and rotation with adjusted offset
             if Shape._update_attachment_and_offset(
-                existing_box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+                existing_box,
+                plane_label,
+                adjusted_x_offset,
+                adjusted_y_offset,
+                adjusted_z_offset,
+                z_rotation,
+                y_rotation,
+                x_rotation,
             ):
                 needs_recompute = True
 
@@ -326,7 +349,14 @@ class AdditiveBox(Shape):
         box.Height = f"{height} mm"
 
         Shape._update_attachment_and_offset(
-            box, plane_label, adjusted_x_offset, adjusted_y_offset, adjusted_z_offset, yaw, pitch, roll
+            box,
+            plane_label,
+            adjusted_x_offset,
+            adjusted_y_offset,
+            adjusted_z_offset,
+            z_rotation,
+            y_rotation,
+            x_rotation,
         )
         App.ActiveDocument.recompute()
 

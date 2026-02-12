@@ -9,7 +9,9 @@ from .shape import Shape
 
 class AdditiveCylinder(Shape):
     @staticmethod
-    def create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0):
+    def create_cylinder(
+        label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0
+    ):
         from .context import Context
 
         # Handle incremental build mode
@@ -54,7 +56,7 @@ class AdditiveCylinder(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_cylinder, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_cylinder, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -76,7 +78,9 @@ class AdditiveCylinder(Shape):
         cylinder.FirstAngle = "0.00 °"
         cylinder.SecondAngle = "0.00 °"
 
-        Shape._update_attachment_and_offset(cylinder, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            cylinder, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

@@ -14,9 +14,9 @@ class AdditiveEllipsoid(Shape):
 
         # Default values for internal use
         plane_label = "XY_Plane"
-        yaw = 0
-        pitch = 0
-        roll = 0
+        z_rotation = 0
+        y_rotation = 0
+        x_rotation = 0
 
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
@@ -66,7 +66,7 @@ class AdditiveEllipsoid(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_ellipsoid, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_ellipsoid, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -89,7 +89,9 @@ class AdditiveEllipsoid(Shape):
         ellipsoid.Angle2 = "90.00 °"
         ellipsoid.Angle3 = "360.00 °"
 
-        Shape._update_attachment_and_offset(ellipsoid, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            ellipsoid, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

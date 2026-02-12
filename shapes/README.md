@@ -61,7 +61,7 @@ The cylinder is created at the given plane center. The height is extruded in the
 
 **Public Methods:**
 
-`AdditiveCylinder.create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveCylinder.create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the cylinder object
   - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
@@ -70,16 +70,16 @@ The cylinder is created at the given plane center. The height is extruded in the
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditiveCylinder
   # Basic cylinder
   AdditiveCylinder.create_cylinder('c1', 'XY_Plane', 5, 10)
   # Cylinder with offset and rotation
-  AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, yaw=45)
+  AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, z_rotation=45)
   ```
 
 ### 3. AdditiveCone
@@ -91,7 +91,7 @@ The cone is created at the given plane center. The height is extruded in the pos
 
 **Public Methods:**
 
-`AdditiveCone.create_cone(label, plane_label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveCone.create_cone(label, plane_label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the cone object
   - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
@@ -101,9 +101,9 @@ The cone is created at the given plane center. The height is extruded in the pos
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditiveCone
@@ -174,7 +174,7 @@ The torus is created centered at the given plane center, with the ring lying in 
 
 **Public Methods:**
 
-`AdditiveTorus.create_torus(label, plane_label, ring_radius, tube_radius, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveTorus.create_torus(label, plane_label, ring_radius, tube_radius, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the torus object
   - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
@@ -183,16 +183,16 @@ The torus is created centered at the given plane center, with the ring lying in 
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditiveTorus
   # Basic torus
   AdditiveTorus.create_torus('t1', 'XY_Plane', 10, 2)
   # Torus with offset and rotation
-  AdditiveTorus.create_torus('t2', 'XY_Plane', 10, 3, x_offset=5, y_offset=5, yaw=45)
+  AdditiveTorus.create_torus('t2', 'XY_Plane', 10, 3, x_offset=5, y_offset=5, z_rotation=45)
   ```
 
 ### 7. AdditiveWedge
@@ -204,7 +204,7 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
 
 **Public Methods:**
 
-`AdditiveWedge.create_wedge(label, plane_label, xmin=0, xmax=None, ymin=0, ymax=None, zmin=0, zmax=None, x2min=None, x2max=None, z2min=None, z2max=None, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveWedge.create_wedge(label, plane_label, xmin=0, xmax=None, ymin=0, ymax=None, zmin=0, zmax=None, x2min=None, x2max=None, z2min=None, z2max=None, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the wedge object
   - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
@@ -221,9 +221,9 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditiveWedge
@@ -244,7 +244,7 @@ The prism is created at the given plane center. The height is extruded in the po
 
 **Public Methods:**
 
-`AdditivePrism.create_prism(label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditivePrism.create_prism(label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the prism object
   - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
@@ -254,16 +254,16 @@ The prism is created at the given plane center. The height is extruded in the po
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditivePrism
   # Hexagonal prism
   AdditivePrism.create_prism('hex1', 'XY_Plane', 6, 5, 10)
   # Triangle with offset and rotation
-  AdditivePrism.create_prism('tri1', 'XY_Plane', 3, 8, 15, x_offset=20, yaw=30)
+  AdditivePrism.create_prism('tri1', 'XY_Plane', 3, 8, 15, x_offset=20, z_rotation=30)
   # Octagon
   AdditivePrism.create_prism('oct1', 'XY_Plane', 8, 6, 12)
   ```
@@ -277,7 +277,7 @@ The box is created from the global coordinate origin, extending in the positive 
 
 **Public Methods:**
 
-`AdditiveBox.create_box(label, x_size, y_size, z_size, x_offset=0, y_offset=0, z_offset=0, yaw=0, pitch=0, roll=0)`
+`AdditiveBox.create_box(label, x_size, y_size, z_size, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Description:** Creates a box on the XY plane. x_size, y_size, z_size map directly to length, width, height.
 - **Parameters:**
   - `label` (str): Name/label for the box object
@@ -287,16 +287,16 @@ The box is created from the global coordinate origin, extending in the positive 
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
   - `y_offset` (float, optional): Y-axis offset from attachment plane (default: 0)
   - `z_offset` (float, optional): Z-axis offset from attachment plane (default: 0)
-  - `yaw` (float, optional): Rotation around Z-axis in degrees (default: 0)
-  - `pitch` (float, optional): Rotation around Y-axis in degrees (default: 0)
-  - `roll` (float, optional): Rotation around X-axis in degrees (default: 0)
+  - `z_rotation` (float, optional): Rotation around Z-axis in degrees (default: 0)
+  - `y_rotation` (float, optional): Rotation around Y-axis in degrees (default: 0)
+  - `x_rotation` (float, optional): Rotation around X-axis in degrees (default: 0)
 - **Example:**
   ```python
   from shapes.v1 import AdditiveBox
   # Basic box: 10mm x 20mm x 5mm
   AdditiveBox.create_box('b1', x_size=10, y_size=20, z_size=5)
   # Box with offset and rotation
-  AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, pitch=30)
+  AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, y_rotation=30)
   ```
 
 ### 10. Pad
@@ -512,7 +512,7 @@ Creates a Body object with a Clone feature that references another object. Clone
   - `label` (str): Name/label for the Body containing the clone
   - `base_obj_or_label` (str or object): The object or label to clone
   - `offset` (tuple, optional): Tuple of (x, y, z) offset values. Defaults to (0, 0, 0)
-  - `rotation` (tuple, optional): Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0)
+  - `rotation` (tuple, optional): Tuple of (z_rotation, y_rotation, x_rotation) rotation values in degrees. Defaults to (0, 0, 0)
 - **Returns:** The Body object containing the clone, or None if in teardown mode
 - **Example:**
   ```python
@@ -547,7 +547,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   - `label` (str): Name/label for the Body containing the copy
   - `base_obj_or_label` (str or object): The object or label to copy
   - `offset` (tuple, optional): Tuple of (x, y, z) offset values. Defaults to (0, 0, 0)
-  - `rotation` (tuple, optional): Tuple of (yaw, pitch, roll) rotation values in degrees. Defaults to (0, 0, 0)
+  - `rotation` (tuple, optional): Tuple of (z_rotation, y_rotation, x_rotation) rotation values in degrees. Defaults to (0, 0, 0)
 - **Returns:** The Body object containing the copy, or None if in teardown mode
 - **Key Differences from Clone:**
   - **Clone:** Creates a parametric reference that updates when the original changes

@@ -206,7 +206,9 @@ class Shape:
         return None, {}
 
     @staticmethod
-    def _update_attachment_and_offset(obj, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll):
+    def _update_attachment_and_offset(
+        obj, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+    ):
         """
         Update attachment plane, offset, and rotation for an object.
 
@@ -214,7 +216,7 @@ class Shape:
             obj: The object to update
             plane_label: The label of the plane to attach to
             x_offset, y_offset, z_offset: Position offsets
-            yaw, pitch, roll: Rotation angles
+            z_rotation, y_rotation, x_rotation: Rotation angles
 
         Returns:
             bool: True if changes were made (recompute needed), False otherwise
@@ -231,11 +233,17 @@ class Shape:
 
         # Update offset and rotation based on plane type
         if "XY_Plane" in plane_label:
-            new_offset = App.Placement(App.Vector(x_offset, y_offset, z_offset), App.Rotation(yaw, pitch, roll))
+            new_offset = App.Placement(
+                App.Vector(x_offset, y_offset, z_offset), App.Rotation(z_rotation, y_rotation, x_rotation)
+            )
         elif "YZ_Plane" in plane_label:
-            new_offset = App.Placement(App.Vector(y_offset, z_offset, x_offset), App.Rotation(pitch, roll, yaw))
+            new_offset = App.Placement(
+                App.Vector(y_offset, z_offset, x_offset), App.Rotation(z_rotation, y_rotation, x_rotation)
+            )
         elif "XZ_Plane" in plane_label:
-            new_offset = App.Placement(App.Vector(x_offset, z_offset, -y_offset), App.Rotation(yaw, roll, -pitch + 180))
+            new_offset = App.Placement(
+                App.Vector(x_offset, z_offset, -y_offset), App.Rotation(z_rotation, x_rotation, -y_rotation + 180)
+            )
         else:
             raise ShapeException(
                 f"Shape attachment failed: Unknown plane type in plane_label '{plane_label}'. "

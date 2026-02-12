@@ -21,7 +21,7 @@ from .shape import Shape
 # AdditiveWedge.create_wedge('slanted', 'XY_Plane', xmax=10, ymax=6, zmax=10, x2min=3, x2max=7, z2min=2, z2max=8)
 #
 # # Wedge with position offset and rotation
-# AdditiveWedge.create_wedge('transformed', 'XY_Plane', xmax=8, ymax=4, zmax=6, x_offset=5, y_offset=3, yaw=45)
+# AdditiveWedge.create_wedge('transformed', 'XY_Plane', xmax=8, ymax=4, zmax=6, x_offset=5, y_offset=3, z_rotation=45)
 #
 # # Trapezoidal prism - full control over all bounds
 # AdditiveWedge.create_wedge('trapezoid', 'XY_Plane', xmin=0, xmax=10, ymin=0, ymax=5, zmin=0, zmax=8, x2min=2, x2max=8, z2min=1, z2max=7)
@@ -45,9 +45,9 @@ class AdditiveWedge(Shape):
         x_offset=0,
         y_offset=0,
         z_offset=0,
-        yaw=0,
-        pitch=0,
-        roll=0,
+        z_rotation=0,
+        y_rotation=0,
+        x_rotation=0,
     ):
         # print(
         # f"create_wedge: label={label}, plane_label={plane_label}, "
@@ -55,7 +55,7 @@ class AdditiveWedge(Shape):
         # f"zmin={zmin}, zmax={zmax}, x2min={x2min}, x2max={x2max}, "
         # f"z2min={z2min}, z2max={z2max}, x_offset={x_offset}, "
         # f"y_offset={y_offset}, z_offset={z_offset}, "
-        # f"yaw={yaw}, pitch={pitch}, roll={roll}"
+        # f"z_rotation={z_rotation}, y_rotation={y_rotation}, x_rotation={x_rotation}"
         # )
 
         from .context import Context
@@ -123,7 +123,7 @@ class AdditiveWedge(Shape):
 
             # Update attachment, offset, and rotation
             if Shape._update_attachment_and_offset(
-                existing_wedge, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll
+                existing_wedge, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
             ):
                 needs_recompute = True
 
@@ -152,7 +152,9 @@ class AdditiveWedge(Shape):
         wedge.Z2min = f"{z2min} mm"
         wedge.Z2max = f"{z2max} mm"
 
-        Shape._update_attachment_and_offset(wedge, plane_label, x_offset, y_offset, z_offset, yaw, pitch, roll)
+        Shape._update_attachment_and_offset(
+            wedge, plane_label, x_offset, y_offset, z_offset, z_rotation, y_rotation, x_rotation
+        )
         App.ActiveDocument.recompute()
 
         return obj

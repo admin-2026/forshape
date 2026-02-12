@@ -785,6 +785,10 @@ class ForShapeAI:
             # Window will handle user input and re-run checks
             pass
 
+        # Bring window to front after initialization
+        self.main_window.raise_()
+        self.main_window.activateWindow()
+
         # Start Qt event loop
         return app.exec_()
 

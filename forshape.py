@@ -620,7 +620,7 @@ class ForShapeAI:
         # from agent.tools.python_compile_tools import PythonCompileTools
         from agent.tools.python_lint_tools import PythonLintTools
 
-        tool_manager.register_provider(PythonLintTools())
+        tool_manager.register_provider(PythonLintTools(exclude_dirs=[".git", ".forshape"]))
         # tool_manager.register_provider(
         #     PythonCompileTools(
         #         working_dir=self.config.working_dir,

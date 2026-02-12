@@ -24,6 +24,9 @@ class PythonLintTools(ToolBase):
     Provides tools to lint Python files under a directory.
     """
 
+    def __init__(self, exclude_dirs: list[str] | None = None):
+        self.exclude_dirs = exclude_dirs or []
+
     def get_definitions(self) -> list[dict]:
         """Get tool definitions in OpenAI function format."""
         return [
@@ -149,8 +152,16 @@ class PythonLintTools(ToolBase):
             if not dir_path.is_dir():
                 return self._json_error(f"Path is not a directory: {directory}")
 
-            # Count Python files
-            python_files = list(dir_path.rglob("*.py"))
+            # Build exclude args for ruff
+            exclude_args = []
+            if self.exclude_dirs:
+                exclude_args = ["--exclude", ",".join(self.exclude_dirs)]
+
+            # Count Python files (excluding configured dirs)
+            excluded = set(self.exclude_dirs)
+            python_files = [
+                f for f in dir_path.rglob("*.py") if not any(part in excluded for part in f.relative_to(dir_path).parts)
+            ]
             file_count = len(python_files)
 
             if file_count == 0:
@@ -160,7 +171,7 @@ class PythonLintTools(ToolBase):
             formatted = False
             if format:
                 subprocess.run(
-                    ["ruff", "format", str(dir_path)],
+                    ["ruff", "format", *exclude_args, str(dir_path)],
                     capture_output=True,
                     text=True,
                     **_SUBPROCESS_FLAGS,
@@ -168,7 +179,7 @@ class PythonLintTools(ToolBase):
                 formatted = True
 
             # Build ruff check command with JSON output
-            check_cmd = ["ruff", "check", "--output-format=json"]
+            check_cmd = ["ruff", "check", "--output-format=json", *exclude_args]
             if fix:
                 check_cmd.append("--fix")
             if ignore:

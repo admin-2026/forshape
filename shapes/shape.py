@@ -238,11 +238,11 @@ class Shape:
             )
         elif "YZ_Plane" in plane_label:
             new_offset = App.Placement(
-                App.Vector(y_offset, z_offset, x_offset), App.Rotation(z_rotation, y_rotation, x_rotation)
+                App.Vector(y_offset, z_offset, x_offset), App.Rotation(x_rotation, z_rotation, y_rotation)
             )
         elif "XZ_Plane" in plane_label:
             new_offset = App.Placement(
-                App.Vector(x_offset, z_offset, -y_offset), App.Rotation(z_rotation, x_rotation, -y_rotation + 180)
+                App.Vector(x_offset, z_offset, -y_offset), App.Rotation(-y_rotation, z_rotation, x_rotation + 180)
             )
         else:
             raise ShapeException(

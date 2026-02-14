@@ -123,6 +123,10 @@ class PrestartHandler:
             if self.main_window.isMinimized():
                 self.main_window.setWindowState(self.main_window.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
 
+    def enable_prestart_mode(self):
+        """Re-enable prestart check mode (e.g., when document changes)."""
+        self.prestart_check_mode = True
+
     def disable(self):
         """Disable prestart check mode without enabling AI mode."""
         self.prestart_check_mode = False

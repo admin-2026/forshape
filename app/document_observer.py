@@ -22,6 +22,7 @@ class ActiveDocumentObserver:
         logger: "Logger",
         message_handler: "ConversationView",
         enable_ai_mode_callback: Optional[Callable[[], None]] = None,
+        enable_prestart_mode_callback: Optional[Callable[[], None]] = None,
     ):
         """
         Initialize the active document observer.
@@ -31,11 +32,13 @@ class ActiveDocumentObserver:
             logger: Logger instance for logging
             message_handler: Message handler for displaying messages to user
             enable_ai_mode_callback: Optional callback to enable AI mode when checks pass
+            enable_prestart_mode_callback: Optional callback to re-enable prestart check mode
         """
         self.prestart_checker = prestart_checker
         self.logger = logger
         self.message_handler = message_handler
         self.enable_ai_mode_callback = enable_ai_mode_callback
+        self.enable_prestart_mode_callback = enable_prestart_mode_callback
         self._registered = False
         self._last_document_path = None
 
@@ -133,7 +136,10 @@ class ActiveDocumentObserver:
             elif status == "error":
                 # Fatal error occurred
                 pass
-            # Other statuses ("waiting", "dir_mismatch", "need_api_key") will be handled by user input
+            else:
+                # Re-enable prestart check mode so user input is routed to prestart handler
+                if self.enable_prestart_mode_callback:
+                    self.enable_prestart_mode_callback()
 
         except Exception as e:
             self.logger.error(f"Error in active document observer: {e}")

@@ -765,6 +765,7 @@ class ForShapeAI:
             logger=self.logger,
             message_handler=self.main_window.message_handler,
             enable_ai_mode_callback=self.main_window.enable_ai_mode,
+            enable_prestart_mode_callback=self.main_window.prestart_handler.enable_prestart_mode,
         )
         if self.document_observer.register():
             self.logger.info("Document observer registered successfully")
@@ -779,7 +780,7 @@ class ForShapeAI:
             self.main_window.enable_ai_mode()
         elif status == "error":
             # Fatal error, keep window open but AI disabled
-            self.main_window.prestart_check_mode = False
+            self.main_window.prestart_handler.disable()
         else:
             # Waiting for user action ("waiting", "dir_mismatch", or "need_api_key")
             # Window will handle user input and re-run checks

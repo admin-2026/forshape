@@ -5,14 +5,13 @@ from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder); from importlib import reload; import shapes.additive_prism;
 # from shapes.additive_prism import AdditivePrism
-# AdditivePrism.create_prism('hexprism', 'XY_Plane', 6, 5, 10)
+# AdditivePrism.create_prism('hexprism', 6, 5, 10)
 
 
 class AdditivePrism(Shape):
     @staticmethod
     def create_prism(
         label,
-        plane_label,
         polygon,
         circumradius,
         height,
@@ -23,25 +22,7 @@ class AdditivePrism(Shape):
         y_rotation=0,
         x_rotation=0,
     ):
-        """
-        Create a prism shape using FreeCAD's PartDesign AdditivePrism feature.
-
-        Args:
-            label (str): Name/label for the prism object
-            plane_label (str): Plane to attach to (e.g., 'XY_Plane')
-            polygon (int): Number of sides for the prism
-            circumradius (float): Radius of the circumscribed circle in mm
-            height (float): Height of the prism in mm
-            x_offset (float, optional): X-axis offset from attachment plane (default: 0)
-            y_offset (float, optional): Y-axis offset from attachment plane (default: 0)
-            z_offset (float, optional): Z-axis offset from attachment plane (default: 0)
-            z_rotation (float, optional): Rotation around Z-axis in degrees (default: 0)
-            y_rotation (float, optional): Rotation around Y-axis in degrees (default: 0)
-            x_rotation (float, optional): Rotation around X-axis in degrees (default: 0)
-
-        Returns:
-            The created or updated Body object
-        """
+        plane_label = "XY_Plane"
         # Handle incremental build mode
         incremental_build_obj = Shape._incremental_build_if_possible(label)
         if incremental_build_obj is not None:

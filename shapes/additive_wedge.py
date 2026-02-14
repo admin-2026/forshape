@@ -6,32 +6,31 @@ from .shape import Shape
 # from shapes.additive_wedge import AdditiveWedge
 #
 # # Rectangular box (no tapering) - xmax=10, ymax=5, zmax=3
-# AdditiveWedge.create_wedge('box', 'XY_Plane', xmax=10, ymax=5, zmax=3)
+# AdditiveWedge.create_wedge('box', xmax=10, ymax=5, zmax=3)
 #
 # # Tapered wedge - base 10x3, top 5x2, height 5
-# AdditiveWedge.create_wedge('tapered', 'XY_Plane', xmax=10, ymax=5, zmax=3, x2max=5, z2max=2)
+# AdditiveWedge.create_wedge('tapered', xmax=10, ymax=5, zmax=3, x2max=5, z2max=2)
 #
 # # Pyramid-like shape - base 10x10, top tapers to point (0x0), height 8
-# AdditiveWedge.create_wedge('pyramid', 'XY_Plane', xmax=10, ymax=8, zmax=10, x2max=0, z2max=0)
+# AdditiveWedge.create_wedge('pyramid', xmax=10, ymax=8, zmax=10, x2max=0, z2max=0)
 #
 # # Asymmetric wedge - offset base from origin
-# AdditiveWedge.create_wedge('asymmetric', 'XY_Plane', xmin=2, xmax=12, ymax=5, zmin=1, zmax=4)
+# AdditiveWedge.create_wedge('asymmetric', xmin=2, xmax=12, ymax=5, zmin=1, zmax=4)
 #
 # # Slanted wedge - top face offset from center
-# AdditiveWedge.create_wedge('slanted', 'XY_Plane', xmax=10, ymax=6, zmax=10, x2min=3, x2max=7, z2min=2, z2max=8)
+# AdditiveWedge.create_wedge('slanted', xmax=10, ymax=6, zmax=10, x2min=3, x2max=7, z2min=2, z2max=8)
 #
 # # Wedge with position offset and rotation
-# AdditiveWedge.create_wedge('transformed', 'XY_Plane', xmax=8, ymax=4, zmax=6, x_offset=5, y_offset=3, z_rotation=45)
+# AdditiveWedge.create_wedge('transformed', xmax=8, ymax=4, zmax=6, x_offset=5, y_offset=3, z_rotation=45)
 #
 # # Trapezoidal prism - full control over all bounds
-# AdditiveWedge.create_wedge('trapezoid', 'XY_Plane', xmin=0, xmax=10, ymin=0, ymax=5, zmin=0, zmax=8, x2min=2, x2max=8, z2min=1, z2max=7)
+# AdditiveWedge.create_wedge('trapezoid', xmin=0, xmax=10, ymin=0, ymax=5, zmin=0, zmax=8, x2min=2, x2max=8, z2min=1, z2max=7)
 
 
 class AdditiveWedge(Shape):
     @staticmethod
     def create_wedge(
         label,
-        plane_label,
         xmin=0,
         xmax=0,
         ymin=0,
@@ -49,6 +48,7 @@ class AdditiveWedge(Shape):
         y_rotation=0,
         x_rotation=0,
     ):
+        plane_label = "XY_Plane"
         # print(
         # f"create_wedge: label={label}, plane_label={plane_label}, "
         # f"xmin={xmin}, xmax={xmax}, ymin={ymin}, ymax={ymax}, "

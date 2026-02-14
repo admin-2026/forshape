@@ -4,14 +4,13 @@ from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder);
 # from shapes.additive_torus import AdditiveTorus
-# AdditiveTorus.create_torus('addtorus', 'XY_Plane', 10, 2)
+# AdditiveTorus.create_torus('addtorus', 10, 2)
 
 
 class AdditiveTorus(Shape):
     @staticmethod
     def create_torus(
         label,
-        plane_label,
         ring_radius,
         tube_radius,
         x_offset=0,
@@ -21,6 +20,7 @@ class AdditiveTorus(Shape):
         y_rotation=0,
         x_rotation=0,
     ):
+        plane_label = "XY_Plane"
         from .context import Context
 
         # Handle incremental build mode

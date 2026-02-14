@@ -4,14 +4,13 @@ from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder);
 # from shapes.additive_cone import AdditiveCone
-# AdditiveCone.create_cone('addcone', 'XY_Plane', 5, 0, 10)
+# AdditiveCone.create_cone('addcone', 5, 0, 10)
 
 
 class AdditiveCone(Shape):
     @staticmethod
     def create_cone(
         label,
-        plane_label,
         base_radius,
         top_radius,
         height,
@@ -22,6 +21,7 @@ class AdditiveCone(Shape):
         y_rotation=0,
         x_rotation=0,
     ):
+        plane_label = "XY_Plane"
         from .context import Context
 
         # Handle incremental build mode

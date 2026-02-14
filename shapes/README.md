@@ -57,14 +57,13 @@ Location: `additive_cylinder.py:9`
 
 Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature with support for attachment offsets and rotation.
 
-The cylinder is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+The cylinder is created at the XY plane center. The height is extruded in the positive Z direction.
 
 **Public Methods:**
 
-`AdditiveCylinder.create_cylinder(label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
+`AdditiveCylinder.create_cylinder(label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the cylinder object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
   - `radius` (float): Radius of the cylinder in mm
   - `height` (float): Height/length of the cylinder in mm
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
@@ -77,9 +76,9 @@ The cylinder is created at the given plane center. The height is extruded in the
   ```python
   from shapes.v1 import AdditiveCylinder
   # Basic cylinder
-  AdditiveCylinder.create_cylinder('c1', 'XY_Plane', 5, 10)
+  AdditiveCylinder.create_cylinder('c1', 5, 10)
   # Cylinder with offset and rotation
-  AdditiveCylinder.create_cylinder('c2', 'XY_Plane', 5, 10, x_offset=10, z_offset=5, z_rotation=45)
+  AdditiveCylinder.create_cylinder('c2', 5, 10, x_offset=10, z_offset=5, z_rotation=45)
   ```
 
 ### 3. AdditiveCone
@@ -87,14 +86,13 @@ Location: `additive_cone.py:9`
 
 Creates conical shapes using FreeCAD's PartDesign AdditiveCone feature with support for attachment offsets and rotation.
 
-The cone is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+The cone is created at the XY plane center. The height is extruded in the positive Z direction.
 
 **Public Methods:**
 
-`AdditiveCone.create_cone(label, plane_label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
+`AdditiveCone.create_cone(label, base_radius, top_radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the cone object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
   - `base_radius` (float): Radius of the cone at the base in mm
   - `top_radius` (float): Radius of the cone at the top in mm (0 for a pointed cone)
   - `height` (float): Height of the cone in mm
@@ -108,9 +106,9 @@ The cone is created at the given plane center. The height is extruded in the pos
   ```python
   from shapes.v1 import AdditiveCone
   # Pointed cone
-  AdditiveCone.create_cone('cone1', 'XY_Plane', 5, 0, 10)
+  AdditiveCone.create_cone('cone1', 5, 0, 10)
   # Truncated cone with offset
-  AdditiveCone.create_cone('cone2', 'XY_Plane', 5, 3, 10, x_offset=10, y_offset=5)
+  AdditiveCone.create_cone('cone2', 5, 3, 10, x_offset=10, y_offset=5)
   ```
 
 ### 4. AdditiveSphere
@@ -170,14 +168,13 @@ Location: `additive_torus.py:9`
 
 Creates toroidal (doughnut) shapes using FreeCAD's PartDesign AdditiveTorus feature with support for attachment offsets and rotation.
 
-The torus is created centered at the given plane center, with the ring lying in the plane.
+The torus is created centered at the XY plane center, with the ring lying in the XY plane.
 
 **Public Methods:**
 
-`AdditiveTorus.create_torus(label, plane_label, ring_radius, tube_radius, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
+`AdditiveTorus.create_torus(label, ring_radius, tube_radius, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the torus object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
   - `ring_radius` (float): Distance from torus center to tube center (major radius) in mm
   - `tube_radius` (float): Radius of the tube (minor radius) in mm
   - `x_offset` (float, optional): X-axis offset from attachment plane (default: 0)
@@ -190,9 +187,9 @@ The torus is created centered at the given plane center, with the ring lying in 
   ```python
   from shapes.v1 import AdditiveTorus
   # Basic torus
-  AdditiveTorus.create_torus('t1', 'XY_Plane', 10, 2)
+  AdditiveTorus.create_torus('t1', 10, 2)
   # Torus with offset and rotation
-  AdditiveTorus.create_torus('t2', 'XY_Plane', 10, 3, x_offset=5, y_offset=5, z_rotation=45)
+  AdditiveTorus.create_torus('t2', 10, 3, x_offset=5, y_offset=5, z_rotation=45)
   ```
 
 ### 7. AdditiveWedge
@@ -204,10 +201,9 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
 
 **Public Methods:**
 
-`AdditiveWedge.create_wedge(label, plane_label, xmin=0, xmax=None, ymin=0, ymax=None, zmin=0, zmax=None, x2min=None, x2max=None, z2min=None, z2max=None, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
+`AdditiveWedge.create_wedge(label, xmin=0, xmax=None, ymin=0, ymax=None, zmin=0, zmax=None, x2min=None, x2max=None, z2min=None, z2max=None, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the wedge object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
   - `xmin` (float, optional): Minimum X bound for base in mm (default: 0)
   - `xmax` (float): Maximum X bound for base in mm
   - `ymin` (float, optional): Minimum Y bound (height start) in mm (default: 0)
@@ -228,11 +224,11 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
   ```python
   from shapes.v1 import AdditiveWedge
   # Rectangular box (no tapering)
-  AdditiveWedge.create_wedge('w1', 'XY_Plane', xmax=10, ymax=5, zmax=3)
+  AdditiveWedge.create_wedge('w1', xmax=10, ymax=5, zmax=3)
   # Tapered wedge - narrower at the top
-  AdditiveWedge.create_wedge('w2', 'XY_Plane', xmax=10, ymax=5, zmax=3, x2max=5, z2max=2)
+  AdditiveWedge.create_wedge('w2', xmax=10, ymax=5, zmax=3, x2max=5, z2max=2)
   # Wedge with offset base
-  AdditiveWedge.create_wedge('w3', 'XY_Plane', xmin=2, xmax=12, ymin=0, ymax=5, zmin=1, zmax=4)
+  AdditiveWedge.create_wedge('w3', xmin=2, xmax=12, ymin=0, ymax=5, zmin=1, zmax=4)
   ```
 
 ### 8. AdditivePrism
@@ -240,14 +236,13 @@ Location: `additive_prism.py:9`
 
 Creates regular polygon prism shapes using FreeCAD's PartDesign AdditivePrism feature with support for attachment offsets and rotation.
 
-The prism is created at the given plane center. The height is extruded in the positive normal direction of the plane.
+The prism is created at the XY plane center. The height is extruded in the positive Z direction.
 
 **Public Methods:**
 
-`AdditivePrism.create_prism(label, plane_label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
+`AdditivePrism.create_prism(label, polygon, circumradius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0)`
 - **Parameters:**
   - `label` (str): Name/label for the prism object
-  - `plane_label` (str): Plane to attach to (e.g., 'XY_Plane', 'XZ_Plane', 'YZ_Plane')
   - `polygon` (int): Number of sides for the prism (e.g., 3=triangle, 6=hexagon, 8=octagon)
   - `circumradius` (float): Radius of the circumscribed circle in mm
   - `height` (float): Height/length of the prism in mm
@@ -261,11 +256,11 @@ The prism is created at the given plane center. The height is extruded in the po
   ```python
   from shapes.v1 import AdditivePrism
   # Hexagonal prism
-  AdditivePrism.create_prism('hex1', 'XY_Plane', 6, 5, 10)
+  AdditivePrism.create_prism('hex1', 6, 5, 10)
   # Triangle with offset and rotation
-  AdditivePrism.create_prism('tri1', 'XY_Plane', 3, 8, 15, x_offset=20, z_rotation=30)
+  AdditivePrism.create_prism('tri1', 3, 8, 15, x_offset=20, z_rotation=30)
   # Octagon
-  AdditivePrism.create_prism('oct1', 'XY_Plane', 8, 6, 12)
+  AdditivePrism.create_prism('oct1', 8, 6, 12)
   ```
 
 ### 9. AdditiveBox
@@ -339,7 +334,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   ```python
   from shapes.v1 import EdgeFeature, AdditiveBox
   # Create a box
-  AdditiveBox.create_box('box1', 'XY_Plane', x_size=10, y_size=10, z_size=10)
+  AdditiveBox.create_box('box1', x_size=10, y_size=10, z_size=10)
   # Add fillet to specific edges
   EdgeFeature.add_fillet('fillet1', 'box1', ['Edge1', 'Edge2', 'Edge3'], 2)
   ```
@@ -519,7 +514,7 @@ Creates a Body object with a Clone feature that references another object. Clone
   from shapes.v1 import Clone, AdditiveBox
 
   # Create original object
-  AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
+  AdditiveBox.create_box('original', x_size=10, y_size=10, z_size=10)
 
   # Create a clone at the origin (default offset and rotation)
   Clone.create_clone('clone1', 'original')
@@ -557,7 +552,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   from shapes.v1 import Copy, AdditiveBox
 
   # Create original object
-  AdditiveBox.create_box('original', 'XY_Plane', x_size=10, y_size=10, z_size=10)
+  AdditiveBox.create_box('original', x_size=10, y_size=10, z_size=10)
 
   # Create an independent copy at the origin
   Copy.create_copy('copy1', 'original')
@@ -645,10 +640,10 @@ Imports 3D geometry from external files into the FreeCAD document. Supports mult
 from shapes.v1 import AdditiveBox, AdditiveCylinder, Boolean, Folder, Export
 
 # Create a box (20mm x 20mm x 10mm on XY plane)
-AdditiveBox.create_box('main_box', 'XY_Plane', x_size=20, y_size=20, z_size=10)
+AdditiveBox.create_box('main_box', x_size=20, y_size=20, z_size=10)
 
 # Create a cylinder with offset to position it
-AdditiveCylinder.create_cylinder('hole', 'XY_Plane', 5, 15, x_offset=10, y_offset=10)
+AdditiveCylinder.create_cylinder('hole', 5, 15, x_offset=10, y_offset=10)
 
 # Cut the cylinder from the box
 Boolean.cut('box_with_holes', 'main_box', ['hole'])
@@ -663,10 +658,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 ## Important Notes
 
-1. **Plane Labels:** Common plane labels in FreeCAD are:
-   - `'XY_Plane'` - Horizontal plane
-   - `'XZ_Plane'` - Vertical plane (front)
-   - `'YZ_Plane'` - Vertical plane (side)
+1. **Plane:** All primitives are created on the XY plane by default
 
 2. **Object Labels:** All object labels must be unique within the document
 

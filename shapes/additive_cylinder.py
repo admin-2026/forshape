@@ -4,14 +4,15 @@ from .shape import Shape
 
 # script_folder = f'C:/vd/project_random/SynologyDrive/shape_gen_2/shape_gen_2'; sys.path.append(script_folder);
 # from shapes.additive_cylinder import AdditiveCylinder
-# AdditiveCylinder.create_cylinder('addcylinder', 'XY_Plane', 2, 10)
+# AdditiveCylinder.create_cylinder('addcylinder', 2, 10)
 
 
 class AdditiveCylinder(Shape):
     @staticmethod
     def create_cylinder(
-        label, plane_label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0
+        label, radius, height, x_offset=0, y_offset=0, z_offset=0, z_rotation=0, y_rotation=0, x_rotation=0
     ):
+        plane_label = "XY_Plane"
         from .context import Context
 
         # Handle incremental build mode

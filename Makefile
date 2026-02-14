@@ -1,4 +1,4 @@
-.PHONY: install format lint fix readme
+.PHONY: install format lint fix readme push
 
 install:
 	pip install ruff grip
@@ -15,3 +15,7 @@ lint:
 
 fix:
 	ruff check --fix --unsafe-fixes .
+
+push:
+	git push origin main --tags
+

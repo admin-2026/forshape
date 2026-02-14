@@ -300,7 +300,9 @@ class ForShapeAI:
 
         # Initialize prestart checker (will setup directories and check API key)
         self.logger = Logger(min_level=LogLevel.INFO)
-        self.prestart_checker = PrestartChecker(self.config, self.logger)
+        self.prestart_checker = PrestartChecker(
+            self.config, self.logger, completion_callback=self._complete_initialization
+        )
 
         # Store model preference for later
         self.model = model
@@ -744,7 +746,6 @@ class ForShapeAI:
             config=self.config,
             exit_handler=self.handle_exit,
             prestart_checker=self.prestart_checker,
-            completion_callback=self._complete_initialization,
             window_close_callback=ForShapeAI._clear_active_window,
         )
 
@@ -765,26 +766,18 @@ class ForShapeAI:
             logger=self.logger,
             message_handler=self.main_window.message_handler,
             enable_ai_mode_callback=self.main_window.enable_ai_mode,
-            enable_prestart_mode_callback=self.main_window.prestart_handler.enable_prestart_mode,
         )
         if self.document_observer.register():
             self.logger.info("Document observer registered successfully")
         else:
             self.logger.warning("Failed to register document observer")
 
-        # Run initial prestart check
+        # Run initial prestart check.
+        # If status becomes "ready", the completion_callback on PrestartChecker
+        # fires _complete_initialization automatically.
         status = self.prestart_checker.check()
         if status == "ready":
-            # All checks passed, complete initialization (which also sets components) and enable AI
-            self._complete_initialization()
             self.main_window.enable_ai_mode()
-        elif status == "error":
-            # Fatal error, keep window open but AI disabled
-            self.main_window.prestart_handler.disable()
-        else:
-            # Waiting for user action ("waiting", "dir_mismatch", or "need_api_key")
-            # Window will handle user input and re-run checks
-            pass
 
         # Bring window to front after initialization
         self.main_window.raise_()

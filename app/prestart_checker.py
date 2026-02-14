@@ -33,17 +33,19 @@ class _VersionSignal(QObject):
 class PrestartChecker:
     """Handles prestart checks for configuration setup and FreeCAD document validation."""
 
-    def __init__(self, config: "ConfigurationManager", logger: "Logger"):
+    def __init__(self, config: "ConfigurationManager", logger: "Logger", completion_callback=None):
         """
         Initialize the prestart checker.
 
         Args:
             config: Configuration manager for directory and working directory management
             logger: Logger instance for logging check results
+            completion_callback: Optional callback invoked when status becomes "ready"
         """
         self.config = config
         self.logger = logger
         self.message_handler = None
+        self.completion_callback = completion_callback
         self.status: Literal["waiting", "dir_mismatch", "ready", "error", "need_api_key"] = "waiting"
         self.api_key: Optional[str] = None
 
@@ -249,6 +251,8 @@ class PrestartChecker:
             f"🔑 API keys configured: {keys_message}\n\n"
             f"You can now start chatting with the AI!",
         )
+        if self.completion_callback:
+            self.completion_callback()
         self.status = "ready"
         return "ready"
 

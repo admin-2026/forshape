@@ -36,17 +36,15 @@ class ModelMenuManager:
         # These will be set by main window
         self.ai_client = None
         self.prestart_checker = None
-        self.completion_callback = None
         self.enable_ai_mode_callback = None
 
     def set_ai_client(self, ai_client):
         """Set the AI client reference."""
         self.ai_client = ai_client
 
-    def set_callbacks(self, prestart_checker, completion_callback, enable_ai_mode_callback):
-        """Set callbacks for prestart checks and completion."""
+    def set_callbacks(self, prestart_checker, enable_ai_mode_callback):
+        """Set callbacks for prestart checks and AI mode enabling."""
         self.prestart_checker = prestart_checker
-        self.completion_callback = completion_callback
         self.enable_ai_mode_callback = enable_ai_mode_callback
 
     def _get_api_key_manager(self):
@@ -362,15 +360,12 @@ class ModelMenuManager:
                     if is_first_key and self.ai_client:
                         self._select_first_available_provider()
 
-                    # If this is the first API key and AI client is not initialized yet,
-                    # we might need to trigger completion callback
-                    if self.completion_callback and not self.ai_client:
-                        if self.prestart_checker:
-                            status = self.prestart_checker.check()
-                            if status == "ready":
-                                self.completion_callback()
-                                if self.enable_ai_mode_callback:
-                                    self.enable_ai_mode_callback()
+                    # If AI client is not initialized yet, re-run prestart checks.
+                    # check() will invoke the completion_callback internally when ready.
+                    if not self.ai_client and self.prestart_checker:
+                        status = self.prestart_checker.check()
+                        if status == "ready" and self.enable_ai_mode_callback:
+                            self.enable_ai_mode_callback()
         except Exception as e:
             self.logger.error(f"Error adding API key: {e}")
             if self.message_handler:

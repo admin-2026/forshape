@@ -27,7 +27,6 @@ from .ui import (
     MenuBarManager,
     MessageFormatter,
     ModelMenuManager,
-    PrestartHandler,
     ScreenshotHandler,
     WelcomeWidget,
 )
@@ -54,7 +53,6 @@ class ForShapeMainWindow(QMainWindow):
         exit_handler,
         image_context=None,
         prestart_checker=None,
-        completion_callback=None,
         window_close_callback=None,
     ):
         """
@@ -68,7 +66,6 @@ class ForShapeMainWindow(QMainWindow):
             exit_handler: Function to handle exit
             image_context: Optional ImageContext instance for capturing screenshots
             prestart_checker: Optional PrestartChecker instance for prestart validation
-            completion_callback: Optional callback to complete initialization after checks pass
             window_close_callback: Optional callback to call when window is closed
         """
         super().__init__()
@@ -78,6 +75,7 @@ class ForShapeMainWindow(QMainWindow):
         self.config = config
         self.image_context = image_context
         self.handle_exit = exit_handler
+        self.prestart_checker = prestart_checker
         self.window_close_callback = window_close_callback
 
         # Shared state for attachments
@@ -98,14 +96,14 @@ class ForShapeMainWindow(QMainWindow):
         self.ui_config_manager.load()
 
         # Initialize component managers
-        self._init_component_managers(prestart_checker, completion_callback)
+        self._init_component_managers()
 
         # Enable drag and drop
         self.setAcceptDrops(True)
 
         self.setup_ui()
 
-    def _init_component_managers(self, prestart_checker, completion_callback):
+    def _init_component_managers(self):
         """Initialize all component managers."""
         # Menu bar manager
         self.menu_bar_manager = MenuBarManager(self.ui_config_manager, self.logger)
@@ -115,9 +113,6 @@ class ForShapeMainWindow(QMainWindow):
 
         # Screenshot handler
         self.screenshot_handler = ScreenshotHandler(self.image_context, self.logger)
-
-        # Prestart handler
-        self.prestart_handler = PrestartHandler(prestart_checker, completion_callback, self.logger)
 
         # AI request controller
         self.ai_request_controller = AIRequestController(self.logger)
@@ -218,11 +213,6 @@ class ForShapeMainWindow(QMainWindow):
             lambda: self.ai_request_controller.is_busy(),
         )
 
-        # Prestart handler
-        self.prestart_handler.set_message_handler(self.message_handler)
-        self.prestart_handler.set_config(self.config)
-        self.prestart_handler.set_main_window(self)
-
         # AI request controller
         self.ai_request_controller.set_message_handler(self.message_handler)
         self.ai_request_controller.set_token_status_label(self.input_area_manager.token_status_label)
@@ -248,8 +238,7 @@ class ForShapeMainWindow(QMainWindow):
         )
         self.model_menu_manager.set_ai_client(self.ai_client)
         self.model_menu_manager.set_callbacks(
-            self.prestart_handler.prestart_checker,
-            self.prestart_handler.completion_callback,
+            self.prestart_checker,
             self.enable_ai_mode,
         )
 
@@ -339,7 +328,21 @@ class ForShapeMainWindow(QMainWindow):
 
     def enable_ai_mode(self):
         """Enable normal AI interaction mode after prestart checks pass."""
-        self.prestart_handler.enable_ai_mode(self.ai_client)
+        if self.ai_client and self.config:
+            context_status = "✓ FORSHAPE.md loaded" if self.config.has_forshape() else "✗ No FORSHAPE.md"
+            self.message_handler.append_message(
+                "System",
+                f"🎉 **Initialization Complete!**\n\n"
+                f"**Using model:** {self.ai_client.get_model()}\n"
+                f"**Context:** {context_status}\n\n"
+                f"You can now chat with the AI to generate 3D shapes!",
+            )
+
+        # Bring window to front after initialization completes
+        self.raise_()
+        self.activateWindow()
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
 
     def on_user_input(self):
         """Handle user input when Enter is pressed."""
@@ -358,9 +361,19 @@ class ForShapeMainWindow(QMainWindow):
         QCoreApplication.processEvents()
 
         # Handle prestart check mode
-        if self.prestart_handler.is_active():
-            should_enable_ai = self.prestart_handler.handle_input(user_input, self)
-            if should_enable_ai:
+        if self.prestart_checker and not self.prestart_checker.is_ready():
+            status = self.prestart_checker.get_status()
+            if status == "error":
+                return
+            if status == "dir_mismatch":
+                self.prestart_checker.handle_directory_mismatch(user_input)
+                # Re-run checks after handling mismatch (unless error/cancel)
+                if self.prestart_checker.get_status() != "error":
+                    self.prestart_checker.check()
+            else:
+                # For "waiting", "need_api_key": re-run checks
+                self.prestart_checker.check()
+            if self.prestart_checker.is_ready():
                 self.enable_ai_mode()
             return
 

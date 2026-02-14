@@ -16,7 +16,6 @@ from .log_level_selector import LogLevelSelector
 from .menu_bar_manager import MenuBarManager
 from .message_formatter import MessageFormatter
 from .model_menu import ModelMenuManager
-from .prestart_handler import PrestartHandler
 from .screenshot_handler import ScreenshotHandler
 from .token_status_label import TokenStatusLabel
 from .widgets import MultiLineInputField
@@ -36,7 +35,6 @@ __all__ = [
     "MessageWidget",
     "ModelMenuManager",
     "MultiLineInputField",
-    "PrestartHandler",
     "ScreenshotHandler",
     "TokenStatusLabel",
     "WelcomeWidget",

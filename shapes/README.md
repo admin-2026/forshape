@@ -47,12 +47,7 @@ When new versions are released:
 
 ## Classes Overview
 
-### 1. Shape (Base Class)
-Location: `shape.py:3`
-
-Base class providing core functionality for creating FreeCAD objects, sketches, and pads.
-
-### 2. AdditiveCylinder
+### 1. AdditiveCylinder
 Location: `additive_cylinder.py:9`
 
 Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature with support for attachment offsets and rotation.
@@ -81,7 +76,7 @@ The cylinder is created at the XY plane center. The height is extruded in the po
   AdditiveCylinder.create_cylinder('c2', 5, 10, x_offset=10, z_offset=5, z_rotation=45)
   ```
 
-### 3. AdditiveCone
+### 2. AdditiveCone
 Location: `additive_cone.py:9`
 
 Creates conical shapes using FreeCAD's PartDesign AdditiveCone feature with support for attachment offsets and rotation.
@@ -111,7 +106,7 @@ The cone is created at the XY plane center. The height is extruded in the positi
   AdditiveCone.create_cone('cone2', 5, 3, 10, x_offset=10, y_offset=5)
   ```
 
-### 4. AdditiveSphere
+### 3. AdditiveSphere
 Location: `additive_sphere.py:9`
 
 Creates spherical shapes using FreeCAD's PartDesign AdditiveSphere feature with support for attachment offsets.
@@ -136,7 +131,7 @@ The sphere is created centered at the XY plane center. Supports full 360-degree 
   AdditiveSphere.create_sphere('s2', 5, x_offset=10, y_offset=10, z_offset=5)
   ```
 
-### 5. AdditiveEllipsoid
+### 4. AdditiveEllipsoid
 Location: `additive_ellipsoid.py:9`
 
 Creates ellipsoidal shapes using FreeCAD's PartDesign AdditiveEllipsoid feature with support for attachment offsets.
@@ -163,7 +158,7 @@ The ellipsoid is created centered at the XY plane center. Supports full ellipsoi
   AdditiveEllipsoid.create_ellipsoid('e2', 5, 3, 2, x_offset=10, y_offset=10, z_offset=5)
   ```
 
-### 6. AdditiveTorus
+### 5. AdditiveTorus
 Location: `additive_torus.py:9`
 
 Creates toroidal (doughnut) shapes using FreeCAD's PartDesign AdditiveTorus feature with support for attachment offsets and rotation.
@@ -192,7 +187,7 @@ The torus is created centered at the XY plane center, with the ring lying in the
   AdditiveTorus.create_torus('t2', 10, 3, x_offset=5, y_offset=5, z_rotation=45)
   ```
 
-### 7. AdditiveWedge
+### 6. AdditiveWedge
 Location: `additive_wedge.py:9`
 
 Creates wedge (trapezoidal prism) shapes using FreeCAD's PartDesign AdditiveWedge feature with support for attachment offsets and rotation.
@@ -231,7 +226,7 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
   AdditiveWedge.create_wedge('w3', xmin=2, xmax=12, ymin=0, ymax=5, zmin=1, zmax=4)
   ```
 
-### 8. AdditivePrism
+### 7. AdditivePrism
 Location: `additive_prism.py:9`
 
 Creates regular polygon prism shapes using FreeCAD's PartDesign AdditivePrism feature with support for attachment offsets and rotation.
@@ -263,7 +258,7 @@ The prism is created at the XY plane center. The height is extruded in the posit
   AdditivePrism.create_prism('oct1', 8, 6, 12)
   ```
 
-### 9. AdditiveBox
+### 8. AdditiveBox
 Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
@@ -294,7 +289,7 @@ The box is created from the global coordinate origin, extending in the positive 
   AdditiveBox.create_box('b2', x_size=10, y_size=20, z_size=5, x_offset=15, y_offset=10, y_rotation=30)
   ```
 
-### 10. Pad
+### 9. Pad
 Location: `pad.py:10`
 
 Creates a body with a pad feature from an existing sketch. Useful when you have a pre-existing sketch and want to extrude it into a 3D body.
@@ -316,7 +311,7 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   Pad.create_pad('extruded_shape', 'my_sketch', 20)
   ```
 
-### 11. EdgeFeature
+### 10. EdgeFeature
 Location: `edge_feature.py:10`
 
 Adds design features (fillets, chamfers, drafts) to edges or faces of existing objects.
@@ -359,7 +354,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   EdgeFeature.add_chamfer('chamfer3', 'box1', ['Edge11'], 1.0, angle=60)
   ```
 
-### 12. Boolean
+### 11. Boolean
 Location: `boolean.py:9`
 
 Performs boolean operations between shapes (union, difference, intersection).
@@ -400,7 +395,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 13. Transform
+### 12. Transform
 Location: `transform.py:5`
 
 Provides spatial transformation operations for objects.
@@ -431,6 +426,25 @@ Provides spatial transformation operations for objects.
 - **Example:**
   ```python
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
+  ```
+
+### 13. Appearance
+Location: `appearance.py:4`
+
+Changes the visual appearance of objects.
+
+**Public Methods:**
+
+`Appearance.set_transparency(object_or_label, transparency)`
+- **Description:** Sets the transparency of an object
+- **Parameters:**
+  - `object_or_label` (str or object): Object or its label to modify
+  - `transparency` (int): Transparency level from 0 (opaque) to 100 (fully transparent)
+- **Example:**
+  ```python
+  from shapes.v1 import Appearance
+  Appearance.set_transparency('box1', 50)   # 50% transparent
+  Appearance.set_transparency('box1', 0)    # fully opaque
   ```
 
 ### 14. Export

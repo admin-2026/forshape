@@ -87,6 +87,32 @@ Then restart FreeCAD.
   <img src="assets/readme/var_view.jpg" alt="Variables view and export" width="50%" />
 </p>
 
+## Tips
+
+### Communicating with the AI for Geometry and Parametric Design
+
+**Use X, Y, Z coordinates — avoid vague directional words.**
+Relative terms like width, height, depth, front, back, top, bottom, left, and right are ambiguous and can confuse the AI. Use axis-aligned language instead: "extend 50mm in X", "move 10mm in Z", "rotate 90° around the Y axis". For example, instead of "make the box wider and shorter", say "increase X to 80mm and decrease Z to 15mm".
+
+**Use standard geometric terminology.**
+Terms like extrude, revolve, loft, chamfer, fillet, boolean union/difference/intersection, and mirror are well understood by the AI and produce more accurate results.
+
+**Describe spatial relationships explicitly.**
+Specify how parts relate to each other using coordinates and axes: "center the hole on the face with the highest Z value", "align the cylinder's axis with the Z axis", "place the bracket flush against the face at X=0".
+
+**Expose parameters by name.**
+If you want something to be adjustable later, say so: "use a variable `wall_thickness` for the wall width so I can change it". Named variables appear in the Variables view and can be tweaked without regenerating the design.
+
+**Build incrementally.**
+Start with the base shape, confirm it looks right, then ask for features one at a time: holes, fillets, cutouts. This makes it easier to catch errors early.
+
+**Describe symmetry and patterns.**
+The AI handles repetition well when you name it: "4 evenly spaced holes on a 60mm bolt circle", "mirror the bracket about the YZ plane", "linear pattern of 6 ribs with 10mm spacing".
+
+**State what should stay fixed vs. what can vary.**
+For example: "keep the outer diameter fixed at 100mm, but let the wall thickness be a parameter".
+
+
 ## Development
 
 The best way to get started with development is probably using an AI agent. The agent can read the codebase, understand the project structure, and help you implement features or fix bugs with full context.

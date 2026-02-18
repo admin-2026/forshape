@@ -4,6 +4,11 @@
   <img src="assets/readme/teaser_shape.jpg" alt="Teaser shape" width="50%" />
 </p>
 
+<p align="center">
+  <a href="https://discord.gg/kgqWRRvCqu"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://forum.freecad.org/viewtopic.php?t=103176"><img src="https://img.shields.io/badge/FreeCAD_Forum-Topic-orange?logo=freecad&logoColor=white" alt="FreeCAD Forum" /></a>
+</p>
+
 ForShape AI is an AI-powered FreeCAD plugin that lets you create and manipulate 3D shapes through natural language.
 
 **Workflow:** User input → AI agent → Python code → 3D parametric design. You describe what you want in natural language, the AI agent translates your description into FreeCAD Python scripts, and FreeCAD executes them to produce parametric 3D models.

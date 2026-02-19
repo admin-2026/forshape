@@ -37,9 +37,9 @@ class HistoryMessage:
     content: Any  # Can be string or list for multi-modal content
     key: str  # Unique key for deduplication
     policy: HistoryPolicy = HistoryPolicy.DEFAULT
-    metadata: Optional[dict] = None
     timestamp: Optional[str] = None
     conversation_id: Optional[str] = None
+    step: Optional[str] = None
 
 
 class ChatHistoryManager:
@@ -62,7 +62,7 @@ class ChatHistoryManager:
         content: Any,
         key: str,
         policy: HistoryPolicy = HistoryPolicy.DEFAULT,
-        metadata: Optional[dict] = None,
+        step: Optional[str] = None,
     ) -> None:
         """
         Add a message to the history.
@@ -72,7 +72,7 @@ class ChatHistoryManager:
             content: Message content (can be string or list for multi-modal content)
             key: Unique key for the message (used for policy-based deduplication)
             policy: History policy for handling duplicate keys
-            metadata: Optional metadata (timestamp, tokens, etc.)
+            step: Optional step name this message belongs to
         """
         # Apply policy-based handling
         if policy == HistoryPolicy.DISCARD:
@@ -86,17 +86,14 @@ class ChatHistoryManager:
             # Remove any existing messages with the same key
             self._history = [msg for msg in self._history if msg.key != key]
 
-        # Get timestamp from metadata or generate new one
-        timestamp = (metadata or {}).get("timestamp", datetime.now().isoformat())
-
         message = HistoryMessage(
             role=role,
             content=content,
             key=key,
             policy=policy,
-            metadata=metadata,
-            timestamp=timestamp,
+            timestamp=datetime.now().isoformat(),
             conversation_id=self.current_conversation_id,
+            step=step,
         )
 
         self._history.append(message)
@@ -110,20 +107,20 @@ class ChatHistoryManager:
         content: Any,
         key: str,
         policy: HistoryPolicy = HistoryPolicy.DEFAULT,
-        metadata: Optional[dict] = None,
     ) -> None:
         """Add a user message to the history."""
-        self.add_message("user", content, key, policy, metadata)
+        self.add_message("user", content, key, policy)
 
-    def add_history_messages(self, messages: list["HistoryMessage"]) -> None:
+    def add_history_messages(self, messages: list["HistoryMessage"], step_name: Optional[str] = None) -> None:
         """
         Add multiple HistoryMessage objects to the history.
 
         Args:
             messages: List of HistoryMessage objects to add
+            step_name: Optional step name to save with each message's metadata
         """
         for msg in messages:
-            self.add_message(msg.role, msg.content, msg.key, msg.policy, msg.metadata)
+            self.add_message(msg.role, msg.content, msg.key, msg.policy, step=step_name)
 
     def get_history(self, last_n: Optional[int] = None) -> list[dict]:
         """
@@ -136,7 +133,7 @@ class ChatHistoryManager:
             List of message dictionaries compatible with OpenAI API
             (keys are removed from messages)
         """
-        # Create clean message dicts for API (without internal metadata like timestamps and keys)
+        # Create clean message dicts for API (without internal fields like timestamps and keys)
         filtered = [{"role": msg.role, "content": msg.content} for msg in self._history]
 
         # Return last N messages if specified

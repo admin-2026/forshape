@@ -259,7 +259,7 @@ class AIAgent:
             # Add history messages only if step actually completed (not call_pending)
             # For call_pending, we'll continue later and add history then
             if result.status != "call_pending":
-                self.history_manager.add_history_messages(result.history_messages)
+                self.history_manager.add_history_messages(result.history_messages, step_name=step_name)
 
             # Accumulate token usage
             total_prompt_tokens += result.token_usage.get("prompt_tokens", 0)

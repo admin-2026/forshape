@@ -674,7 +674,7 @@ class ForShapeAI:
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config,
-            response_steps=["router", "main", "lint_err_fix"],
+            response_steps=["router", "main", "lint_err_fix", "review"],
             step_jump_controller=step_jump_controller,
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")

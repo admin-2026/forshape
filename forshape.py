@@ -530,7 +530,7 @@ class ForShapeAI:
             tool_executor=tool_executor,
             max_iterations=50,
             logger=self.logger,
-            step_jump=ChangedFilesStepJump("lint", self.edit_history),
+            step_jump=ChangedFilesStepJump("diff", self.edit_history),
         )
 
         # Create the lint step with its own tool executor containing only lint tools
@@ -595,7 +595,6 @@ class ForShapeAI:
             history_manager=history_manager,
             step_names_to_drop=["lint", "lint_err_fix"],
             logger=self.logger,
-            step_jump=NextStepJump("diff"),
         )
 
         # Create the diff step with its own tool executor containing only diff tools
@@ -648,10 +647,11 @@ class ForShapeAI:
             history_manager=history_manager,
             step_names_to_drop=["diff", "review"],
             logger=self.logger,
+            step_jump=NextStepJump("lint"),
         )
 
         # Create AI agent with steps
-        # Flow: router -> (main -> lint -> lint_err_fix -> drop_lint_history -> diff -> review -> drop_review_history) or direct tool use
+        # Flow: router -> (print_doc->main -> diff -> review -> drop_review_history -> lint -> lint_err_fix -> drop_lint_history) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,

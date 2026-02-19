@@ -530,10 +530,33 @@ class ForShapeAI:
             tool_executor=lint_err_fix_tool_executor,
             max_iterations=30,
             logger=self.logger,
+            step_jump=NextStepJump("diff"),
+        )
+
+        # Create the diff step with its own tool executor containing only diff tools
+        diff_tool_manager = ToolManager(logger=self.logger)
+        self._register_diff_step_tools(diff_tool_manager)
+        diff_tool_executor = ToolExecutor(tool_manager=diff_tool_manager, logger=self.logger)
+        diff_tool_call = ToolCallMessage(
+            tool_calls=[
+                ToolCall(
+                    name="diff_files",
+                    arguments={},
+                    copy_result_to_response=True,
+                    key="diff_step_diff_files",
+                    policy=HistoryPolicy.LATEST,
+                ),
+            ]
+        )
+        diff_step = ToolCallStep(
+            name="diff",
+            tool_executor=diff_tool_executor,
+            messages=[diff_tool_call],
+            logger=self.logger,
         )
 
         # Create AI agent with steps
-        # Flow: router -> (main -> lint -> lint_err_fix) or direct tool use
+        # Flow: router -> (main -> lint -> lint_err_fix -> diff) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
@@ -543,6 +566,7 @@ class ForShapeAI:
                 "main": main_step,
                 "lint": lint_step,
                 "lint_err_fix": lint_err_fix_step,
+                "diff": diff_step,
             },
             # start_step="router",  # routing is under construction
             start_step="doc_print",
@@ -652,6 +676,17 @@ class ForShapeAI:
             exclude_patterns=[],
         )
         tool_manager.register_provider(file_access_tools)
+
+    def _register_diff_step_tools(self, tool_manager: ToolManager) -> None:
+        """
+        Register tools for the diff step with the tool manager.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+        """
+        from agent.tools.file_diff_tools import FileDiffTools
+
+        tool_manager.register_provider(FileDiffTools(edit_history=self.edit_history))
 
     def _register_router_step_tools(
         self,

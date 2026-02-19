@@ -266,6 +266,7 @@ Apply each applicable fix below to the changed files.
 - If a build file is not standalone-runnable, add `if __name__ == '__main__': build_<name>()` at the end.
 - If logically related construction steps are not encapsulated in helper functions, refactor them.
 - If constants are defined inline in the build file, move them to `<object_name>_constants.py`. If those constants are used by multiple files, move them to `constants.py` instead.
+- Do not reorder boolean operations ahead of edge-based features (fillets, chamfers). Boolean operations change edge numbering and will break any feature that references specific edges.
 
 ### <feature>_lib.py
 - If logic reused across multiple build files is duplicated instead of extracted into a lib file, refactor it.

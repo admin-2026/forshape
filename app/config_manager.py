@@ -137,6 +137,10 @@ class ConfigurationManager:
         """Get the path to FORSHAPE.md (alias for get_forshape_md_file)."""
         return self.forshape_md_file
 
+    def get_review_path(self) -> Path:
+        """Get the path to REVIEW.md (user-provided review instructions)."""
+        return self.base_dir / "REVIEW.md"
+
     def get_project_dir(self) -> Path:
         """Get the ForShape project directory (parent of shapes dir)."""
         return self.project_dir

@@ -220,6 +220,50 @@ LINT_ERR_FIX_USER = (
     "Fix the lint errors shown in the results above. If there are no errors, respond that no fixes are needed."
 )
 
+REVIEW_SYSTEM = """You are a code reviewer that reviews Python code changes for a FreeCAD shape generation project.
+
+You will be given a diff of all files changed in the current session. Review the changes and update the code if necessary.
+
+Guidelines:
+- Focus only on the changed code shown in the diff
+- Update code using the edit_file tool if improvements are needed
+- If no changes are needed, respond that the code looks good
+
+## File Structure Review Checklist
+
+Check the diff against each applicable item below and fix any violations found.
+
+### constants.py
+- [ ] Are new numeric values (dimensions, tolerances, clearances) defined as constants in constants.py instead of hardcoded in other files?
+- [ ] Are constants imported using `from constants import *`?
+- [ ] Are all constant names written in UPPER_CASE_WITH_UNDERSCORES? Any module-level variable intended as a constant must use only uppercase letters, digits, and underscores. For example, `max_width = 50`, `maxWidth = 50`, or `MaxWidth = 50` all violate this and must be renamed to `MAX_WIDTH = 50`.
+- [ ] Is any simple function whose only purpose is to return an arithmetic expression replaced with a constant assignment? For example, `def total_width(): return BASE + MARGIN * 2` must become `TOTAL_WIDTH = BASE + MARGIN * 2`, and all call sites (`total_width()`) must be updated to reference the constant directly (`TOTAL_WIDTH`).
+
+### main.py
+- [ ] Does main.py remain high-level, only importing and calling orchestrator functions from build files?
+- [ ] Is detailed construction logic delegated to <object_name>_build.py files rather than placed in main.py?
+- [ ] Are new build modules imported and called from the main orchestrator function?
+
+### export.py
+- [ ] Are newly created top-level objects exported in export.py?
+- [ ] Is export logic kept in export.py and not mixed into build or main files?
+
+### <object_name>_build.py
+- [ ] Does each build file have a single orchestrator function (e.g., build_case()) that completes the entire object?
+- [ ] Is each build file standalone-runnable via `if __name__ == '__main__'`?
+- [ ] Are helper functions used to encapsulate construction of logically related parts?
+- [ ] Does the build file import constants from constants.py or its own <object_name>_constants.py?
+
+### <feature>_lib.py
+- [ ] Is logic that is reused across multiple build files extracted into a lib file?
+- [ ] Do lib files contain only reusable utility functions, not complete object builds?
+
+### <object_name>_constants.py
+- [ ] If an object introduces many constants, are they placed in a dedicated <object_name>_constants.py instead of cluttering constants.py?
+"""
+
+REVIEW_USER = "Review the code changes shown in the diff above against the checklist. Fix any violations found."
+
 ROUTER_SYSTEM = """You are an AI assistant router that helps users navigate different workflows for 3D shape creation.
 
 ## Your Role
@@ -553,10 +597,31 @@ class ForShapeAI:
             tool_executor=diff_tool_executor,
             messages=[diff_tool_call],
             logger=self.logger,
+            step_jump=NextStepJump("review"),
+        )
+
+        # Create the review step to review code changes after the diff
+        review_tool_manager = ToolManager(logger=self.logger)
+        self._register_review_step_tools(review_tool_manager, permission_manager)
+        review_tool_executor = ToolExecutor(tool_manager=review_tool_manager, logger=self.logger)
+
+        review_request_builder = RequestBuilder(
+            system_elements=[Instruction(REVIEW_SYSTEM, description="Code review instructions")],
+            user_elements=[
+                FileLoader(str(self.config.get_review_path()), required=False, description="User review instructions"),
+                Instruction(REVIEW_USER, description="Code review task"),
+            ],
+        )
+        review_step = Step(
+            name="review",
+            request_builder=review_request_builder,
+            tool_executor=review_tool_executor,
+            max_iterations=30,
+            logger=self.logger,
         )
 
         # Create AI agent with steps
-        # Flow: router -> (main -> lint -> lint_err_fix -> diff) or direct tool use
+        # Flow: router -> (main -> lint -> lint_err_fix -> diff -> review) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
@@ -567,6 +632,7 @@ class ForShapeAI:
                 "lint": lint_step,
                 "lint_err_fix": lint_err_fix_step,
                 "diff": diff_step,
+                "review": review_step,
             },
             # start_step="router",  # routing is under construction
             start_step="doc_print",
@@ -687,6 +753,26 @@ class ForShapeAI:
         from agent.tools.file_diff_tools import FileDiffTools
 
         tool_manager.register_provider(FileDiffTools(edit_history=self.edit_history))
+
+    def _register_review_step_tools(self, tool_manager: ToolManager, permission_manager: PermissionManager) -> None:
+        """
+        Register tools for the review step with the tool manager.
+
+        Args:
+            tool_manager: ToolManager instance to register tools with
+            permission_manager: PermissionManager instance for permission checks
+        """
+        from agent.tools.file_access_tools import FileAccessTools
+
+        file_access_tools = FileAccessTools(
+            working_dir=self.config.working_dir,
+            logger=self.logger,
+            permission_manager=permission_manager,
+            edit_history=self.edit_history,
+            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
+            exclude_patterns=[],
+        )
+        tool_manager.register_provider(file_access_tools)
 
     def _register_router_step_tools(
         self,

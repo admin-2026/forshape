@@ -53,6 +53,16 @@ script_folder = 'C:/new/path/to/new/location'; exec(open(f'{script_folder}/insta
 
 Then restart FreeCAD.
 
+### Upgrade
+
+To upgrade ForShape AI, download the latest version of this repository and extract it, then re-run the install script with the path to the new version:
+
+```python
+script_folder = 'C:/path/to/new/version'; exec(open(f'{script_folder}/install_macro.py').read())
+```
+
+Then restart FreeCAD.
+
 ## Getting Started
 
 1. To launch the application, click the chat bubble icon <img src="forshape_icon.svg" alt="ForShape AI icon" width="20" height="20" />. Upon first launch, you will be prompted to install the necessary dependencies.

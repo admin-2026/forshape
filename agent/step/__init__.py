@@ -7,6 +7,7 @@ in the AI agent workflow.
 
 from ..chat_history_manager import HistoryMessage
 from .dynamic_step_jump import DynamicStepJump
+from .history_edit_step import HistoryEditStep
 from .next_step_jump import NextStepJump
 from .step import Step
 from .step_jump import StepJump
@@ -21,6 +22,7 @@ __all__ = [
     "DynamicStepJump",
     "StepResult",
     "HistoryMessage",
+    "HistoryEditStep",
     "ToolCallStep",
     "ToolExecutor",
 ]

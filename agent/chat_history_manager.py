@@ -142,6 +142,20 @@ class ChatHistoryManager:
 
         return filtered
 
+    def drop_history_by_step(self, step_name: str) -> int:
+        """
+        Remove all messages belonging to a given step.
+
+        Args:
+            step_name: The step name whose messages to remove
+
+        Returns:
+            Number of messages removed
+        """
+        original_count = len(self._history)
+        self._history = [msg for msg in self._history if msg.step != step_name]
+        return original_count - len(self._history)
+
     def clear_history(self) -> None:
         """Clear all conversation history."""
         self._history = []

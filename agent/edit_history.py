@@ -301,6 +301,66 @@ class EditHistory:
                     changed_files.add(file_path)
         return list(changed_files)
 
+    def get_file_changes(self) -> list[dict]:
+        """
+        Get a list of files changed in the current session with their backup paths.
+
+        Returns one entry per unique changed file. For edited files the earliest
+        backup (v1, the state before any edits this session) is included so a
+        caller can compute a diff. Created files have no original.
+
+        Returns:
+            List of dicts with keys:
+                - file: relative file path (str)
+                - action: "edit" or "create"
+                - original_path: Path to the v1 backup file, or None for created files
+                - current_path: Path to the current file in the working directory
+        """
+        if not self.file_operations:
+            return []
+
+        earliest_edits: dict[str, dict] = {}
+        created_files: dict[str, dict] = {}
+
+        for op in self.file_operations:
+            action = op.get("action")
+            file_path = op.get("file")
+            if not file_path:
+                continue
+
+            if action == "edit":
+                version = op.get("version", 1)
+                if file_path not in earliest_edits or version < earliest_edits[file_path].get("version", float("inf")):
+                    earliest_edits[file_path] = op
+            elif action == "create":
+                created_files[file_path] = op
+
+        result = []
+
+        for file_path, op in earliest_edits.items():
+            backup_rel = op.get("backup_path")
+            original_path = (self.session_folder / backup_rel) if (self.session_folder and backup_rel) else None
+            result.append(
+                {
+                    "file": file_path,
+                    "action": "edit",
+                    "original_path": original_path,
+                    "current_path": self.working_dir / file_path,
+                }
+            )
+
+        for file_path in created_files:
+            result.append(
+                {
+                    "file": file_path,
+                    "action": "create",
+                    "original_path": None,
+                    "current_path": self.working_dir / file_path,
+                }
+            )
+
+        return result
+
     @staticmethod
     def list_all_sessions(edits_dir: str) -> list:
         """

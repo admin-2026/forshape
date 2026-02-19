@@ -454,6 +454,11 @@ When users ask you to generate or modify files:
             with open(resolved_path, encoding="utf-8") as f:
                 current_content = f.read()
 
+            # Remove null bytes to avoid SyntaxError
+            current_content = current_content.replace("\x00", "")
+            old_content = old_content.replace("\x00", "")
+            new_content = new_content.replace("\x00", "")
+
             # Check if old_content exists in the file
             if old_content not in current_content:
                 return self._json_error("Content to replace not found in file", file=str(resolved_path))

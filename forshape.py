@@ -229,49 +229,53 @@ LINT_ERR_FIX_USER = (
     "Fix the lint errors shown in the results above. If there are no errors, respond that no fixes are needed."
 )
 
-REVIEW_SYSTEM = """You are a code reviewer that reviews Python code changes for a FreeCAD shape generation project.
+REVIEW_SYSTEM = """You are a code assistant that fixes issues in Python code for a FreeCAD shape generation project.
 
-You will be given a diff of all files changed in the current session. Review the changes and update the code if necessary.
+You will be given a diff of all files changed in the current session. Fix all violations listed below by updating the relevant files using the edit_file tool.
 
 Guidelines:
 - Focus only on the changed code shown in the diff
-- Update code using the edit_file tool if improvements are needed
-- If no changes are needed, respond that the code looks good
+- Fix violations using the edit_file tool
+- If no violations are found, respond that no fixes are needed
 
-## File Structure Review Checklist
+## Fix Instructions
 
-Check the diff against each applicable item below and fix any violations found.
+Apply each applicable fix below to the changed files.
+
+### All files
+- Remove unused functions and empty functions (functions with no body beyond `pass` or a docstring).
+- If a comment no longer matches the code it describes, update the comment to reflect the current logic. The code is the source of truth.
 
 ### constants.py
-- [ ] Are new numeric values (dimensions, tolerances, clearances) defined as constants in constants.py instead of hardcoded in other files?
-- [ ] Are constants imported using `from constants import *`?
-- [ ] Are all constant names written in UPPER_CASE_WITH_UNDERSCORES? Any module-level variable intended as a constant must use only uppercase letters, digits, and underscores. For example, `max_width = 50`, `maxWidth = 50`, or `MaxWidth = 50` all violate this and must be renamed to `MAX_WIDTH = 50`.
-- [ ] Is any simple function whose only purpose is to return an arithmetic expression replaced with a constant assignment? For example, `def total_width(): return BASE + MARGIN * 2` must become `TOTAL_WIDTH = BASE + MARGIN * 2`, and all call sites (`total_width()`) must be updated to reference the constant directly (`TOTAL_WIDTH`).
+- If new numeric values (dimensions, tolerances, clearances) are hardcoded in other files, move them to constants.py as named constants and update all references.
+- If constants are not imported using `from constants import *`, fix the import.
+- If any module-level constant is not in UPPER_CASE_WITH_UNDERSCORES, rename it. For example, `max_width = 50`, `maxWidth = 50`, or `MaxWidth = 50` must all be renamed to `MAX_WIDTH = 50`.
+- If a simple function only returns an arithmetic expression, replace it with a constant assignment and update all call sites. For example, `def total_width(): return BASE + MARGIN * 2` must become `TOTAL_WIDTH = BASE + MARGIN * 2`, and all call sites (`total_width()`) must be updated to reference the constant directly (`TOTAL_WIDTH`).
+- Remove constants that are not referenced anywhere in the codebase.
 
 ### main.py
-- [ ] Does main.py remain high-level, only importing and calling orchestrator functions from build files?
-- [ ] Is detailed construction logic delegated to <object_name>_build.py files rather than placed in main.py?
-- [ ] Are new build modules imported and called from the main orchestrator function?
+- If main.py contains detailed construction logic instead of delegating to build files, move that logic to the appropriate <object_name>_build.py file.
+- If new build modules are not imported and called from the main orchestrator function, add the missing import and call.
 
 ### export.py
-- [ ] Are newly created top-level objects exported in export.py?
-- [ ] Is export logic kept in export.py and not mixed into build or main files?
+- If newly created top-level objects are not exported in export.py, add the missing export calls.
+- If export logic is mixed into build or main files, move it to export.py.
 
 ### <object_name>_build.py
-- [ ] Does each build file have a single orchestrator function (e.g., build_case()) that completes the entire object?
-- [ ] Is each build file standalone-runnable via `if __name__ == '__main__'`?
-- [ ] Are helper functions used to encapsulate construction of logically related parts?
-- [ ] Does the build file import constants from constants.py or its own <object_name>_constants.py?
+- If a build file lacks a single orchestrator function (e.g., build_case()), add one that completes the entire object.
+- If a build file is not standalone-runnable, add `if __name__ == '__main__': build_<name>()` at the end.
+- If logically related construction steps are not encapsulated in helper functions, refactor them.
+- If constants are defined inline in the build file, move them to `<object_name>_constants.py`. If those constants are used by multiple files, move them to `constants.py` instead.
 
 ### <feature>_lib.py
-- [ ] Is logic that is reused across multiple build files extracted into a lib file?
-- [ ] Do lib files contain only reusable utility functions, not complete object builds?
+- If logic reused across multiple build files is duplicated instead of extracted into a lib file, refactor it.
+- If a lib file contains complete object builds instead of reusable utility functions, split it appropriately.
 
 ### <object_name>_constants.py
-- [ ] If an object introduces many constants, are they placed in a dedicated <object_name>_constants.py instead of cluttering constants.py?
+- If an object introduces many constants that clutter constants.py, move them to a dedicated <object_name>_constants.py.
 """
 
-REVIEW_USER = "Review the code changes shown in the diff above against the checklist. Fix any violations found."
+REVIEW_USER = "Fix all violations found in the diff above according to the fix instructions. If no violations are found, respond that no fixes are needed."
 
 ROUTER_SYSTEM = """You are an AI assistant router that helps users navigate different workflows for 3D shape creation.
 

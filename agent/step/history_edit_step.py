@@ -24,7 +24,7 @@ class HistoryEditStep:
     """
     A step that edits the chat history without AI involvement.
 
-    This step drops history from a given step name from the history manager.
+    This step drops history from one or more step names from the history manager.
     It does not generate any additional history messages.
     """
 
@@ -32,7 +32,7 @@ class HistoryEditStep:
         self,
         name: str,
         history_manager: ChatHistoryManager,
-        step_name_to_drop: str,
+        step_names_to_drop: list[str],
         logger: Optional[LoggerProtocol] = None,
         step_jump: Optional[StepJump] = None,
     ):
@@ -42,13 +42,13 @@ class HistoryEditStep:
         Args:
             name: Name of this step for logging/identification
             history_manager: ChatHistoryManager instance to edit
-            step_name_to_drop: Step name whose history messages to drop
+            step_names_to_drop: Step names whose history messages to drop
             logger: Optional LoggerProtocol instance for logging
             step_jump: Optional StepJump to determine the next step after completion
         """
         self.name = name
         self.history_manager = history_manager
-        self.step_name_to_drop = step_name_to_drop
+        self.step_names_to_drop = step_names_to_drop
         self.logger = logger
         self.step_jump = step_jump
 
@@ -93,8 +93,9 @@ class HistoryEditStep:
                 history_messages=[], api_messages=[], token_usage={}, status="cancelled", step_jump=self.step_jump
             )
 
-        dropped = self.history_manager.drop_history_by_step(self.step_name_to_drop)
-        self._log_info(f"Dropped {dropped} message(s) from step '{self.step_name_to_drop}'")
+        for step_name in self.step_names_to_drop:
+            dropped = self.history_manager.drop_history_by_step(step_name)
+            self._log_info(f"Dropped {dropped} message(s) from step '{step_name}'")
 
         return StepResult(
             history_messages=[],

@@ -37,6 +37,7 @@ class AIAgent:
         start_step: str,
         logger: LoggerProtocol,
         edit_history: EditHistory,
+        history_manager: ChatHistoryManager,
         api_debugger: Optional[APIDebugger] = None,
         provider: str = "openai",
         provider_config=None,
@@ -53,6 +54,7 @@ class AIAgent:
             start_step: Name of the step to start execution from
             logger: LoggerProtocol instance for logging
             edit_history: EditHistory instance for tracking file changes
+            history_manager: ChatHistoryManager instance for conversation history
             api_debugger: Optional APIDebugger instance for dumping API data
             provider: API provider to use ("openai", "fireworks", etc.)
             provider_config: Optional ProviderConfig instance for provider configuration
@@ -65,7 +67,7 @@ class AIAgent:
         self.model = model
         self.steps = steps
         self.start_step = start_step
-        self.history_manager = ChatHistoryManager(max_messages=None)
+        self.history_manager = history_manager
         self.provider = self._initialize_provider(provider, api_key, provider_config)
         self.provider_name = provider
         self.last_token_usage = None

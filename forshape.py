@@ -19,7 +19,16 @@ from typing import Optional
 
 from PySide2.QtWidgets import QApplication
 
-from agent import NextStepJump, StepJump, StepJumpController, StepJumpTools, ToolCallStep, ToolExecutor
+from agent import (
+    ChatHistoryManager,
+    HistoryEditStep,
+    NextStepJump,
+    StepJump,
+    StepJumpController,
+    StepJumpTools,
+    ToolCallStep,
+    ToolExecutor,
+)
 from agent.async_ops import PermissionInput, WaitManager
 from agent.chat_history_manager import HistoryPolicy
 from agent.permission_manager import PermissionManager
@@ -422,6 +431,9 @@ class ForShapeAI:
         else:
             agent_model = self.model if self.model else "gpt-5.1"
 
+        # Create shared chat history manager (shared with HistoryEditStep instances)
+        history_manager = ChatHistoryManager()
+
         # Create wait manager and permission system
         wait_manager = WaitManager()
         permission_input = PermissionInput()
@@ -574,6 +586,15 @@ class ForShapeAI:
             tool_executor=lint_err_fix_tool_executor,
             max_iterations=30,
             logger=self.logger,
+            step_jump=NextStepJump("drop_lint_history"),
+        )
+
+        # Create the drop_lint_history step to clean up lint and lint_err_fix history
+        drop_lint_history_step = HistoryEditStep(
+            name="drop_lint_history",
+            history_manager=history_manager,
+            step_names_to_drop=["lint", "lint_err_fix"],
+            logger=self.logger,
             step_jump=NextStepJump("diff"),
         )
 
@@ -618,10 +639,19 @@ class ForShapeAI:
             tool_executor=review_tool_executor,
             max_iterations=30,
             logger=self.logger,
+            step_jump=NextStepJump("drop_review_history"),
+        )
+
+        # Create the drop_review_history step to clean up diff and review history
+        drop_review_history_step = HistoryEditStep(
+            name="drop_review_history",
+            history_manager=history_manager,
+            step_names_to_drop=["diff", "review"],
+            logger=self.logger,
         )
 
         # Create AI agent with steps
-        # Flow: router -> (main -> lint -> lint_err_fix -> diff -> review) or direct tool use
+        # Flow: router -> (main -> lint -> lint_err_fix -> drop_lint_history -> diff -> review -> drop_review_history) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
@@ -631,16 +661,19 @@ class ForShapeAI:
                 "main": main_step,
                 "lint": lint_step,
                 "lint_err_fix": lint_err_fix_step,
+                "drop_lint_history": drop_lint_history_step,
                 "diff": diff_step,
                 "review": review_step,
+                "drop_review_history": drop_review_history_step,
             },
             # start_step="router",  # routing is under construction
             start_step="doc_print",
             logger=self.logger,
+            edit_history=self.edit_history,
+            history_manager=history_manager,
             api_debugger=self.api_debugger,
             provider=provider,
             provider_config=provider_config,
-            edit_history=self.edit_history,
             response_steps=["router", "main", "lint_err_fix"],
             step_jump_controller=step_jump_controller,
         )

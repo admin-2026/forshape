@@ -5,35 +5,15 @@
       "display_name": "OpenAI",
       "provider_class": "openai_compatible",
       "base_url": null,
-      "default_model": "gpt-5.1",
+      "default_model": "gpt-5.2",
       "models": [
+        {
+          "name": "gpt-5.2",
+          "display_name": "GPT-5.2"
+        },
         {
           "name": "gpt-5.1",
           "display_name": "GPT-5.1"
-        },
-        {
-          "name": "gpt-5",
-          "display_name": "GPT-5"
-        },
-        {
-          "name": "gpt-4o",
-          "display_name": "GPT-4o"
-        },
-        {
-          "name": "gpt-4o-mini",
-          "display_name": "GPT-4o Mini"
-        },
-        {
-          "name": "gpt-4-turbo",
-          "display_name": "GPT-4 Turbo"
-        },
-        {
-          "name": "gpt-4",
-          "display_name": "GPT-4"
-        },
-        {
-          "name": "gpt-3.5-turbo",
-          "display_name": "GPT-3.5 Turbo"
         }
       ]
     },
@@ -45,16 +25,24 @@
       "default_model": "accounts/fireworks/models/deepseek-v3p1-terminus",
       "models": [
         {
+          "name": "accounts/fireworks/models/glm-5",
+          "display_name": "GLM-5"
+        },
+        {
           "name": "accounts/fireworks/models/kimi-k2p5",
           "display_name": "Kimi K2.5"
         },
         {
-          "name": "accounts/fireworks/models/deepseek-v3p1-terminus",
-          "display_name": "DeepSeek v3.1"
-        },
-        {
           "name": "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct",
           "display_name": "Qwen3 Coder"
+        },
+        {
+          "name": "accounts/fireworks/models/minimax-m2p5",
+          "display_name": "MiniMax M2.5"
+        },
+        {
+          "name": "accounts/fireworks/models/deepseek-v3p2",
+          "display_name": "DeepSeek V3.2"
         }
       ]
     },
@@ -68,10 +56,6 @@
         {
           "name": "deepseek-chat",
           "display_name": "DeepSeek Chat"
-        },
-        {
-          "name": "deepseek-reasoner",
-          "display_name": "DeepSeek Reasoner"
         }
       ]
     }

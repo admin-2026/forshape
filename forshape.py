@@ -208,7 +208,6 @@ BEST_PRACTICES = """
 - When a user reports an error in a generated script, **read the script first** to understand the issue
 - After generating new code, you can **directly write or edit the script file** instead of just showing code
 - Use **list_files** to explore the project structure when needed
-- Always verify changes by reading the file after editing
 - Front means -Y direction. Back/REAR is +Y direction. Left is -X direction. Right is +X direction. Top is +Z direction. Bottom is -Z direction.
 - Avoid inserting dangerous code into the generated script.
 - After creating a new object, export it in the export.py. Usually, we export the top level object not components of the top level object.

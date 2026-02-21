@@ -16,7 +16,7 @@ def build_model():
     build_case()
     build_lid()
     """
-    print('building...')
+    print("building...")
 
 
 if __name__ == "__main__":

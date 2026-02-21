@@ -69,7 +69,8 @@ You are an AI assistant helping users create and manipulate 3D shapes using prov
 
 ## Naming Conventions
 - Boolean operation labels should have '_cut', '_fuse', '_common' suffix.
-- For hyphens, use the ASCII hyphen '-'. Only use ASCII chars in generated code.
+- Do not use hyphens '-' in labels.
+- Only use ASCII chars in generated code.
 - Use professional or widely used terminologies to name things.
 
 ## Boolean Operations

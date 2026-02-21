@@ -1,24 +1,22 @@
-# Main Build Script
+# Main Orchestrator Script
 #
-# This script builds your 3D model using the shapes library.
-# Import constants from constants.py and use shapes to create geometry.
+# This script coordinates all build operations for the project.
+# Import and call builder functions from <object_name>_build.py files.
+# Do not build objects directly here; delegate to build files.
 
-# Recommended: Use versioned imports for stability
-# from shapes.v{N}.additive_box import AdditiveBox
-# from constants import *
+# Example:
+# from case_build import build_case
+# from lid_build import build_lid
 
 
 def build_model():
-    """Build your 3D model here.
+    """Coordinate all build operations here.
 
     Example:
-    AdditiveBox.create_box(
-        'example_box',
-        x_size=100, y_size=50, z_size=30,
-        x_offset=0, y_offset=0, z_offset=0
-    )
+    build_case()
+    build_lid()
     """
-    pass
+    print('building...')
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ def import_and_place_geometry():
         z=0
     )
     """
-    pass
+    print("importing...")
 
 
 if __name__ == "__main__":

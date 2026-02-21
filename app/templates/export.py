@@ -10,7 +10,7 @@ def export_models():
     Export.export('my_model', 'models/my_model.step')
     Export.export('my_other_model', 'models/my_other_model.step')
     """
-    pass
+    print("exporting...")
 
 
 if __name__ == "__main__":

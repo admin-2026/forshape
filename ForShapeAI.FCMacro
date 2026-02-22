@@ -4,7 +4,7 @@ __Comment__ = "AI assistant for 3D shape generation"
 __Icon__ = "forshape_icon.svg"
 __Help__ = "Launch ForShape AI assistant"
 __Author__ = ""
-__Version__ = "0.1.5"
+__Version__ = "0.1.6"
 __Date__ = "2026-02-06"
 
 import sys

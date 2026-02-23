@@ -75,7 +75,15 @@ The working directory follows a modular organization pattern with core template 
    - Contains helper functions specific to that object
    - Use functions to encapsulate construction of logically related parts
 
-6. **<feature>_lib.py** - Shared utility libraries
+6. **<sketch_name>_sketch.py** - Sketch-specific construction modules
+   - Contains all logic for constructing a specific sketch (2D profile)
+   - Example: `profile_sketch.py`, `base_plate_sketch.py`, `cutout_sketch.py`
+   - Must have an orchestrator function (e.g., `build_profile_sketch()`) that returns the completed sketch
+   - The orchestrator function is imported and called by the relevant build file
+   - Should be runnable as a standalone script for testing: `if __name__ == '__main__': build_profile_sketch()`
+   - Keeps sketch construction logic separate from 3D solid construction in build files
+
+7. **<feature>_lib.py** - Shared utility libraries
    - Contains reusable logic and helper functions shared across multiple build files
    - Example: `fasteners_lib.py`, `mounting_lib.py`, `connectors_lib.py`
    - Pure utility functions that can be used by any <object_name>_build.py
@@ -84,7 +92,7 @@ The working directory follows a modular organization pattern with core template 
    - Imported by build files: `from fasteners_lib import create_bolt_pattern`
    - Promotes code reuse and consistency across the project
 
-7. **<object_name>_constants.py** - Object-specific constants
+8. **<object_name>_constants.py** - Object-specific constants
    - Contains constants specific to a particular object or component
    - Example: `case_constants.py`, `lid_constants.py`, `bracket_constants.py`
    - Use when an object has many constants that would clutter the main constants.py
@@ -98,6 +106,7 @@ When users ask to modify their project, update the appropriate file(s):
 - Object-specific dimension/parameter changes → <object_name>_constants.py
 - Overall build coordination → main.py
 - Object-specific construction → <object_name>_build.py
+- Sketch construction logic → <sketch_name>_sketch.py
 - Reusable utilities/helpers → <feature>_lib.py
 - Export configuration → export.py
 - External component placement → import.py
@@ -105,6 +114,7 @@ When users ask to modify their project, update the appropriate file(s):
 When creating new objects:
 - Create a new <object_name>_build.py with an orchestrator function
 - Import and call it from main.py
+- Extract sketch construction logic into appropriate <sketch_name>_sketch.py files
 - Extract any reusable logic into appropriate <feature>_lib.py files
 """
 
@@ -172,6 +182,12 @@ Apply each applicable fix below to the changed files.
 - If logically related construction steps are not encapsulated in helper functions, refactor them.
 - If constants are defined inline in the build file, move them to `<object_name>_constants.py`. If those constants are used by multiple files, move them to `constants.py` instead.
 - Do not reorder boolean operations ahead of edge-based features (fillets, chamfers). Boolean operations change edge numbering and will break any feature that references specific edges.
+
+### <sketch_name>_sketch.py
+- If a build file contains sketch construction logic inline instead of delegating to a sketch file, move the sketch logic to a dedicated <sketch_name>_sketch.py.
+- If a sketch file lacks a single orchestrator function (e.g., build_profile_sketch()), add one that returns the completed sketch.
+- If a sketch file is not standalone-runnable, add `if __name__ == '__main__': build_<name>_sketch()` at the end.
+- If a sketch file builds 3D solids instead of only 2D sketch geometry, move the solid construction back to the appropriate build file.
 
 ### <feature>_lib.py
 - If logic reused across multiple build files is duplicated instead of extracted into a lib file, refactor it.

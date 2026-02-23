@@ -24,9 +24,13 @@ from ..copy import Copy
 from ..edge_feature import EdgeFeature
 from ..export import Export
 from ..folder import Folder
+from ..helix import Helix
 from ..image_context import ImageContext, Perspective
 from ..import_geometry import ImportGeometry
+from ..loft import Loft
 from ..pad import Pad
+from ..pipe import Pipe
+from ..revolution import Revolution
 from ..shape import Shape
 from ..transform import Transform
 
@@ -41,7 +45,11 @@ __all__ = [
     "AdditiveSphere",
     "AdditiveTorus",
     "AdditiveWedge",
+    "Helix",
+    "Loft",
     "Pad",
+    "Pipe",
+    "Revolution",
     "EdgeFeature",
     "Context",
     "Boolean",
@@ -55,4 +63,4 @@ __all__ = [
     "Copy",
 ]
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"

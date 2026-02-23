@@ -48,7 +48,6 @@ When new versions are released:
 ## Classes Overview
 
 ### 1. AdditiveCylinder
-Location: `additive_cylinder.py:9`
 
 Creates cylindrical shapes using FreeCAD's PartDesign AdditiveCylinder feature with support for attachment offsets and rotation.
 
@@ -77,7 +76,6 @@ The cylinder is created at the XY plane center. The height is extruded in the po
   ```
 
 ### 2. AdditiveCone
-Location: `additive_cone.py:9`
 
 Creates conical shapes using FreeCAD's PartDesign AdditiveCone feature with support for attachment offsets and rotation.
 
@@ -107,7 +105,6 @@ The cone is created at the XY plane center. The height is extruded in the positi
   ```
 
 ### 3. AdditiveSphere
-Location: `additive_sphere.py:9`
 
 Creates spherical shapes using FreeCAD's PartDesign AdditiveSphere feature with support for attachment offsets.
 
@@ -132,7 +129,6 @@ The sphere is created centered at the XY plane center. Supports full 360-degree 
   ```
 
 ### 4. AdditiveEllipsoid
-Location: `additive_ellipsoid.py:9`
 
 Creates ellipsoidal shapes using FreeCAD's PartDesign AdditiveEllipsoid feature with support for attachment offsets.
 
@@ -159,7 +155,6 @@ The ellipsoid is created centered at the XY plane center. Supports full ellipsoi
   ```
 
 ### 5. AdditiveTorus
-Location: `additive_torus.py:9`
 
 Creates toroidal (doughnut) shapes using FreeCAD's PartDesign AdditiveTorus feature with support for attachment offsets and rotation.
 
@@ -188,7 +183,6 @@ The torus is created centered at the XY plane center, with the ring lying in the
   ```
 
 ### 6. AdditiveWedge
-Location: `additive_wedge.py:9`
 
 Creates wedge (trapezoidal prism) shapes using FreeCAD's PartDesign AdditiveWedge feature with support for attachment offsets and rotation.
 
@@ -227,7 +221,6 @@ The wedge is defined by specifying the X, Y, Z bounds of the base and the X2, Z2
   ```
 
 ### 7. AdditivePrism
-Location: `additive_prism.py:9`
 
 Creates regular polygon prism shapes using FreeCAD's PartDesign AdditivePrism feature with support for attachment offsets and rotation.
 
@@ -259,7 +252,6 @@ The prism is created at the XY plane center. The height is extruded in the posit
   ```
 
 ### 8. AdditiveBox
-Location: `additive_box.py:11`
 
 Creates rectangular box shapes using FreeCAD's PartDesign AdditiveBox feature with support for attachment offsets and rotation.
 
@@ -290,7 +282,6 @@ The box is created from the global coordinate origin, extending in the positive 
   ```
 
 ### 9. Pad
-Location: `pad.py:10`
 
 Creates a body with a pad feature from an existing sketch. Useful when you have a pre-existing sketch and want to extrude it into a 3D body.
 
@@ -311,8 +302,91 @@ Creates a body with a pad feature from an existing sketch. Useful when you have 
   Pad.create_pad('extruded_shape', 'my_sketch', 20)
   ```
 
-### 10. EdgeFeature
-Location: `edge_feature.py:10`
+### 10. Helix
+
+Creates a body with an additive helix feature from an existing sketch. Sweeps the sketch profile along a helical path.
+
+**Public Methods:**
+
+`Helix.create_helix(label, sketch_label, pitch, height)`
+- **Description:** Creates a body with a helix from an existing sketch. The sketch is swept along a helix around its vertical axis.
+- **Parameters:**
+  - `label` (str): Name/label for the body object
+  - `sketch_label` (str): Label of the existing sketch to sweep
+  - `pitch` (float): Distance between turns in mm
+  - `height` (float): Total height of the helix in mm
+- **Example:**
+  ```python
+  from shapes.v1 import Helix
+  # Assuming 'profile_sketch' already exists in the document
+  Helix.create_helix('spring', 'profile_sketch', pitch=5, height=30)
+  # Update existing helix with new pitch
+  Helix.create_helix('spring', 'profile_sketch', pitch=3, height=30)
+  ```
+
+### 11. Revolution
+
+Creates a body with a revolution feature from an existing sketch. Revolves the sketch profile around its vertical axis.
+
+**Public Methods:**
+
+`Revolution.create_revolution(label, sketch_label, angle=360)`
+- **Description:** Creates a body with a revolution from an existing sketch. The sketch is revolved around its vertical axis.
+- **Parameters:**
+  - `label` (str): Name/label for the body object
+  - `sketch_label` (str): Label of the existing sketch to revolve
+  - `angle` (float): Revolution angle in degrees (default: 360 for full revolution)
+- **Example:**
+  ```python
+  from shapes.v1 import Revolution
+  # Assuming 'profile_sketch' already exists in the document
+  Revolution.create_revolution('vase', 'profile_sketch')
+  # Partial revolution (180 degrees)
+  Revolution.create_revolution('half_vase', 'profile_sketch', angle=180)
+  ```
+
+### 12. Loft
+
+Creates a body with an additive loft by blending through multiple sketch profiles. Each sketch defines a cross-section at a different position.
+
+**Public Methods:**
+
+`Loft.create_loft(label, sketch_labels)`
+- **Description:** Creates a body with a loft from an ordered list of existing sketches. The loft blends smoothly through each sketch in sequence.
+- **Parameters:**
+  - `label` (str): Name/label for the body object
+  - `sketch_labels` (list): Ordered list of sketch labels to loft through (minimum 2)
+- **Example:**
+  ```python
+  from shapes.v1 import Loft
+  # Assuming 'sketch_bottom' and 'sketch_top' already exist in the document
+  Loft.create_loft('vase', ['sketch_bottom', 'sketch_mid', 'sketch_top'])
+  # Update existing loft
+  Loft.create_loft('vase', ['sketch_bottom', 'sketch_top'])
+  ```
+
+### 13. Pipe
+
+Creates a body with an additive pipe by sweeping a cross-section profile along a spine path.
+
+**Public Methods:**
+
+`Pipe.create_pipe(label, profile_label, spine_label)`
+- **Description:** Creates a body with a pipe from an existing profile sketch swept along a spine sketch.
+- **Parameters:**
+  - `label` (str): Name/label for the body object
+  - `profile_label` (str): Label of the existing sketch to use as the cross-section profile
+  - `spine_label` (str): Label of the existing sketch to use as the spine/path
+- **Example:**
+  ```python
+  from shapes.v1 import Pipe
+  # Assuming 'circle_profile' and 'curved_path' already exist in the document
+  Pipe.create_pipe('tube', 'circle_profile', 'curved_path')
+  # Update existing pipe with a different spine
+  Pipe.create_pipe('tube', 'circle_profile', 'new_path')
+  ```
+
+### 14. EdgeFeature
 
 Adds design features (fillets, chamfers, drafts) to edges or faces of existing objects.
 
@@ -354,8 +428,7 @@ Adds design features (fillets, chamfers, drafts) to edges or faces of existing o
   EdgeFeature.add_chamfer('chamfer3', 'box1', ['Edge11'], 1.0, angle=60)
   ```
 
-### 11. Boolean
-Location: `boolean.py:9`
+### 15. Boolean
 
 Performs boolean operations between shapes (union, difference, intersection).
 
@@ -395,8 +468,7 @@ Performs boolean operations between shapes (union, difference, intersection).
   Boolean.common('intersection', 'box1', 'cylinder1')
   ```
 
-### 12. Transform
-Location: `transform.py:5`
+### 16. Transform
 
 Provides spatial transformation operations for objects.
 
@@ -428,8 +500,7 @@ Provides spatial transformation operations for objects.
   Transform.rotate_to('cylinder1', 0, 1, 0, 45)
   ```
 
-### 13. Appearance
-Location: `appearance.py:4`
+### 17. Appearance
 
 Changes the visual appearance of objects.
 
@@ -447,8 +518,7 @@ Changes the visual appearance of objects.
   Appearance.set_transparency('box1', 0)    # fully opaque
   ```
 
-### 14. Export
-Location: `export.py:6`
+### 18. Export
 
 Exports FreeCAD objects to various file formats.
 
@@ -474,8 +544,7 @@ Exports FreeCAD objects to various file formats.
   Export.export('cylinder1', 'C:/output/cylinder.stl', 'stl')
   ```
 
-### 15. Folder
-Location: `folder.py:9`
+### 19. Folder
 
 Manages folder organization in FreeCAD documents. Creates folders (DocumentObjectGroup) and adds objects to them for better organization.
 
@@ -508,8 +577,7 @@ Manages folder organization in FreeCAD documents. Creates folders (DocumentObjec
   Folder.add_to_folder('my_parts', ['box1', 'box2', 'cylinder1', 'prism1'])
   ```
 
-### 16. Clone
-Location: `clone.py:9`
+### 20. Clone
 
 Creates a Body object with a Clone feature that references another object. Clones are useful for creating instances of existing objects that maintain a reference to the original, allowing for efficient reuse of geometry with different placements.
 
@@ -543,8 +611,7 @@ Creates a Body object with a Clone feature that references another object. Clone
   Clone.create_clone('clone1', 'original', offset=(10, 10, 0))
   ```
 
-### 17. Copy
-Location: `copy.py:9`
+### 21. Copy
 
 Creates a Body object with an independent geometric copy of another object. Unlike Clone which creates a parametric reference, Copy creates an independent copy that doesn't change when the original is modified.
 
@@ -581,8 +648,7 @@ Creates a Body object with an independent geometric copy of another object. Unli
   Copy.create_copy('copy1', 'original', offset=(10, 10, 0))
   ```
 
-### 18. ImportGeometry
-Location: `import_geometry.py:11`
+### 22. ImportGeometry
 
 Imports 3D geometry from external files into the FreeCAD document. Supports multiple common 3D file formats and can optionally wrap imported geometry in a PartDesign Body.
 
@@ -682,7 +748,7 @@ Export.export('box_with_holes', 'box_with_holes.step')
 
 5. **Sketch Visibility:** Sketches are automatically hidden after pad creation for cleaner visualization
 
-6. **Idempotent Operations:** The `create_box`, `create_cylinder`, `create_sphere`, `create_prism`, `create_pad`, `create_clone`, and `create_copy` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
+6. **Idempotent Operations:** The `create_box`, `create_cylinder`, `create_sphere`, `create_prism`, `create_pad`, `create_helix`, `create_revolution`, `create_loft`, `create_pipe`, `create_clone`, and `create_copy` methods are idempotent - calling them multiple times with the same label will update the existing object instead of creating duplicates
 
 ## Tips for LLM Usage
 

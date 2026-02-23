@@ -19,21 +19,9 @@ from typing import Optional
 
 from PySide2.QtWidgets import QApplication
 
-from agent import (
-    ChatHistoryManager,
-    HistoryEditStep,
-    NextStepJump,
-    StepJump,
-    StepJumpController,
-    StepJumpTools,
-    ToolCallStep,
-    ToolExecutor,
-)
+from agent import ChatHistoryManager, StepJumpController
 from agent.async_ops import PermissionInput, WaitManager
-from agent.chat_history_manager import HistoryPolicy
 from agent.permission_manager import PermissionManager
-from agent.request import DynamicContent, FileLoader, Instruction, RequestBuilder, ToolCall, ToolCallMessage
-from agent.tools.tool_manager import ToolManager
 from app import (
     ActiveDocumentObserver,
     AIAgent,
@@ -46,275 +34,18 @@ from app import (
     Logger,
     LogLevel,
     PrestartChecker,
-    Step,
 )
-from app.tools import ConstantsTools
-
-# System message instructions
-BASE_INSTRUCTION = """
-You are an AI assistant helping users create and manipulate 3D shapes using provided Python APIs. Be concise.
-
-## Tools and Inspection
-- Use tools to print and inspect FreeCAD object details.
-
-## Script Management
-- There could be existing scripts to generate the FreeCAD document. Update the script instead of creating a new one.
-- Generated scripts should be saved to file without asking user.
-- DO NOT generate any test files or run any tests.
-- Only read files helpful for the task. DO NOT read unrelated files.
-
-## Code Organization
-- Introduce functions to encapsulate construction of logically related parts.
-- Use constants to define values.
-
-## Naming Conventions
-- Boolean operation labels should have '_cut', '_fuse', '_common' suffix.
-- Do not use hyphens '-' in labels.
-- Only use ASCII chars in generated code.
-- Use professional or widely used terminologies to name things.
-
-## Boolean Operations
-- Boolean operations don't automatically copy the object.
-- To get separate results from multiple boolean operations, you must copy the object first.
-
-## Positioning and Transformation
-- Offset is used when constructing an object or its components.
-- Transformation is used for moving a finished object to its desired location.
-- Objects should be constructed at the origin and then transformed to the desired final location.
-"""
-
-TEMPLATE_FILES_INFO = """
-# Project File Structure
-
-The working directory follows a modular organization pattern with core template files and optional modular build files:
-
-## Core Template Files:
-
-1. **constants.py** - Project constants and parameters
-   - Contains all dimensional constants, tolerances, and configuration values
-   - Define all numeric values here instead of hardcoding them in other files
-   - Example: lengths, widths, heights, clearances, tolerances
-   - Imported by other scripts using `from constants import *`
-
-2. **main.py** - Main orchestrator script
-   - The primary entry point that constructs all geometries
-   - Imports and calls builder functions from <object_name>_build.py files
-   - Contains a main orchestrator function (e.g., build_model()) that coordinates all builds
-   - Should remain high-level and delegate detailed construction to build files
-   - Example: `from case_build import build_case` then call `build_case()` in main
-
-3. **export.py** - Export operations
-   - Handles exporting models to STEP files or other formats
-   - Contains export_models() function that exports finished parts
-   - Uses Export.export(label, filepath) from shapes.export
-   - Keeps export logic separate from construction logic
-
-4. **import.py** - Import and placement of external geometry
-   - Imports external geometry (VRML, STEP files, etc.)
-   - Places imported objects in the correct positions using Transform
-   - Useful for importing PCBs, reference components, or assemblies
-   - Uses ImportGeometry.import_geometry() and Transform.translate_to()
-
-## Modular Build Files (Optional):
-
-5. **<object_name>_build.py** - Object-specific build modules
-   - Contains all logic for building a specific object or component
-   - Example: `case_build.py`, `lid_build.py`, `bracket_build.py`
-   - Must have an orchestrator function (e.g., `build_case()`, `build_lid()`) that completes the entire object
-   - The orchestrator function is imported and called by main.py
-   - Should be runnable as a standalone script for testing: `if __name__ == '__main__': build_case()`
-   - Imports constants from constants.py or <object_name>_constants.py
-   - May import shared utilities from <feature>_lib.py files
-   - Contains helper functions specific to that object
-   - Use functions to encapsulate construction of logically related parts
-
-6. **<feature>_lib.py** - Shared utility libraries
-   - Contains reusable logic and helper functions shared across multiple build files
-   - Example: `fasteners_lib.py`, `mounting_lib.py`, `connectors_lib.py`
-   - Pure utility functions that can be used by any <object_name>_build.py
-   - Does not build complete objects, only provides reusable components
-   - Example functions: create_bolt_pattern(), add_mounting_holes(), create_connector_cutout()
-   - Imported by build files: `from fasteners_lib import create_bolt_pattern`
-   - Promotes code reuse and consistency across the project
-
-7. **<object_name>_constants.py** - Object-specific constants
-   - Contains constants specific to a particular object or component
-   - Example: `case_constants.py`, `lid_constants.py`, `bracket_constants.py`
-   - Use when an object has many constants that would clutter the main constants.py
-   - Imported by the corresponding build file: `from case_constants import *`
-   - Keeps object-specific values separate from project-wide constants
-
-## File Organization Guidelines:
-
-When users ask to modify their project, update the appropriate file(s):
-- Dimension/parameter changes → constants.py
-- Object-specific dimension/parameter changes → <object_name>_constants.py
-- Overall build coordination → main.py
-- Object-specific construction → <object_name>_build.py
-- Reusable utilities/helpers → <feature>_lib.py
-- Export configuration → export.py
-- External component placement → import.py
-
-When creating new objects:
-- Create a new <object_name>_build.py with an orchestrator function
-- Import and call it from main.py
-- Extract any reusable logic into appropriate <feature>_lib.py files
-"""
-
-
-class ChangedFilesStepJump(StepJump):
-    """A StepJump that jumps to next step only if files were changed (edited or created)."""
-
-    def __init__(self, next_step: str, edit_history):
-        self._next_step = next_step
-        self._edit_history = edit_history
-
-    def get_next_step(self, result) -> Optional[str]:
-        """Return next step only if files were changed, otherwise None to stop."""
-        changed_files = self._edit_history.get_changed_files()
-        if changed_files:
-            return self._next_step
-        return None
-
-
-class LintStepJump(StepJump):
-    """A StepJump that jumps to lint_err_fix only if there are lint issues."""
-
-    def __init__(self, next_step: str):
-        self._next_step = next_step
-
-    def get_next_step(self, result) -> Optional[str]:
-        """Return next step only if lint found issues, otherwise None to stop."""
-        import json
-
-        # Look through api_messages for the lint results
-        for msg in result.api_messages:
-            if msg.get("role") == "tool":
-                content = msg.get("content", "")
-                try:
-                    tool_result = json.loads(content)
-                    # Check if this is a lint result with issues
-                    if tool_result.get("success") and tool_result.get("issue_count", 0) > 0:
-                        return self._next_step
-                except (json.JSONDecodeError, TypeError):
-                    continue
-
-        # No issues found, stop here
-        return None
-
-
-BEST_PRACTICES = """
-### Best Practices
-
-- When a user reports an error in a generated script, **read the script first** to understand the issue
-- After generating new code, you can **directly write or edit the script file** instead of just showing code
-- Use **list_files** to explore the project structure when needed
-- Front means -Y direction. Back/REAR is +Y direction. Left is -X direction. Right is +X direction. Top is +Z direction. Bottom is -Z direction.
-- Avoid inserting dangerous code into the generated script.
-- After creating a new object, export it in the export.py. Usually, we export the top level object not components of the top level object.
-"""
-
-LINT_ERR_FIX_SYSTEM = """You are a code assistant that fixes Python lint errors.
-
-Your task is to fix any lint errors reported from the previous step. Focus only on fixing the errors, do not make other changes.
-
-Guidelines:
-- Fix lint errors reported by the lint_python tool (code style, unused imports, etc.)
-- Do not refactor or improve code beyond fixing the errors
-- If there are no errors to fix, do nothing
-- Use the edit_file tool to make corrections
-"""
-
-LINT_ERR_FIX_USER = (
-    "Fix the lint errors shown in the results above. If there are no errors, respond that no fixes are needed."
+from app.forshape.step_builders import (
+    build_diff_step,
+    build_doc_print_step,
+    build_drop_lint_history_step,
+    build_drop_review_history_step,
+    build_lint_err_fix_step,
+    build_lint_step,
+    build_main_step,
+    build_review_step,
+    build_router_step,
 )
-
-REVIEW_SYSTEM = """You are a code assistant that fixes issues in Python code for a FreeCAD shape generation project.
-
-You will be given a diff of all files changed in the current session. Fix all violations listed below by updating the relevant files using the edit_file tool.
-
-Guidelines:
-- Focus only on the changed code shown in the diff
-- Fix violations using the edit_file tool
-- If no violations are found, respond that no fixes are needed
-
-## Fix Instructions
-
-Apply each applicable fix below to the changed files.
-
-### All files
-- Remove unused functions and empty functions (functions with no body beyond `pass` or a docstring).
-- If a comment no longer matches the code it describes, update the comment to reflect the current logic. The code is the source of truth.
-
-### constants.py
-- If new numeric values (dimensions, tolerances, clearances) are hardcoded in other files, move them to constants.py as named constants and update all references.
-- If constants are not imported using `from constants import *`, fix the import.
-- If any module-level constant is not in UPPER_CASE_WITH_UNDERSCORES, rename it. For example, `max_width = 50`, `maxWidth = 50`, or `MaxWidth = 50` must all be renamed to `MAX_WIDTH = 50`.
-- If a simple function only returns an arithmetic expression, replace it with a constant assignment and update all call sites. For example, `def total_width(): return BASE + MARGIN * 2` must become `TOTAL_WIDTH = BASE + MARGIN * 2`, and all call sites (`total_width()`) must be updated to reference the constant directly (`TOTAL_WIDTH`).
-- Remove constants that are not referenced anywhere in the codebase.
-
-### main.py
-- If main.py contains detailed construction logic instead of delegating to build files, move that logic to the appropriate <object_name>_build.py file.
-- If new build modules are not imported and called from the main orchestrator function, add the missing import and call.
-
-### export.py
-- If newly created top-level objects are not exported in export.py, add the missing export calls.
-- If export logic is mixed into build or main files, move it to export.py.
-
-### <object_name>_build.py
-- If a build file lacks a single orchestrator function (e.g., build_case()), add one that completes the entire object.
-- If a build file is not standalone-runnable, add `if __name__ == '__main__': build_<name>()` at the end.
-- If logically related construction steps are not encapsulated in helper functions, refactor them.
-- If constants are defined inline in the build file, move them to `<object_name>_constants.py`. If those constants are used by multiple files, move them to `constants.py` instead.
-- Do not reorder boolean operations ahead of edge-based features (fillets, chamfers). Boolean operations change edge numbering and will break any feature that references specific edges.
-
-### <feature>_lib.py
-- If logic reused across multiple build files is duplicated instead of extracted into a lib file, refactor it.
-- If a lib file contains complete object builds instead of reusable utility functions, split it appropriately.
-
-### <object_name>_constants.py
-- If an object introduces many constants that clutter constants.py, move them to a dedicated <object_name>_constants.py.
-"""
-
-REVIEW_USER = "Fix all violations found in the diff above according to the fix instructions. If no violations are found, respond that no fixes are needed."
-
-ROUTER_SYSTEM = """You are an AI assistant router that helps users navigate different workflows for 3D shape creation.
-
-## Your Role
-You are the entry point for user requests. Based on what the user asks, you should:
-1. Route them to the appropriate workflow using jump_to_step or call_step
-2. Help them use utility tools directly (like analyze_constants, list_files)
-3. Provide guidance on available workflows and tools
-
-## Available Workflows
-- **doc_print**: Prints current FreeCAD document structure and lists files, then goes to main workflow
-- **main**: The primary workflow for creating and manipulating 3D shapes
-- **lint**: Run code linting on Python files
-- **lint_err_fix**: Fix lint errors in code
-
-## When to Route vs Handle Directly
-**Route to doc_print** when the user wants to:
-- Create, modify, or manipulate 3D shapes (this shows document context first)
-- Write or edit Python scripts for shape generation
-- Work with FreeCAD documents
-- Any substantial code generation task
-
-**Route to main directly** when:
-- You already know the document state or don't need to show it
-- The user is continuing a previous task
-
-**Handle directly** when the user wants to:
-- Analyze constants in the project (use analyze_constants tool)
-- List files in the project (use list_files tool)
-- Get information about the project structure
-- Ask questions that don't require code generation
-
-## Guidelines
-- Be concise in your responses
-- If unsure whether to route or handle directly, ask the user for clarification
-- Use jump_to_step (not call_step) when routing since these are primary workflows
-- Prefer doc_print over main for shape creation tasks to provide full context
-"""
 
 
 class ForShapeAI:
@@ -381,34 +112,27 @@ class ForShapeAI:
         This creates the AI agent, history logger, and other components that
         require the configuration directories and API key to exist.
         """
-        # Reinitialize logger for terminal output
         self.logger = Logger(min_level=LogLevel.INFO)
         self.logger.info("ForShape AI initialization completed")
 
-        # Initialize history logger
         self.history_logger = HistoryLogger(self.config.get_history_dir())
 
-        # Initialize ImageContext for screenshot capture
         from shapes.image_context import ImageContext
 
         images_dir = self.config.get_history_dir() / "images"
         self.image_context = ImageContext(str(images_dir))
 
-        # Initialize API debugger (disabled by default)
         self.api_debugger = APIDebugger(enabled=False, output_dir=str(self.config.get_api_dumps_dir()))
 
-        # Initialize edit history for tracking file changes
         from agent.edit_history import EditHistory
 
         self.edit_history = EditHistory(
             working_dir=self.config.working_dir, edits_dir=str(self.config.get_edits_dir()), logger=self.logger
         )
 
-        # Initialize AI agent with API key from keyring
         api_key_manager = ApiKeyManager()
         from agent.provider_config_loader import ProviderConfigLoader
 
-        # Find the first provider with an API key
         provider_loader = ProviderConfigLoader()
         configured_providers = provider_loader.get_providers()
 
@@ -427,24 +151,18 @@ class ForShapeAI:
 
         if not api_key:
             self.logger.warning("No API keys found for any configured provider. AI features will not work.")
-            # Default to openai for backwards compatibility
             provider = "openai"
 
-        # Determine the model to use
         if provider_config and provider_config.default_model:
             agent_model = provider_config.default_model
         else:
             agent_model = self.model if self.model else "gpt-5.1"
 
-        # Create shared chat history manager (shared with HistoryEditStep instances)
         history_manager = ChatHistoryManager()
-
-        # Create wait manager and permission system
         wait_manager = WaitManager()
         permission_input = PermissionInput()
         permission_manager = PermissionManager(permission_requester=permission_input)
 
-        # Create StepJumpController for dynamic step flow control
         # Router can jump to doc_print (which goes to main), main, lint, lint_err_fix
         step_jump_controller = StepJumpController(
             valid_destinations={
@@ -452,211 +170,27 @@ class ForShapeAI:
             }
         )
 
-        # Create and configure tool manager for router step (has all tools + step jump tools)
-        router_tool_manager = ToolManager(logger=self.logger)
-        self._register_router_step_tools(router_tool_manager, wait_manager, permission_manager, step_jump_controller)
-
-        router_system_elements = [
-            Instruction(ROUTER_SYSTEM, description="Router instructions"),
-            DynamicContent(router_tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
-        ]
-
-        router_user_elements = [
-            FileLoader(str(self.config.get_forshape_path()), required=False, description="User preferences"),
-        ]
-
-        router_request_builder = RequestBuilder(router_system_elements, router_user_elements)
-        router_tool_executor = ToolExecutor(tool_manager=router_tool_manager, logger=self.logger)
-
-        # Create and configure tool manager for main step
-        tool_manager = ToolManager(logger=self.logger)
-        self._register_main_step_tools(tool_manager, wait_manager, permission_manager)
-
-        system_elements = [
-            Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
-            FileLoader(str(self.config.get_readme_path()), required=True, description="API documentation"),
-            Instruction(BEST_PRACTICES, description="Best practices"),
-            DynamicContent(tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
-        ]
-
-        user_elements = [
-            FileLoader(str(self.config.get_forshape_path()), required=False, description="User preferences"),
-        ]
-
-        # Create request builder for AI context
-        request_builder = RequestBuilder(system_elements, user_elements)
-
-        # Create tool executor shared by all steps
-        tool_executor = ToolExecutor(tool_manager=tool_manager, logger=self.logger)
-
-        # Create the doc_print step that calls print_document before main step
-        doc_print_tool_call = ToolCallMessage(
-            tool_calls=[
-                ToolCall(
-                    name="print_document",
-                    arguments={},
-                    copy_result_to_response=True,
-                    description="The current FreeCAD document structure printed by print_document tool",
-                    key="doc_print_step_print_document",
-                    policy=HistoryPolicy.LATEST,
-                ),
-                ToolCall(
-                    name="list_files",
-                    arguments={"folder_path": "."},
-                    copy_result_to_response=True,
-                    description="The current files in the working directory listed by list_files tool",
-                    key="doc_print_step_list_files",
-                    policy=HistoryPolicy.LATEST,
-                ),
-            ]
+        main_step, tool_executor = build_main_step(
+            self.config, self.logger, self.edit_history, self.image_context, wait_manager, permission_manager
         )
-        doc_print_step = ToolCallStep(
-            name="doc_print",
-            tool_executor=tool_executor,
-            messages=[doc_print_tool_call],
-            logger=self.logger,
-            step_jump=NextStepJump("main"),
+        doc_print_step = build_doc_print_step(tool_executor, self.logger)
+        router_step, _ = build_router_step(
+            self.config,
+            self.logger,
+            self.edit_history,
+            self.image_context,
+            wait_manager,
+            permission_manager,
+            step_jump_controller,
         )
+        lint_step = build_lint_step(self.config, self.logger)
+        lint_err_fix_step = build_lint_err_fix_step(self.config, self.logger, self.edit_history, permission_manager)
+        diff_step = build_diff_step(self.edit_history, self.logger)
+        review_step = build_review_step(self.config, self.logger, self.edit_history, permission_manager)
+        drop_lint_history_step = build_drop_lint_history_step(history_manager, self.logger)
+        drop_review_history_step = build_drop_review_history_step(history_manager, self.logger)
 
-        # Create the router step - entry point that routes user to workflows or handles utility tasks
-        router_step = Step(
-            name="router",
-            request_builder=router_request_builder,
-            tool_executor=router_tool_executor,
-            max_iterations=20,
-            logger=self.logger,
-            step_jump=None,  # Router decides dynamically via StepJumpTools
-        )
-
-        # Create the main step with tool executor
-        main_step = Step(
-            name="main",
-            request_builder=request_builder,
-            tool_executor=tool_executor,
-            max_iterations=50,
-            logger=self.logger,
-            step_jump=ChangedFilesStepJump("diff", self.edit_history),
-        )
-
-        # Create the lint step with its own tool executor containing only lint tools
-        lint_tool_manager = ToolManager(logger=self.logger)
-        self._register_lint_step_tools(lint_tool_manager)
-        lint_tool_executor = ToolExecutor(tool_manager=lint_tool_manager, logger=self.logger)
-        lint_tool_call = ToolCallMessage(
-            tool_calls=[
-                ToolCall(
-                    name="lint_python",
-                    arguments={
-                        "directory": str(self.config.working_dir),
-                        "format": True,
-                        "fix": True,
-                        "ignore": ["F403", "F405"],
-                    },
-                    copy_result_to_response=True,
-                    key="lint_step_lint_python",
-                    policy=HistoryPolicy.LATEST,
-                ),
-                # ToolCall(
-                #     name="compile_python",
-                #     arguments={
-                #         # "files": ["*.py"],
-                #         "use_edit_history": True,
-                #     },
-                #     copy_result_to_response=True,
-                #     key="lint_step_compile_python",
-                #     policy=HistoryPolicy.LATEST,
-                # ),
-            ]
-        )
-        lint_step = ToolCallStep(
-            name="lint",
-            tool_executor=lint_tool_executor,
-            messages=[lint_tool_call],
-            logger=self.logger,
-            step_jump=LintStepJump("lint_err_fix"),
-        )
-
-        # Create the lint_err_fix step to fix any lint errors found
-        lint_err_fix_tool_manager = ToolManager(logger=self.logger)
-        self._register_lint_err_fix_step_tools(lint_err_fix_tool_manager, permission_manager)
-        lint_err_fix_tool_executor = ToolExecutor(tool_manager=lint_err_fix_tool_manager, logger=self.logger)
-
-        lint_err_fix_request_builder = RequestBuilder(
-            system_elements=[Instruction(LINT_ERR_FIX_SYSTEM, description="Lint and compile error fix instructions")],
-            user_elements=[Instruction(LINT_ERR_FIX_USER, description="Lint and compile error fix task")],
-        )
-        lint_err_fix_step = Step(
-            name="lint_err_fix",
-            request_builder=lint_err_fix_request_builder,
-            tool_executor=lint_err_fix_tool_executor,
-            max_iterations=30,
-            logger=self.logger,
-            step_jump=NextStepJump("drop_lint_history"),
-        )
-
-        # Create the drop_lint_history step to clean up lint and lint_err_fix history
-        drop_lint_history_step = HistoryEditStep(
-            name="drop_lint_history",
-            history_manager=history_manager,
-            step_names_to_drop=["lint", "lint_err_fix"],
-            logger=self.logger,
-        )
-
-        # Create the diff step with its own tool executor containing only diff tools
-        diff_tool_manager = ToolManager(logger=self.logger)
-        self._register_diff_step_tools(diff_tool_manager)
-        diff_tool_executor = ToolExecutor(tool_manager=diff_tool_manager, logger=self.logger)
-        diff_tool_call = ToolCallMessage(
-            tool_calls=[
-                ToolCall(
-                    name="diff_files",
-                    arguments={},
-                    copy_result_to_response=True,
-                    key="diff_step_diff_files",
-                    policy=HistoryPolicy.LATEST,
-                ),
-            ]
-        )
-        diff_step = ToolCallStep(
-            name="diff",
-            tool_executor=diff_tool_executor,
-            messages=[diff_tool_call],
-            logger=self.logger,
-            step_jump=NextStepJump("review"),
-        )
-
-        # Create the review step to review code changes after the diff
-        review_tool_manager = ToolManager(logger=self.logger)
-        self._register_review_step_tools(review_tool_manager, permission_manager)
-        review_tool_executor = ToolExecutor(tool_manager=review_tool_manager, logger=self.logger)
-
-        review_request_builder = RequestBuilder(
-            system_elements=[Instruction(REVIEW_SYSTEM, description="Code review instructions")],
-            user_elements=[
-                FileLoader(str(self.config.get_review_path()), required=False, description="User review instructions"),
-                Instruction(REVIEW_USER, description="Code review task"),
-            ],
-        )
-        review_step = Step(
-            name="review",
-            request_builder=review_request_builder,
-            tool_executor=review_tool_executor,
-            max_iterations=30,
-            logger=self.logger,
-            step_jump=NextStepJump("drop_review_history"),
-        )
-
-        # Create the drop_review_history step to clean up diff and review history
-        drop_review_history_step = HistoryEditStep(
-            name="drop_review_history",
-            history_manager=history_manager,
-            step_names_to_drop=["diff", "review"],
-            logger=self.logger,
-            step_jump=NextStepJump("lint"),
-        )
-
-        # Create AI agent with steps
-        # Flow: router -> (print_doc->main -> diff -> review -> drop_review_history -> lint -> lint_err_fix -> drop_lint_history) or direct tool use
+        # Flow: router -> (doc_print -> main -> diff -> review -> drop_review_history -> lint -> lint_err_fix -> drop_lint_history) or direct tool use
         self.ai_client = AIAgent(
             api_key,
             model=agent_model,
@@ -684,7 +218,6 @@ class ForShapeAI:
         )
         self.logger.info(f"AI client initialized with provider: {provider}, model: {agent_model}")
 
-        # Update the main window with the initialized components
         if self.main_window:
             self.main_window.set_components(
                 self.ai_client,
@@ -695,181 +228,6 @@ class ForShapeAI:
                 self.image_context,
                 self.api_debugger,
             )
-
-    def _register_main_step_tools(
-        self, tool_manager: ToolManager, wait_manager: WaitManager, permission_manager: PermissionManager
-    ) -> None:
-        """
-        Register tools for the main step with the tool manager.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-            wait_manager: WaitManager instance for user interactions
-            permission_manager: PermissionManager instance for permission checks
-        """
-        from agent.tools.calculator_tools import CalculatorTools
-        from agent.tools.file_access_tools import FileAccessTools
-        from agent.tools.interaction_tools import InteractionTools
-        from app.tools import FreeCADTools, VisualizationTools
-
-        # Register file access tools
-        file_access_tools = FileAccessTools(
-            working_dir=self.config.working_dir,
-            logger=self.logger,
-            permission_manager=permission_manager,
-            edit_history=self.edit_history,
-            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
-            exclude_patterns=[],
-        )
-        tool_manager.register_provider(file_access_tools)
-
-        # Register interaction tools
-        interaction_tools = InteractionTools(wait_manager)
-        tool_manager.register_provider(interaction_tools)
-
-        # Register calculator tools
-        calculator_tools = CalculatorTools()
-        tool_manager.register_provider(calculator_tools)
-
-        # Register FreeCAD object manipulation tools
-        freecad_tools = FreeCADTools(permission_manager=permission_manager)
-        tool_manager.register_provider(freecad_tools)
-
-        # Register visualization tools if image_context is available
-        if self.image_context is not None:
-            visualization_tools = VisualizationTools(image_context=self.image_context)
-            tool_manager.register_provider(visualization_tools)
-
-    def _register_lint_step_tools(self, tool_manager: ToolManager) -> None:
-        """
-        Register tools for the lint step with the tool manager.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-        """
-        # from agent.tools.python_compile_tools import PythonCompileTools
-        from agent.tools.python_lint_tools import PythonLintTools
-
-        tool_manager.register_provider(PythonLintTools(exclude_dirs=[".git", ".forshape"]))
-        # tool_manager.register_provider(
-        #     PythonCompileTools(
-        #         working_dir=self.config.working_dir,
-        #         edit_history=self.edit_history,
-        #         logger=self.logger,
-        #     )
-        # )
-
-    def _register_lint_err_fix_step_tools(
-        self, tool_manager: ToolManager, permission_manager: PermissionManager
-    ) -> None:
-        """
-        Register tools for the lint error fix step with the tool manager.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-            permission_manager: PermissionManager instance for permission checks
-        """
-        from agent.tools.file_access_tools import FileAccessTools
-
-        file_access_tools = FileAccessTools(
-            working_dir=self.config.working_dir,
-            logger=self.logger,
-            permission_manager=permission_manager,
-            edit_history=self.edit_history,
-            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
-            exclude_patterns=[],
-        )
-        tool_manager.register_provider(file_access_tools)
-
-    def _register_diff_step_tools(self, tool_manager: ToolManager) -> None:
-        """
-        Register tools for the diff step with the tool manager.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-        """
-        from agent.tools.file_diff_tools import FileDiffTools
-
-        tool_manager.register_provider(FileDiffTools(edit_history=self.edit_history))
-
-    def _register_review_step_tools(self, tool_manager: ToolManager, permission_manager: PermissionManager) -> None:
-        """
-        Register tools for the review step with the tool manager.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-            permission_manager: PermissionManager instance for permission checks
-        """
-        from agent.tools.file_access_tools import FileAccessTools
-
-        file_access_tools = FileAccessTools(
-            working_dir=self.config.working_dir,
-            logger=self.logger,
-            permission_manager=permission_manager,
-            edit_history=self.edit_history,
-            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
-            exclude_patterns=[],
-        )
-        tool_manager.register_provider(file_access_tools)
-
-    def _register_router_step_tools(
-        self,
-        tool_manager: ToolManager,
-        wait_manager: WaitManager,
-        permission_manager: PermissionManager,
-        step_jump_controller: StepJumpController,
-    ) -> None:
-        """
-        Register tools for the router step with the tool manager.
-
-        The router step has access to all main step tools plus ConstantsTools and StepJumpTools.
-
-        Args:
-            tool_manager: ToolManager instance to register tools with
-            wait_manager: WaitManager instance for user interactions
-            permission_manager: PermissionManager instance for permission checks
-            step_jump_controller: StepJumpController for step flow control
-        """
-        from agent.tools.calculator_tools import CalculatorTools
-        from agent.tools.file_access_tools import FileAccessTools
-        from agent.tools.interaction_tools import InteractionTools
-        from app.tools import FreeCADTools, VisualizationTools
-
-        # Register file access tools
-        file_access_tools = FileAccessTools(
-            working_dir=self.config.working_dir,
-            logger=self.logger,
-            permission_manager=permission_manager,
-            edit_history=self.edit_history,
-            exclude_folders=[self.config.get_forshape_folder_name(), ".git", "__pycache__"],
-            exclude_patterns=[],
-        )
-        tool_manager.register_provider(file_access_tools)
-
-        # Register interaction tools
-        interaction_tools = InteractionTools(wait_manager)
-        tool_manager.register_provider(interaction_tools)
-
-        # Register calculator tools
-        calculator_tools = CalculatorTools()
-        tool_manager.register_provider(calculator_tools)
-
-        # Register FreeCAD object manipulation tools
-        freecad_tools = FreeCADTools(permission_manager=permission_manager)
-        tool_manager.register_provider(freecad_tools)
-
-        # Register visualization tools if image_context is available
-        if self.image_context is not None:
-            visualization_tools = VisualizationTools(image_context=self.image_context)
-            tool_manager.register_provider(visualization_tools)
-
-        # Register constants analysis tools
-        constants_tools = ConstantsTools(working_dir=str(self.config.working_dir), logger=self.logger)
-        tool_manager.register_provider(constants_tools)
-
-        # Register step jump tools for routing to other workflows
-        step_jump_tools = StepJumpTools(controller=step_jump_controller, current_step="router")
-        tool_manager.register_provider(step_jump_tools)
 
     def run(self):
         """Start the interactive GUI interface."""

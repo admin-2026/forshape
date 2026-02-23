@@ -133,3 +133,4 @@ The best way to get started with development is probably using an AI agent. The 
 - **`agent/`** — AI agent orchestration: LLM API integration, multi-step workflows, tool execution, chat history, and API key management.
 - **`app/`** — GUI and application layer: main window, configuration, UI components, widgets, and background workers.
 - **`shapes/`** — FreeCAD shape generation library: parametric primitives, boolean operations, transforms, edge features, and export. See [`shapes/README.md`](shapes/README.md) for the API reference.
+  - **`shapes/sketches/`** — 2D primitives, boolean operations, and sketch conversion utilities. See [`shapes/sketches/README.md`](shapes/sketches/README.md) for the API reference.

@@ -80,7 +80,8 @@ def build_main_step(config, logger, edit_history, image_context, wait_manager, p
 
     system_elements = [
         Instruction(BASE_INSTRUCTION + TEMPLATE_FILES_INFO, description="Base instructions and project structure"),
-        FileLoader(str(config.get_readme_path()), required=True, description="API documentation"),
+        FileLoader(str(config.get_solid_api_path()), required=True, description="Solid API documentation"),
+        FileLoader(str(config.get_sketch_api_path()), required=True, description="Sketch API documentation"),
         Instruction(BEST_PRACTICES, description="Best practices"),
         DynamicContent(tool_manager.get_tool_usage_instructions, description="Tool usage instructions"),
     ]

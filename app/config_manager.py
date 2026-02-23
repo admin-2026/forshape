@@ -35,7 +35,8 @@ class ConfigurationManager:
             self.shapes_dir = Path(shapes_dir)
 
         self.project_dir = self.shapes_dir.parent
-        self.readme_path = self.shapes_dir / "README.md"
+        self.solid_api_path = self.shapes_dir / "README.md"
+        self.sketch_api_path = self.shapes_dir / "sketches" / "README.md"
 
         # Initialize working directory paths
         self.working_dir = os.getcwd()
@@ -129,9 +130,13 @@ class ConfigurationManager:
         """Check if FORSHAPE.md exists (alias for has_forshape_md)."""
         return self.forshape_md_file.exists()
 
-    def get_readme_path(self) -> Path:
-        """Get the path to the API documentation README.md file."""
-        return self.readme_path
+    def get_solid_api_path(self) -> Path:
+        """Get the path to the solid shapes API documentation (shapes/README.md)."""
+        return self.solid_api_path
+
+    def get_sketch_api_path(self) -> Path:
+        """Get the path to the sketches API documentation (shapes/sketches/README.md)."""
+        return self.sketch_api_path
 
     def get_forshape_path(self) -> Path:
         """Get the path to FORSHAPE.md (alias for get_forshape_md_file)."""

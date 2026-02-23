@@ -55,6 +55,38 @@ class Context:
             if verbose:
                 print(f"{prefix}{obj.Label}")
                 print(f"{prefix}  Type: Pad")
+                sketch = obj.Profile[0] if obj.Profile else None
+                print(f"{prefix}  Sketch: {sketch.Label if sketch else None}")
+            return
+        if type_id == "PartDesign::AdditiveHelix":
+            if verbose:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditiveHelix")
+                sketch = obj.Profile[0] if obj.Profile else None
+                print(f"{prefix}  Sketch: {sketch.Label if sketch else None}")
+            return
+        if type_id == "PartDesign::Revolution":
+            if verbose:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: Revolution")
+                sketch = obj.Profile[0] if obj.Profile else None
+                print(f"{prefix}  Sketch: {sketch.Label if sketch else None}")
+            return
+        if type_id == "PartDesign::AdditiveLoft":
+            if verbose:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditiveLoft")
+                sections = [s.Label for s in obj.Sections] if obj.Sections else []
+                print(f"{prefix}  Sections: {sections}")
+            return
+        if type_id == "PartDesign::AdditivePipe":
+            if verbose:
+                print(f"{prefix}{obj.Label}")
+                print(f"{prefix}  Type: AdditivePipe")
+                profile = obj.Profile[0] if obj.Profile else None
+                spine = obj.Spine[0] if obj.Spine else None
+                print(f"{prefix}  Profile: {profile.Label if profile else None}")
+                print(f"{prefix}  Spine: {spine.Label if spine else None}")
             return
         if type_id == "PartDesign::Boolean":
             if verbose:

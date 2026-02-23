@@ -5,9 +5,9 @@ import Part
 import Sketcher
 
 
-class FaceToSketch:
+class SketchConverter:
     @staticmethod
-    def convert(face, name, tol=1e-6):
+    def convert(face, name, tol=1e-6, x_offset=0, y_offset=0, z_offset=0, x_rotation=0, y_rotation=0, z_rotation=0):
         """
         Convert a Part.Face to a Sketcher::SketchObject by iterating its edges.
 
@@ -17,14 +17,24 @@ class FaceToSketch:
           - Vertical   : line segments with dx < tol
 
         Args:
-            face: Part.Face to convert.
-            name: Name for the new sketch object.
-            tol:  Tolerance for coincident/degenerate checks (default 1e-6).
+            face:       Part.Face to convert.
+            name:       Name for the new sketch object.
+            tol:        Tolerance for coincident/degenerate checks (default 1e-6).
+            x_offset:   Translation along X in mm (default 0).
+            y_offset:   Translation along Y in mm (default 0).
+            z_offset:   Translation along Z in mm (default 0).
+            x_rotation: Rotation around X axis in degrees (default 0).
+            y_rotation: Rotation around Y axis in degrees (default 0).
+            z_rotation: Rotation around Z axis in degrees (default 0).
 
         Returns:
             Sketcher::SketchObject
         """
         sketch = App.ActiveDocument.addObject("Sketcher::SketchObject", name)
+        sketch.Placement = App.Placement(
+            App.Vector(x_offset, y_offset, z_offset),
+            App.Rotation(z_rotation, y_rotation, x_rotation),
+        )
         # geo_data: list of (geo_index, start_pt, end_pt, edge_type)
         geo_data = []
 
@@ -84,3 +94,23 @@ class FaceToSketch:
                 sketch.addConstraint(Sketcher.Constraint("Vertical", idx))
 
         return sketch
+
+    @staticmethod
+    def place(sketch, x_offset=0, y_offset=0, z_offset=0, x_rotation=0, y_rotation=0, z_rotation=0):
+        """
+        Move and/or rotate an existing sketch to the desired location.
+
+        Args:
+            sketch:     Sketcher::SketchObject to transform.
+            x_offset:   Translation along X in mm (default 0).
+            y_offset:   Translation along Y in mm (default 0).
+            z_offset:   Translation along Z in mm (default 0).
+            x_rotation: Rotation around X axis in degrees (default 0).
+            y_rotation: Rotation around Y axis in degrees (default 0).
+            z_rotation: Rotation around Z axis in degrees (default 0).
+        """
+        sketch.Placement = App.Placement(
+            App.Vector(x_offset, y_offset, z_offset),
+            App.Rotation(z_rotation, y_rotation, x_rotation),
+        )
+        App.ActiveDocument.recompute()

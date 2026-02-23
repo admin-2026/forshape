@@ -44,7 +44,7 @@ Returns `face_a` with `face_b` subtracted.
 
 ---
 
-## `FaceToSketch`
+## `SketchConverter`
 
 Converts a `Part.Face` to a `Sketcher::SketchObject` by iterating its edges.
 
@@ -55,19 +55,27 @@ Autoconstraints applied automatically:
 
 Supported curve types: `Part.Line`, `Part.Circle` (full circle and arc), `Part.BSplineCurve`.
 
-### `FaceToSketch.convert(face, name, tol=1e-6)`
+### `SketchConverter.convert(face, name, tol=1e-6, x_offset=0, y_offset=0, z_offset=0, x_rotation=0, y_rotation=0, z_rotation=0)`
 - `face`: `Part.Face` to convert.
 - `name`: Name for the new sketch object.
 - `tol`: Tolerance for coincident/degenerate checks (default `1e-6`).
+- `x_offset`, `y_offset`, `z_offset`: Translation in mm (default `0`).
+- `x_rotation`, `y_rotation`, `z_rotation`: Rotation in degrees around each axis (default `0`).
 - Uses `App.ActiveDocument` internally.
 - Returns: `Sketcher::SketchObject`
+
+### `SketchConverter.place(sketch, x_offset=0, y_offset=0, z_offset=0, x_rotation=0, y_rotation=0, z_rotation=0)`
+- `sketch`: Existing `Sketcher::SketchObject` to transform.
+- `x_offset`, `y_offset`, `z_offset`: Translation in mm (default `0`).
+- `x_rotation`, `y_rotation`, `z_rotation`: Rotation in degrees around each axis (default `0`).
+- Calls `App.ActiveDocument.recompute()` after updating the placement.
 
 ---
 
 ## Examples
 
 ```python
-from shapes.sketches.v0 import Primitives2D, Boolean2D, FaceToSketch
+from shapes.sketches.v0 import Primitives2D, Boolean2D, SketchConverter
 
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)])
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)], rotation=90)
@@ -88,7 +96,13 @@ Boolean2D.intersection(a, b)
 Boolean2D.difference(a, b)
 
 face = Primitives2D.make_rect(x=0, y=0, w=20, h=10)
-sketch = FaceToSketch.convert(face, "MySketch")
+sketch = SketchConverter.convert(face, "MySketch")
 
-sketch = FaceToSketch.convert(face, "MySketch", tol=1e-5)
+sketch = SketchConverter.convert(face, "MySketch", tol=1e-5)
+
+# Place the sketch at a specific position
+sketch = SketchConverter.convert(face, "MySketch", x_offset=10, y_offset=20, z_offset=5)
+
+# Place on the YZ plane (90° rotation around X axis)
+sketch = SketchConverter.convert(face, "MySketch", x_rotation=90)
 ```

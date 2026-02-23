@@ -5,7 +5,7 @@
 - All `Primitives2D` methods return a `Part.Face` on the XY plane (z=0).
 - All `Boolean2D` methods return a `Part.Shape`.
 - `rotation` is in degrees, counter-clockwise, default `0`.
-- Import: `from shapes.sketches import Primitives2D, Boolean2D`
+- Import: `from shapes.sketches import Primitives2D, Boolean2D, FaceToSketch`
 
 ## API
 
@@ -42,10 +42,32 @@ Returns `face_a` with `face_b` subtracted.
 
 ---
 
+---
+
+## `FaceToSketch`
+
+Converts a `Part.Face` to a `Sketcher::SketchObject` by iterating its edges.
+
+Autoconstraints applied automatically:
+- **Coincident** — shared vertices between edges
+- **Horizontal** — line segments where `dy < tol`
+- **Vertical** — line segments where `dx < tol`
+
+Supported curve types: `Part.Line`, `Part.Circle` (full circle and arc), `Part.BSplineCurve`.
+
+### `FaceToSketch.convert(face, name, tol=1e-6)`
+- `face`: `Part.Face` to convert.
+- `name`: Name for the new sketch object.
+- `tol`: Tolerance for coincident/degenerate checks (default `1e-6`).
+- Uses `App.ActiveDocument` internally.
+- Returns: `Sketcher::SketchObject`
+
+---
+
 ## Examples
 
 ```python
-from shapes.sketches import Primitives2D, Boolean2D
+from shapes.sketches import Primitives2D, Boolean2D, FaceToSketch
 
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)])
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)], rotation=90)
@@ -64,4 +86,9 @@ b = Primitives2D.make_circle(cx=10, cy=10, r=8)
 Boolean2D.union(a, b)
 Boolean2D.intersection(a, b)
 Boolean2D.difference(a, b)
+
+face = Primitives2D.make_rect(x=0, y=0, w=20, h=10)
+sketch = FaceToSketch.convert(face, "MySketch")
+
+sketch = FaceToSketch.convert(face, "MySketch", tol=1e-5)
 ```

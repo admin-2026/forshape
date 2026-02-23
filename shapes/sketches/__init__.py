@@ -3,3 +3,5 @@ from .face_to_sketch import FaceToSketch
 from .primitives_2d import Primitives2D
 
 __all__ = ["Primitives2D", "Boolean2D", "FaceToSketch"]
+
+__version__ = "0.1.0"

@@ -5,7 +5,7 @@
 - All `Primitives2D` methods return a `Part.Face` on the XY plane (z=0).
 - All `Boolean2D` methods return a `Part.Shape`.
 - `rotation` is in degrees, counter-clockwise, default `0`.
-- Import: `from shapes.sketches import Primitives2D, Boolean2D, FaceToSketch`
+
 
 ## API
 
@@ -67,7 +67,7 @@ Supported curve types: `Part.Line`, `Part.Circle` (full circle and arc), `Part.B
 ## Examples
 
 ```python
-from shapes.sketches import Primitives2D, Boolean2D, FaceToSketch
+from shapes.sketches.v0 import Primitives2D, Boolean2D, FaceToSketch
 
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)])
 Primitives2D.make_polygon(points=[(0,0),(10,0),(5,8)], rotation=90)

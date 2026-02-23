@@ -1,2 +1,2 @@
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 VERSION_URL = "https://raw.githubusercontent.com/admin-2026/forshape/refs/heads/main/about.py"

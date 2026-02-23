@@ -5,6 +5,7 @@ import Part
 import Sketcher
 
 from ..context import Context
+from ..shape import Shape
 
 
 class SketchConverter:
@@ -30,8 +31,15 @@ class SketchConverter:
             z_rotation: Rotation around Z axis in degrees (default 0).
 
         Returns:
-            Sketcher::SketchObject
+            Sketcher::SketchObject, or None in teardown mode
         """
+        incremental_build_obj = Shape._incremental_build_if_possible(name, expected_type="Sketcher::SketchObject")
+        if incremental_build_obj is not None:
+            return incremental_build_obj
+
+        if Shape._teardown_if_needed(name):
+            return None
+
         sketch = App.ActiveDocument.addObject("Sketcher::SketchObject", name)
         sketch.Placement = App.Placement(
             App.Vector(x_offset, y_offset, z_offset),

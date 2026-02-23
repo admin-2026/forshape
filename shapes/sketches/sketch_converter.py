@@ -4,6 +4,8 @@ import FreeCAD as App
 import Part
 import Sketcher
 
+from ..context import Context
+
 
 class SketchConverter:
     @staticmethod
@@ -113,4 +115,20 @@ class SketchConverter:
             App.Vector(x_offset, y_offset, z_offset),
             App.Rotation(z_rotation, y_rotation, x_rotation),
         )
+        App.ActiveDocument.recompute()
+
+    @staticmethod
+    def attach_to_face(sketch_label, obj_or_label, face_name):
+        """
+        Attach an existing sketch to a named face of an object.
+
+        Args:
+            sketch_label: Label/name of the Sketcher::SketchObject to attach.
+            obj_or_label: Object or its label/name to attach to.
+            face_name:    Face name on the object, e.g. "Face1".
+        """
+        sketch = Context.get_object(sketch_label)
+        obj = Context.get_object(obj_or_label)
+        sketch.AttachmentSupport = [(obj, face_name)]
+        sketch.MapMode = "FlatFace"
         App.ActiveDocument.recompute()

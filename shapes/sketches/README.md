@@ -70,6 +70,12 @@ Supported curve types: `Part.Line`, `Part.Circle` (full circle and arc), `Part.B
 - `x_rotation`, `y_rotation`, `z_rotation`: Rotation in degrees around each axis (default `0`).
 - Calls `App.ActiveDocument.recompute()` after updating the placement.
 
+### `SketchConverter.attach_to_face(sketch_label, obj_or_label, face_name)`
+- `sketch_label`: Label/name of the `Sketcher::SketchObject` to attach.
+- `obj_or_label`: Object or its label/name to attach to.
+- `face_name`: Face name on the object, e.g. `"Face1"`.
+- Sets `MapMode = "FlatFace"` and calls `App.ActiveDocument.recompute()`.
+
 ---
 
 ## Examples

@@ -213,12 +213,16 @@ class Step:
 
                 response_message = response.choices[0].message
 
-                # Invoke response content callback if provided
-                if response_content_callback and response_message.content:
-                    response_content_callback(self.name, response_message.content)
-
                 # Check if the agent wants to call tools
                 if response_message.tool_calls:
+                    # Invoke response content callback with content + tool call names
+                    if response_content_callback:
+                        tool_calls_repr = ", ".join(tc.function.name for tc in response_message.tool_calls)
+                        combined_content = response_message.content or ""
+                        if combined_content:
+                            combined_content += "\n"
+                        combined_content += f"[Calling: {tool_calls_repr}]"
+                        response_content_callback(self.name, combined_content)
                     # Add the assistant's message (with tool_calls) to messages first
                     # Use exclude_none=True to avoid sending extra fields like 'refusal',
                     # 'annotations', 'audio', 'function_call' that some APIs reject
@@ -265,6 +269,9 @@ class Step:
 
                 # No tool calls, we have a final response
                 final_response = response_message.content
+
+                if response_content_callback and final_response:
+                    response_content_callback(self.name, final_response)
 
                 return StepResult(
                     history_messages=[

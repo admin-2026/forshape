@@ -212,12 +212,24 @@ class AIAgent:
             step_index += 1
             self.logger.info(f"Executing step {step_index}: {step_name}")
 
+            # Capture accumulated totals from previous steps before this step runs
+            prev_prompt_tokens = total_prompt_tokens
+            prev_completion_tokens = total_completion_tokens
+            prev_total_tokens = total_tokens
+
             # Create a token callback that accumulates usage
-            def step_token_callback(token_data, _step_name=step_name, _step_index=step_index):
+            def step_token_callback(
+                token_data,
+                _step_name=step_name,
+                _step_index=step_index,
+                _prev_prompt=prev_prompt_tokens,
+                _prev_completion=prev_completion_tokens,
+                _prev_total=prev_total_tokens,
+            ):
                 nonlocal total_prompt_tokens, total_completion_tokens, total_tokens
-                total_prompt_tokens = token_data["prompt_tokens"]
-                total_completion_tokens = token_data["completion_tokens"]
-                total_tokens = token_data["total_tokens"]
+                total_prompt_tokens = _prev_prompt + token_data["prompt_tokens"]
+                total_completion_tokens = _prev_completion + token_data["completion_tokens"]
+                total_tokens = _prev_total + token_data["total_tokens"]
 
                 if token_callback:
                     token_callback(

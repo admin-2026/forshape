@@ -123,8 +123,10 @@ BEST_PRACTICES = """
 
 - When a user reports an error in a generated script, **read the script first** to understand the issue
 - After generating new code, you can **directly write or edit the script file** instead of just showing code
+- Saving a script does **not** update the FreeCAD document. The document only reflects the last time the user ran the script. Do not assume the document state matches the latest code.
+- Do **not** run the generated script unless the user explicitly asks you to.
 - Use **list_files** to explore the project structure when needed
-- Front means -Y direction. Back/REAR is +Y direction. Left is -X direction. Right is +X direction. Top is +Z direction. Bottom is -Z direction.
+- Front means -Y direction. Back/rear is +Y direction. Left is -X direction. Right is +X direction. Top is +Z direction. Bottom is -Z direction.
 - Avoid inserting dangerous code into the generated script.
 - After creating a new object, export it in the export.py. Usually, we export the top level object not components of the top level object.
 """

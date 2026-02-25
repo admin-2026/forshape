@@ -13,6 +13,8 @@ ForShape AI is an AI-powered FreeCAD plugin that lets you create and manipulate 
 
 **Workflow:** User input → AI agent → Python code → 3D parametric design. You describe what you want in natural language, the AI agent translates your description into FreeCAD Python scripts, and FreeCAD executes them to produce parametric 3D models.
 
+The AI agent generates Python scripts that perform boolean operations on 3D or 2D primitives to build solids and sketches respectively. See [`shapes/README.md`](shapes/README.md) for the 3D API and [`shapes/sketches/README.md`](shapes/sketches/README.md) for the 2D sketch API.
+
 ## Installation
 
 ### Prerequisites
